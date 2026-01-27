@@ -120,26 +120,26 @@
     - Stack columns on tablet
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
-- [ ] 7. Implement video rendering
-  - [ ] 7.1 Create apps/web/app/api/render/route.ts
+- [x] 7. Implement video rendering
+  - [x] 7.1 Create apps/web/app/api/render/route.ts
     - Accept storyboard JSON
     - Validate with Zod schema
     - Call Remotion Lambda renderMediaOnLambda
     - Return render ID
     - _Requirements: 5.1, 5.5, 5.6_
 
-  - [ ] 7.2 Create apps/web/app/api/download/[id]/route.ts
+  - [x] 7.2 Create apps/web/app/api/download/[id]/route.ts
     - Generate pre-signed S3 URL
     - Return download URL with 1 hour expiration
     - _Requirements: 6.3, 6.4_
 
-  - [ ] 7.3 Add render button to UI
+  - [x] 7.3 Add render button to UI
     - Trigger render API on click
     - Show progress indicator
     - Display download link when complete
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ] 7.4 Handle render errors
+  - [x] 7.4 Handle render errors
     - Display error messages
     - Allow retry
     - _Requirements: 5.4, 13.1, 13.2_
