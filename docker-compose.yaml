@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16.4
-    container_name: a-ds-postgres
+    container_name: ads-postgres
     restart: unless-stopped
     ports:
       - '5432:5432'

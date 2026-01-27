@@ -1,9 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
-import { database } from './database';
-
-// Start Docker Compose services (PostgreSQL)
-new sst.x.DevCommand('Docker', {
+export const devDocker = new sst.x.DevCommand('Docker', {
   dev: {
     autostart: true,
     title: 'Docker Services',
@@ -12,12 +9,19 @@ new sst.x.DevCommand('Docker', {
   },
 });
 
-// Start Drizzle Studio for database management
-new sst.x.DevCommand('Studio', {
-  link: [database],
+// new sst.x.DevCommand('Studio', {
+//   link: [database],
+//   dev: {
+//     autostart: false,
+//     title: 'Drizzle Studio',
+//     command: 'npx drizzle-kit studio',
+//   },
+// });
+
+export const devDependencies = new sst.x.DevCommand("DevDependencies", {
   dev: {
-    autostart: false,
-    title: 'Drizzle Studio',
-    command: 'npx drizzle-kit studio',
+    autostart: true,
+    command: "turbo dev --filter='!web'",
+    directory: ".",
   },
 });
