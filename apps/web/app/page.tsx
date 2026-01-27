@@ -32,37 +32,9 @@ export default function Home() {
         throw new Error("Failed to generate storyboard");
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedText = "";
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6));
-            if (data.chunk) {
-              accumulatedText += data.chunk;
-            }
-          }
-        }
-      }
-
-      // Parse the accumulated JSON
-      const jsonMatch = accumulatedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsedStoryboard = JSON.parse(jsonMatch[0]);
-        setStoryboard(parsedStoryboard);
-      }
+      const text = await response.text();
+      const storyboardData = JSON.parse(text);
+      setStoryboard(storyboardData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
