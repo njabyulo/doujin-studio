@@ -2,15 +2,25 @@
   "name": "a-ds",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "dev": "pnpm --filter @a-ds/web dev",
-    "build": "pnpm --recursive build",
-    "format": "prettier --write .",
-    "lint": "pnpm --recursive lint",
-    "type-check": "pnpm --recursive type-check"
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "lint:code": "turbo run lint:code",
+    "lint:type": "turbo run lint:type",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:generate": "turbo run db:generate --filter=@a-ds/database",
+    "db:migrate": "turbo run db:migrate --filter=@a-ds/database",
+    "db:studio": "turbo run db:studio --filter=@a-ds/database",
+    "clean": "turbo clean",
+    "clean:all": "turbo clean && rm -rf node_modules .turbo .sst"
   },
   "devDependencies": {
     "prettier": "^3.8.1",
+    "turbo": "^2.3.3",
     "typescript": "^5.9.3"
   }
 }
