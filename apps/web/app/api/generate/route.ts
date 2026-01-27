@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     const result = streamText({
-      model: google('gemini-1.5-pro'),
+      model: google("gemini-2.5-flash"),
       output: Output.object({ schema: SStoryboard }),
       prompt: `Analyze the content at this URL: ${url}
 
