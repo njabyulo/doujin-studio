@@ -16,8 +16,8 @@
   - Install dependencies: @remotion/player, @remotion/lambda, ai, @ai-sdk/google, zod
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
 
-- [ ] 2. Define storyboard schema and types
-  - [ ] 2.1 Create packages/remotion/src/types.ts
+- [x] 2. Define storyboard schema and types
+  - [x] 2.1 Create packages/remotion/src/types.ts
     - Define TScene, TStoryboard types
     - Define SScene, SStoryboard Zod schemas
     - Export validation helpers
