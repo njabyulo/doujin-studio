@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 // Zod Schemas
 export const SScene = z.object({
@@ -12,7 +12,7 @@ export const SStoryboard = z.object({
   adTitle: z.string().min(1).max(100),
   branding: z.object({
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-    fontFamily: z.enum(['Inter', 'Roboto', 'Montserrat']),
+    fontFamily: z.enum(["Inter", "Roboto", "Montserrat"]),
   }),
   scenes: z.array(SScene).min(1).max(6),
 });
@@ -29,7 +29,7 @@ export function validateStoryboard(data: unknown): TStoryboard {
 export function validateTotalDuration(storyboard: TStoryboard): boolean {
   const total = storyboard.scenes.reduce(
     (acc, scene) => acc + scene.durationInSeconds,
-    0
+    0,
   );
   return total <= 30;
 }

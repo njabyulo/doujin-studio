@@ -1,16 +1,20 @@
-'use client';
-import React from 'react';
-import { AbsoluteFill, Sequence, useVideoConfig } from 'remotion';
-import { Scene } from './Scene';
-import { TStoryboard } from './types';
+"use client";
+import React from "react";
+import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
+import { Scene } from "./Scene";
+import { TStoryboard } from "./types";
 
-export const Master: React.FC<TStoryboard> = ({ adTitle, branding, scenes }) => {
+export const Master: React.FC<TStoryboard> = ({
+  adTitle,
+  branding,
+  scenes,
+}) => {
   const { fps } = useVideoConfig();
 
   let currentFrame = 0;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
+    <AbsoluteFill style={{ backgroundColor: "#000" }}>
       {scenes.map((scene, index) => {
         const durationInFrames = scene.durationInSeconds * fps;
         const from = currentFrame;
