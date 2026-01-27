@@ -87,27 +87,27 @@
     - Set output format (MP4, H.264)
     - _Requirements: 5.5_
 
-- [ ] 6. Build frontend UI
-  - [ ] 6.1 Create apps/web/components/url-input.tsx
+- [x] 6. Build frontend UI
+  - [x] 6.1 Create apps/web/components/url-input.tsx
     - Input field for URL
     - Generate button
     - Loading state during generation
     - _Requirements: 1.1, 2.1_
 
-  - [ ] 6.2 Create apps/web/components/storyboard-editor.tsx
+  - [x] 6.2 Create apps/web/components/storyboard-editor.tsx
     - Editable fields for ad title, colors, fonts
     - Scene list with text overlay and duration inputs
     - Real-time validation
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-  - [ ] 6.3 Create apps/web/components/video-preview.tsx
+  - [x] 6.3 Create apps/web/components/video-preview.tsx
     - Integrate Remotion Player
     - Pass storyboard as inputProps
     - Calculate total duration in frames
     - Add playback controls
     - _Requirements: 3.1, 3.2, 3.5, 3.6_
 
-  - [ ] 6.4 Create apps/web/app/page.tsx
+  - [x] 6.4 Create apps/web/app/page.tsx
     - Two-column layout (editor left, preview right)
     - Wire URL input to generation API
     - Handle SSE streaming updates
@@ -115,7 +115,7 @@
     - Pass storyboard to preview
     - _Requirements: 2.1, 2.2, 2.3, 2.6, 3.3, 12.5_
 
-  - [ ] 6.5 Add responsive layout
+  - [x] 6.5 Add responsive layout
     - Use Tailwind breakpoints
     - Stack columns on tablet
     - _Requirements: 12.1, 12.2, 12.3, 12.4_

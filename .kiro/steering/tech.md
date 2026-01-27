@@ -83,10 +83,14 @@ npx sst deploy --stage production # Deploy to specific stage
 ## SST Infrastructure Pattern
 
 **Structure:**
-- `sst.config.ts` - Main SST configuration at root
+- `sst.config.ts` - Main SST configuration at root (includes `/// <reference path="./.sst/platform/config.d.ts" />`)
 - `infra/storage.ts` - S3 buckets for video storage
 - `infra/compute.ts` - Lambda functions for Remotion rendering
 - `infra/database.ts` - PostgreSQL configuration (Docker in dev, RDS in prod)
+- `apps/functions/src/handlers/` - Lambda function handlers organized by type:
+  - `http/` - HTTP API handlers (API Gateway)
+  - `queue/` - Queue handlers (SQS)
+  - `cron/` - Scheduled handlers (EventBridge)
 
 **Key Concepts:**
 - Infrastructure defined as TypeScript code
@@ -94,6 +98,15 @@ npx sst deploy --stage production # Deploy to specific stage
 - Access resources in code via `import { Resource } from 'sst'`
 - Dev mode uses local Docker PostgreSQL
 - Production deploys to AWS (S3, Lambda, RDS)
+
+**SST in Monorepo:**
+- SST should be installed at ROOT level, not in individual workspaces
+- Resource types are auto-generated in `sst-env.d.ts` when you run `sst dev` or deploy
+- Type errors for `Resource.{ResourceName}` are expected until SST generates types
+- SST automatically: (1) generates types for linked resources, (2) injects links into function package, (3) grants permissions
+- Use `Resource.{ResourceName}` to access linked resources in handlers (e.g., `Resource.MyBucket.name`)
+- Handler paths in infra: `apps/functions/src/handlers/{type}/{name}.handler`
+- Can check `sst-env.d.ts` into source control for teammates to see types without running `sst dev`
 
 ## Pre-Commit Requirements
 
