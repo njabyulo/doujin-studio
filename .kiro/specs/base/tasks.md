@@ -23,28 +23,28 @@
     - Export validation helpers
     - _Requirements: 7.1, 7.2, 7.4, 7.5, 7.6_
 
-- [ ] 3. Set up SST infrastructure
-  - [ ] 3.1 Create infra/storage.ts
+- [x] 3. Set up SST infrastructure
+  - [x] 3.1 Create infra/storage.ts
     - Define S3 bucket with public access
     - Export bucket resource
     - _Requirements: 6.1, 6.2, 6.7_
 
-  - [ ] 3.2 Create infra/database.ts
+  - [x] 3.2 Create infra/database.ts
     - Define Postgres with dev config (localhost:5432)
     - _Requirements: 6.5, 9.9_
 
-  - [ ] 3.3 Create infra/compute.ts
+  - [x] 3.3 Create infra/compute.ts
     - Define Remotion Lambda function
     - Link to S3 bucket
     - _Requirements: 6.1, 6.2_
 
-  - [ ] 3.4 Update sst.config.ts
+  - [x] 3.4 Update sst.config.ts
     - Import all infra modules
     - Export resource names
     - _Requirements: 6.1, 6.2_
 
-- [ ] 4. Implement Gemini storyboard generation API
-  - [ ] 4.1 Create apps/web/app/api/generate/route.ts
+- [x] 4. Implement Gemini storyboard generation API
+  - [x] 4.1 Create apps/web/app/api/generate/route.ts
     - Implement POST handler with SSE streaming
     - Use Vercel AI SDK with Gemini 1.5 Pro
     - Pass URL via URL context tool
@@ -52,12 +52,12 @@
     - Stream text chunks as SSE events
     - _Requirements: 1.1, 1.2, 1.7, 2.1, 2.2, 8.1, 8.2, 8.7_
 
-  - [ ] 4.2 Add URL validation
+  - [x] 4.2 Add URL validation
     - Validate URL format before sending to Gemini
     - Return 400 for invalid URLs
     - _Requirements: 1.5_
 
-  - [ ] 4.3 Add error handling
+  - [x] 4.3 Add error handling
     - Handle Gemini API errors
     - Handle timeout (60s)
     - Return user-friendly error messages
