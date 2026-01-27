@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { AbsoluteFill, Sequence, useVideoConfig } from 'remotion';
 import { Scene } from './Scene';

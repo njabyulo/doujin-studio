@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { TScene, TStoryboard } from './types';

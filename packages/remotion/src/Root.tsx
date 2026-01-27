@@ -1,3 +1,4 @@
+'use client';
 import { Composition } from 'remotion';
 import { Master } from './Master';
 import { TStoryboard } from './types';
