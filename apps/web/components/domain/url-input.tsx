@@ -11,10 +11,11 @@ interface UrlInputProps {
 
 export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
   const [url, setUrl] = useState("");
+  const isValid = url.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (url) onGenerate(url);
+    if (isValid) onGenerate(url);
   };
 
   return (
@@ -28,7 +29,7 @@ export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
         required
         className="flex-1"
       />
-      <Button type="submit" disabled={isGenerating || !url}>
+      <Button type="submit" disabled={isGenerating || !isValid}>
         {isGenerating ? "Generating..." : "Generate"}
       </Button>
     </form>
