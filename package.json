@@ -1,0 +1,16 @@
+{
+  "name": "a-ds",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @a-ds/web dev",
+    "build": "pnpm --recursive build",
+    "format": "prettier --write .",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
+  }
+}
