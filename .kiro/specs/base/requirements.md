@@ -203,4 +203,3 @@ This document specifies the requirements for a streamlined MVP of an AI-powered 
 4. THE API SHALL validate all requests using Zod schemas
 5. THE API SHALL return consistent error responses with status codes and messages
 6. THE API SHALL implement CORS for frontend-backend communication
-

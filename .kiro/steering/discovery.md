@@ -27,6 +27,7 @@ inclusion: always
 ### 3. Research External Dependencies
 
 **Tools:**
+
 - **Context7 MCP** (preferred): `mcp_ontext7_resolve_library_id` → `mcp_ontext7_query_docs`
   - Use for: React, Next.js, Drizzle, Hono, Better Auth, official docs
   - Limit: 3 calls per question
@@ -34,6 +35,7 @@ inclusion: always
   - Use for: tutorials, troubleshooting, library comparisons
 
 **Research:**
+
 - Official documentation and API specs
 - Version compatibility and breaking changes
 - Best practices
@@ -71,12 +73,14 @@ inclusion: always
 ### Effective Questions
 
 **Good format:**
+
 1. Provide context (what you researched)
 2. State the ambiguity clearly
 3. Offer 2-3 options with implications
 4. Explain how answer affects implementation
 
 **Bad format:**
+
 - Vague questions without context
 - No research shown
 - Questions answerable from existing info
@@ -84,6 +88,7 @@ inclusion: always
 ### When to STOP vs Proceed
 
 **STOP if:**
+
 - Core requirement unclear
 - Critical technical decisions unresolved (architecture, security)
 - Data schema ambiguous
@@ -91,6 +96,7 @@ inclusion: always
 - Success criteria vague
 
 **CAN proceed if:**
+
 - Edge cases handleable later
 - UI polish not affecting core functionality
 - Flexible solution supports multiple options
@@ -132,14 +138,16 @@ inclusion: always
 **Options:**
 
 A. [Approach]
-   - Pros: [List]
-   - Cons: [List]
-   - Impact: [Architecture/security/performance/cost/timeline]
+
+- Pros: [List]
+- Cons: [List]
+- Impact: [Architecture/security/performance/cost/timeline]
 
 B. [Approach]
-   - Pros: [List]
-   - Cons: [List]
-   - Impact: [Architecture/security/performance/cost/timeline]
+
+- Pros: [List]
+- Cons: [List]
+- Impact: [Architecture/security/performance/cost/timeline]
 
 **Recommendation:** [Your recommendation and reasoning]
 

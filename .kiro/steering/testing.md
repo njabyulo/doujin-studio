@@ -15,12 +15,14 @@ inclusion: always
 ### Test Location & Framework
 
 Tests in `__tests__` folders mirroring `src` structure:
+
 - `src/services/project.service.ts` → `__tests__/services/project.service.test.ts`
 - Framework: Vitest with built-in mocking (`vi.fn()`, `vi.mock()`)
 
 ### What to Unit Test
 
 **DO test:**
+
 - Services: business logic, validation, error handling, orchestration
 - Repositories: data access, query building, transformations
 - Adapters: API integration, request/response transformation, error normalization
@@ -28,6 +30,7 @@ Tests in `__tests__` folders mirroring `src` structure:
 - Components: rendering, interactions, state, props
 
 **DON'T test:**
+
 - Database queries (use Chrome DevTools MCP)
 - External API calls (mock in unit tests, test flows with Chrome DevTools MCP)
 - Full user flows (use Chrome DevTools MCP)
@@ -36,8 +39,9 @@ Tests in `__tests__` folders mirroring `src` structure:
 ### Test Patterns
 
 **Service tests** - Mock repository and adapter ports:
+
 ```typescript
-describe('ProjectService', () => {
+describe("ProjectService", () => {
   let service: ProjectService;
   let mockRepo: IProjectRepository;
   let mockEmail: IEmailSender;
@@ -48,18 +52,19 @@ describe('ProjectService', () => {
     service = new ProjectService(mockRepo, mockEmail);
   });
 
-  it('should create project and send email', async () => {
-    mockRepo.create = vi.fn().mockResolvedValue({ id: '1', name: 'Test' });
-    const result = await service.createProject('Test');
-    expect(mockRepo.create).toHaveBeenCalledWith({ name: 'Test' });
+  it("should create project and send email", async () => {
+    mockRepo.create = vi.fn().mockResolvedValue({ id: "1", name: "Test" });
+    const result = await service.createProject("Test");
+    expect(mockRepo.create).toHaveBeenCalledWith({ name: "Test" });
     expect(mockEmail.send).toHaveBeenCalled();
   });
 });
 ```
 
 **Repository tests** - Mock database client:
+
 ```typescript
-describe('ProjectRepository', () => {
+describe("ProjectRepository", () => {
   let repo: ProjectRepository;
   let mockDb: Database;
 
@@ -72,43 +77,47 @@ describe('ProjectRepository', () => {
     repo = new ProjectRepository(mockDb);
   });
 
-  it('should insert project', async () => {
-    mockDb.returning = vi.fn().mockResolvedValue([{ id: '1' }]);
-    await repo.create({ name: 'Test' });
+  it("should insert project", async () => {
+    mockDb.returning = vi.fn().mockResolvedValue([{ id: "1" }]);
+    await repo.create({ name: "Test" });
     expect(mockDb.insert).toHaveBeenCalled();
   });
 });
 ```
 
 **Adapter tests** - Mock external APIs:
+
 ```typescript
 global.fetch = vi.fn();
 
-describe('GeminiAdapter', () => {
-  it('should call API and parse response', async () => {
+describe("GeminiAdapter", () => {
+  it("should call API and parse response", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => ({ candidates: [{ content: { parts: [{ text: 'result' }] } }] }),
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: "result" }] } }],
+      }),
     });
 
-    const adapter = new GeminiAdapter('key');
-    const result = await adapter.generateScript({ prompt: 'test' });
-    expect(result.content).toBe('result');
+    const adapter = new GeminiAdapter("key");
+    const result = await adapter.generateScript({ prompt: "test" });
+    expect(result.content).toBe("result");
   });
 });
 ```
 
 **Handler tests** - Mock service factories:
+
 ```typescript
-vi.mock('@a-ds/core', () => ({
+vi.mock("@a-ds/core", () => ({
   createProjectService: vi.fn(() => ({ createProject: vi.fn() })),
 }));
 
-describe('Projects Handler', () => {
-  it('should return 201 on success', async () => {
-    const response = await app.request('/projects', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'Test' }),
+describe("Projects Handler", () => {
+  it("should return 201 on success", async () => {
+    const response = await app.request("/projects", {
+      method: "POST",
+      body: JSON.stringify({ name: "Test" }),
     });
     expect(response.status).toBe(201);
   });
@@ -116,6 +125,7 @@ describe('Projects Handler', () => {
 ```
 
 **Component tests** - Use @testing-library/react:
+
 ```typescript
 describe('ProjectCard', () => {
   it('should call onSelect when clicked', () => {
@@ -130,11 +140,12 @@ describe('ProjectCard', () => {
 ### Test Organization
 
 Use `describe` blocks for structure:
+
 ```typescript
-describe('ServiceName', () => {
-  describe('methodName', () => {
-    it('should handle normal case', () => {});
-    it('should handle error case', () => {});
+describe("ServiceName", () => {
+  describe("methodName", () => {
+    it("should handle normal case", () => {});
+    it("should handle error case", () => {});
   });
 });
 ```
@@ -194,6 +205,7 @@ Focus on critical paths and edge cases, not coverage numbers.
 ## Best Practices
 
 **DO:**
+
 - Test business logic, error handling, edge cases
 - Use descriptive test names
 - Keep tests isolated and independent
@@ -202,6 +214,7 @@ Focus on critical paths and edge cases, not coverage numbers.
 - Use arrange-act-assert pattern
 
 **DON'T:**
+
 - Test implementation details
 - Write dependent tests
 - Mock everything (test real logic)

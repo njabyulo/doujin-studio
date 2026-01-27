@@ -51,6 +51,7 @@ export type TCreateProject = z.infer<typeof SCreateProject>;
 ## Modern JavaScript/TypeScript
 
 **Use ES6+ features:**
+
 - `const`/`let` (never `var`)
 - Arrow functions
 - `async`/`await` (not `.then()`)
@@ -60,13 +61,18 @@ export type TCreateProject = z.infer<typeof SCreateProject>;
 - Optional chaining (`?.`)
 
 **Module system:**
+
 - ES modules (`import`/`export`)
 - Named exports preferred over default exports
 
 ```typescript
 // ✅ GOOD
 const getUser = async (userId: string): Promise<TUser | null> => {
-  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
   return user ?? null;
 };
 
@@ -76,10 +82,13 @@ const scopes = [...defaultScopes, ...additionalScopes];
 export { ProjectService, AIService };
 
 // ❌ BAD
-var getUser = function(userId) {
-  return db.select().from(users).then(function(result) {
-    return result[0] || null;
-  });
+var getUser = function (userId) {
+  return db
+    .select()
+    .from(users)
+    .then(function (result) {
+      return result[0] || null;
+    });
 };
 
 export default ProjectService;
@@ -94,12 +103,14 @@ export default ProjectService;
 3. `pnpm type-check` - Verify TypeScript types
 
 **Pre-commit requirements:**
+
 - ❌ DO NOT commit if lint has errors/warnings
 - ❌ DO NOT commit if type-check has errors
 - ❌ DO NOT commit if code is unformatted
 - ✅ Fix ALL issues before committing
 
 **When checks fail:**
+
 1. Run `pnpm format` to auto-fix formatting
 2. Run `pnpm lint` to auto-fix linting (manual fixes may be needed)
 3. Manually fix type errors, re-run `pnpm type-check`
@@ -112,6 +123,7 @@ export default ProjectService;
 **Types**: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `perf`
 
 **Strategy**:
+
 - Atomic commits (one logical change)
 - Group related changes together
 - Include auto-formatted/updated files
@@ -139,7 +151,7 @@ fix(auth): handle token expiration in Better Auth flow
 export class ProjectNotFoundError extends Error {
   constructor(projectId: string) {
     super(`Project not found: ${projectId}`);
-    this.name = 'ProjectNotFoundError';
+    this.name = "ProjectNotFoundError";
   }
 }
 ```
@@ -147,7 +159,10 @@ export class ProjectNotFoundError extends Error {
 **Retry logic with exponential backoff:**
 
 ```typescript
-async function fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+): Promise<T> {
   let lastError: Error;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -157,7 +172,10 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<
       lastError = error as Error;
 
       // Don't retry non-retryable errors
-      if (error instanceof ValidationError || error instanceof AuthenticationError) {
+      if (
+        error instanceof ValidationError ||
+        error instanceof AuthenticationError
+      ) {
         throw error;
       }
 
@@ -203,7 +221,10 @@ const projects = await db
 
 // ❌ BAD - N+1 query
 for (const userId of userIds) {
-  const projects = await db.select().from(projects).where(eq(projects.userId, userId));
+  const projects = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.userId, userId));
 }
 ```
 
@@ -219,6 +240,7 @@ return user;
 ```
 
 **Guidelines:**
+
 - Optimize queries, use indexes, avoid N+1 problems
 - Cache expensive operations
 - Batch API calls and database operations

@@ -131,7 +131,7 @@ Return download URL
 
 ```typescript
 // packages/remotion/src/types.ts
-import { z } from 'zod';
+import { z } from "zod";
 
 export const SScene = z.object({
   textOverlay: z.string(),
@@ -144,7 +144,7 @@ export const SStoryboard = z.object({
   adTitle: z.string(),
   branding: z.object({
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-    fontFamily: z.enum(['Inter', 'Roboto', 'Montserrat']),
+    fontFamily: z.enum(["Inter", "Roboto", "Montserrat"]),
   }),
   scenes: z.array(SScene).max(6),
 });
@@ -161,8 +161,8 @@ Streams storyboard generation using Server-Sent Events.
 
 ```typescript
 // apps/web/app/api/generate/route.ts
-import { streamText } from 'ai';
-import { google } from '@ai-sdk/google';
+import { streamText } from "ai";
+import { google } from "@ai-sdk/google";
 
 export async function POST(req: Request) {
   const { url } = await req.json();
@@ -170,13 +170,13 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       const result = await streamText({
-        model: google('gemini-1.5-pro-latest'),
+        model: google("gemini-1.5-pro-latest"),
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: [
-              { type: 'text', text: buildPrompt() },
-              { type: 'url', url },
+              { type: "text", text: buildPrompt() },
+              { type: "url", url },
             ],
           },
         ],
@@ -192,9 +192,9 @@ export async function POST(req: Request) {
 
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
     },
   });
 }
@@ -233,18 +233,18 @@ Triggers Remotion Lambda rendering.
 
 ```typescript
 // apps/web/app/api/render/route.ts
-import { renderMediaOnLambda } from '@remotion/lambda/client';
-import { Resource } from 'sst';
+import { renderMediaOnLambda } from "@remotion/lambda/client";
+import { Resource } from "sst";
 
 export async function POST(req: Request) {
   const storyboard = await req.json();
 
   const { renderId, bucketName } = await renderMediaOnLambda({
-    region: 'us-east-1',
+    region: "us-east-1",
     functionName: Resource.RemotionFunction.name,
-    composition: 'Master',
+    composition: "Master",
     serveUrl: process.env.REMOTION_SERVE_URL!,
-    codec: 'h264',
+    codec: "h264",
     inputProps: storyboard,
   });
 
@@ -258,13 +258,13 @@ Returns pre-signed S3 URL for video download.
 
 ```typescript
 // apps/web/app/api/download/[id]/route.ts
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Resource } from 'sst';
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Resource } from "sst";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const s3 = new S3Client({});
 
@@ -560,7 +560,7 @@ export type TStoryboard = {
   adTitle: string;
   branding: {
     primaryColor: string; // Hex color
-    fontFamily: 'Inter' | 'Roboto' | 'Montserrat';
+    fontFamily: "Inter" | "Roboto" | "Montserrat";
   };
   scenes: TScene[];
 };
@@ -576,7 +576,7 @@ export type TScene = {
 ### Validation Schemas
 
 ```typescript
-import { z } from 'zod';
+import { z } from "zod";
 
 export const SScene = z.object({
   textOverlay: z.string().min(1).max(200),
@@ -589,7 +589,7 @@ export const SStoryboard = z.object({
   adTitle: z.string().min(1).max(100),
   branding: z.object({
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-    fontFamily: z.enum(['Inter', 'Roboto', 'Montserrat']),
+    fontFamily: z.enum(["Inter", "Roboto", "Montserrat"]),
   }),
   scenes: z.array(SScene).min(1).max(6),
 });
@@ -603,7 +603,7 @@ export function validateStoryboard(data: unknown): TStoryboard {
 export function validateTotalDuration(storyboard: TStoryboard): boolean {
   const total = storyboard.scenes.reduce(
     (acc, scene) => acc + scene.durationInSeconds,
-    0
+    0,
   );
   return total <= 30;
 }
@@ -619,13 +619,13 @@ export function validateTotalDuration(storyboard: TStoryboard): boolean {
 export default $config({
   app(input) {
     return {
-      name: 'a-ds',
-      removal: input?.stage === 'production' ? 'retain' : 'remove',
-      home: 'aws',
+      name: "a-ds",
+      removal: input?.stage === "production" ? "retain" : "remove",
+      home: "aws",
     };
   },
   async run() {
-    const infra = await import('./infra');
+    const infra = await import("./infra");
 
     return {
       bucket: infra.bucket.name,
@@ -638,10 +638,10 @@ export default $config({
 ### infra/storage.ts
 
 ```typescript
-import * as aws from '@pulumi/aws';
+import * as aws from "@pulumi/aws";
 
-export const bucket = new sst.aws.Bucket('VideoBucket', {
-  access: 'public',
+export const bucket = new sst.aws.Bucket("VideoBucket", {
+  access: "public",
 });
 
 // Export bucket name for use in app
@@ -651,12 +651,12 @@ export const bucketName = bucket.name;
 ### infra/database.ts
 
 ```typescript
-export const database = new sst.aws.Postgres('Database', {
+export const database = new sst.aws.Postgres("Database", {
   dev: {
-    username: 'postgres',
-    password: 'password',
-    database: 'local',
-    host: 'localhost',
+    username: "postgres",
+    password: "password",
+    database: "local",
+    host: "localhost",
     port: 5432,
   },
 });
@@ -665,12 +665,12 @@ export const database = new sst.aws.Postgres('Database', {
 ### infra/compute.ts
 
 ```typescript
-import { bucket } from './storage';
+import { bucket } from "./storage";
 
-export const remotionFunction = new sst.aws.Function('RemotionFunction', {
-  handler: 'packages/remotion/src/lambda.handler',
-  timeout: '15 minutes',
-  memory: '3 GB',
+export const remotionFunction = new sst.aws.Function("RemotionFunction", {
+  handler: "packages/remotion/src/lambda.handler",
+  timeout: "15 minutes",
+  memory: "3 GB",
   link: [bucket],
   environment: {
     REMOTION_SERVE_URL: process.env.REMOTION_SERVE_URL!,
@@ -694,65 +694,65 @@ docker run \
 
 ## Correctness Properties
 
-*A property is a characteristic or behavior that should hold true across all valid executions of a system.*
+_A property is a characteristic or behavior that should hold true across all valid executions of a system._
 
 ### Property 1: Storyboard Schema Validation
 
-*For any* AI-generated storyboard JSON, parsing it with the Storyboard schema should either succeed with valid data or fail with descriptive validation errors.
+_For any_ AI-generated storyboard JSON, parsing it with the Storyboard schema should either succeed with valid data or fail with descriptive validation errors.
 
 **Validates: Requirements 1.2, 1.3, 7.2, 7.4, 7.5**
 
 ### Property 2: Total Duration Constraint
 
-*For any* valid storyboard, the sum of all scene durations should not exceed 30 seconds.
+_For any_ valid storyboard, the sum of all scene durations should not exceed 30 seconds.
 
 **Validates: Requirements 1.6, 7.6**
 
 ### Property 3: URL Validation
 
-*For any* user input, invalid URLs should be rejected before sending to the AI generator.
+_For any_ user input, invalid URLs should be rejected before sending to the AI generator.
 
 **Validates: Requirements 1.5**
 
 ### Property 4: Streaming Completeness
 
-*For any* successful storyboard generation, the final streamed result should contain all required fields (adTitle, branding, scenes array).
+_For any_ successful storyboard generation, the final streamed result should contain all required fields (adTitle, branding, scenes array).
 
 **Validates: Requirements 2.3, 2.6**
 
 ### Property 5: Preview Rendering
 
-*For any* valid storyboard, the Remotion Player should render a preview without errors.
+_For any_ valid storyboard, the Remotion Player should render a preview without errors.
 
 **Validates: Requirements 3.1, 3.5**
 
 ### Property 6: Storyboard Edit Preservation
 
-*For any* storyboard modification, the preview should update to reflect the changes within 2 seconds.
+_For any_ storyboard modification, the preview should update to reflect the changes within 2 seconds.
 
 **Validates: Requirements 3.3, 4.3, 4.4, 4.5**
 
 ### Property 7: Render Output Format
 
-*For any* completed render, the output should be a valid MP4 file at 1080p, 30 FPS, H.264 codec.
+_For any_ completed render, the output should be a valid MP4 file at 1080p, 30 FPS, H.264 codec.
 
 **Validates: Requirements 5.5**
 
 ### Property 8: S3 Upload Success
 
-*For any* completed render, the video file should be successfully uploaded to S3 and accessible via pre-signed URL.
+_For any_ completed render, the video file should be successfully uploaded to S3 and accessible via pre-signed URL.
 
 **Validates: Requirements 6.3, 6.4**
 
 ### Property 9: Error Message Clarity
 
-*For any* error condition, the system should display a user-friendly message while logging technical details.
+_For any_ error condition, the system should display a user-friendly message while logging technical details.
 
 **Validates: Requirements 13.1, 13.5**
 
 ### Property 10: Responsive Layout
 
-*For any* viewport width between 768px and 2560px, the UI should render without horizontal scrolling or broken layouts.
+_For any_ viewport width between 768px and 2560px, the UI should render without horizontal scrolling or broken layouts.
 
 **Validates: Requirements 12.3, 12.4**
 

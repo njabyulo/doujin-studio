@@ -24,6 +24,7 @@ a-ds/
 ## Apps
 
 ### apps/api (Hono API)
+
 ```
 apps/api/
 ├── src/
@@ -41,6 +42,7 @@ apps/api/
 ```
 
 ### apps/web (Next.js Frontend)
+
 ```
 apps/web/
 ├── src/
@@ -62,6 +64,7 @@ apps/web/
 ## Packages
 
 ### packages/core (Business Logic)
+
 ```
 packages/core/
 ├── src/
@@ -84,6 +87,7 @@ packages/core/
 **Key Pattern**: Services expose `create{Service}()` factory functions that accept only configuration. Repositories and adapters are internal implementation details.
 
 ### packages/database (Data Layer)
+
 ```
 packages/database/
 ├── src/
@@ -104,6 +108,7 @@ packages/database/
 **Note**: Better Auth auto-generates `user`, `session`, and `verification` tables.
 
 ### packages/shared (Shared Types)
+
 ```
 packages/shared/
 ├── src/
@@ -118,6 +123,7 @@ packages/shared/
 ```
 
 ### packages/eslint-config (Code Quality)
+
 ```
 packages/eslint-config/
 ├── base.js                     # Base ESLint rules
@@ -137,6 +143,7 @@ API Handlers → Services → (Repository Ports + Adapter Ports) → Implementat
 ```
 
 **Complete dependency flow:**
+
 ```
 apps/api/routes/*.handler.ts
   ↓ calls (via factory functions ONLY)
@@ -151,6 +158,7 @@ DB clients, External SDKs/APIs
 ```
 
 **Critical Rules:**
+
 - ✅ Handlers MUST ONLY call services (never repositories or adapters directly)
 - ✅ Services depend on ports (interfaces) as types only
 - ✅ Services MUST NOT import adapter implementations or factories
@@ -159,6 +167,7 @@ DB clients, External SDKs/APIs
 - ❌ Repositories/adapters MUST NOT import services
 
 **Example Flow**:
+
 1. Handler receives HTTP request and validates input
 2. Handler creates service: `createProjectService({ database, userId })`
 3. Handler calls service method: `service.createProject(name)`
@@ -193,6 +202,7 @@ Packages reference each other using workspace protocol:
 ## Build Order
 
 Turborepo ensures correct build order:
+
 1. `@a-ds/shared` (no dependencies)
 2. `@a-ds/database` (depends on shared)
 3. `@a-ds/core` (depends on shared and database)
@@ -203,20 +213,22 @@ When running `pnpm dev`, packages are built first, then dev servers start.
 ## Import Patterns
 
 ### Frontend (apps/web)
+
 ```typescript
 // Uses ~/* path alias
-import { Button } from '~/components/ui/button';
-import { useAuth } from '~/hooks/useAuth';
-import { createProjectService } from '@a-ds/core';
-import type { TProject } from '@a-ds/shared';
+import { Button } from "~/components/ui/button";
+import { useAuth } from "~/hooks/useAuth";
+import { createProjectService } from "@a-ds/core";
+import type { TProject } from "@a-ds/shared";
 ```
 
 ### Backend (apps/api)
+
 ```typescript
 // ✅ CORRECT: Handler imports only services
-import { createProjectService } from '@a-ds/core';
-import type { IProjectService } from '@a-ds/core';
-import { SCreateProject } from '@a-ds/shared';
+import { createProjectService } from "@a-ds/core";
+import type { IProjectService } from "@a-ds/core";
+import { SCreateProject } from "@a-ds/shared";
 
 // ❌ FORBIDDEN: Never import repositories or adapters in handlers
 // import { ProjectRepository } from '@a-ds/core/repositories'; // ❌
@@ -225,10 +237,11 @@ import { SCreateProject } from '@a-ds/shared';
 ```
 
 ### Packages (packages/core)
+
 ```typescript
 // ✅ CORRECT: Service depends on ports as types only
-import type { IProjectRepository } from '../repositories/project.repository';
-import type { IEmailSender } from '../adapters/email';
+import type { IProjectRepository } from "../repositories/project.repository";
+import type { IEmailSender } from "../adapters/email";
 
 export interface IProjectService {
   createProject(name: string): Promise<TProject>;
@@ -237,19 +250,21 @@ export interface IProjectService {
 export class ProjectService implements IProjectService {
   constructor(
     private readonly repo: IProjectRepository,
-    private readonly email: IEmailSender
+    private readonly email: IEmailSender,
   ) {}
 
   async createProject(name: string): Promise<TProject> {
     // Business logic here
     const project = await this.repo.create({ name });
-    await this.email.send({ template: 'PROJECT_CREATED' });
+    await this.email.send({ template: "PROJECT_CREATED" });
     return project;
   }
 }
 
 // Factory function hides repository/adapter construction
-export function createProjectService(config: IProjectServiceConfig): IProjectService {
+export function createProjectService(
+  config: IProjectServiceConfig,
+): IProjectService {
   const repo = createProjectRepository(config.database);
   const email = createEmailSender(config.emailConfig);
   return new ProjectService(repo, email);

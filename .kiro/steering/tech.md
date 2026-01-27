@@ -28,6 +28,7 @@ inclusion: always
 ## Essential Commands
 
 **Development:**
+
 ```bash
 pnpm install                      # Install dependencies
 pnpm dev                          # Start all apps (builds packages first)
@@ -36,6 +37,7 @@ pnpm --filter @a-ds/api dev
 ```
 
 **Build & Quality:**
+
 ```bash
 pnpm build                        # Build all (respects dependency order)
 pnpm --filter @a-ds/core build    # Build specific package
@@ -45,6 +47,7 @@ pnpm type-check                   # TypeScript validation
 ```
 
 **Testing:**
+
 ```bash
 pnpm test                         # All unit tests
 pnpm --filter @a-ds/core test     # Specific workspace
@@ -52,12 +55,14 @@ pnpm --filter @a-ds/core test:watch
 ```
 
 **Database:**
+
 ```bash
 pnpm --filter @a-ds/database migrate    # Run migrations
 pnpm --filter @a-ds/database generate   # Generate migration
 ```
 
 **Docker:**
+
 ```bash
 docker-compose up                 # Start services (PostgreSQL, API, web)
 docker-compose up -d              # Detached mode
@@ -66,6 +71,7 @@ docker-compose logs -f            # View logs
 ```
 
 **SST (Infrastructure):**
+
 ```bash
 npx sst init                      # Initialize SST in project
 npx sst dev                       # Start SST dev mode (local resources)
@@ -83,6 +89,7 @@ npx sst deploy --stage production # Deploy to specific stage
 ## SST Infrastructure Pattern
 
 **Structure:**
+
 - `sst.config.ts` - Main SST configuration at root (includes `/// <reference path="./.sst/platform/config.d.ts" />`)
 - `infra/storage.ts` - S3 buckets for video storage
 - `infra/compute.ts` - Lambda functions for Remotion rendering
@@ -93,6 +100,7 @@ npx sst deploy --stage production # Deploy to specific stage
   - `cron/` - Scheduled handlers (EventBridge)
 
 **Key Concepts:**
+
 - Infrastructure defined as TypeScript code
 - Resources linked to functions via `link: [bucket]`
 - Access resources in code via `import { Resource } from 'sst'`
@@ -100,6 +108,7 @@ npx sst deploy --stage production # Deploy to specific stage
 - Production deploys to AWS (S3, Lambda, RDS)
 
 **SST in Monorepo:**
+
 - SST should be installed at ROOT level, not in individual workspaces
 - Resource types are auto-generated in `sst-env.d.ts` when you run `sst dev` or deploy
 - Type errors for `Resource.{ResourceName}` are expected until SST generates types
@@ -111,6 +120,7 @@ npx sst deploy --stage production # Deploy to specific stage
 ## Pre-Commit Requirements
 
 MUST run in order before committing:
+
 1. `pnpm format` - Auto-format with Prettier
 2. `pnpm lint` - Fix ESLint issues (must have zero errors/warnings)
 3. `pnpm type-check` - Verify TypeScript (must have zero errors)

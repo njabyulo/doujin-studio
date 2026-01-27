@@ -9,7 +9,7 @@ export default $config({
     };
   },
   async run() {
-    const infra = await import('./infra');
+    const infra = await import("./infra");
 
     return {
       bucket: infra.bucket.name,
