@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
+import { useState } from "react";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 
 interface UrlInputProps {
   onGenerate: (url: string) => void;
@@ -10,7 +10,7 @@ interface UrlInputProps {
 }
 
 export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +29,7 @@ export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
         className="flex-1"
       />
       <Button type="submit" disabled={isGenerating || !url}>
-        {isGenerating ? 'Generating...' : 'Generate'}
+        {isGenerating ? "Generating..." : "Generate"}
       </Button>
     </form>
   );

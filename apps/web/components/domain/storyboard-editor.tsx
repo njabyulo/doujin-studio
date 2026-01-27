@@ -1,22 +1,25 @@
-'use client';
+"use client";
 
-import type { TStoryboard } from '@a-ds/remotion';
-import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
+import type { TStoryboard } from "@a-ds/remotion";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '~/components/ui/select';
+} from "~/components/ui/select";
 
 interface StoryboardEditorProps {
   storyboard: TStoryboard;
   onChange: (storyboard: TStoryboard) => void;
 }
 
-export function StoryboardEditor({ storyboard, onChange }: StoryboardEditorProps) {
+export function StoryboardEditor({
+  storyboard,
+  onChange,
+}: StoryboardEditorProps) {
   const updateBranding = (key: string, value: string) => {
     onChange({
       ...storyboard,
@@ -48,14 +51,14 @@ export function StoryboardEditor({ storyboard, onChange }: StoryboardEditorProps
           <input
             type="color"
             value={storyboard.branding.primaryColor}
-            onChange={(e) => updateBranding('primaryColor', e.target.value)}
+            onChange={(e) => updateBranding("primaryColor", e.target.value)}
             className="h-10 w-20 border border-input rounded cursor-pointer"
           />
           <Input
             id="primaryColor"
             type="text"
             value={storyboard.branding.primaryColor}
-            onChange={(e) => updateBranding('primaryColor', e.target.value)}
+            onChange={(e) => updateBranding("primaryColor", e.target.value)}
             pattern="^#[0-9A-Fa-f]{6}$"
             className="flex-1"
           />
@@ -66,7 +69,7 @@ export function StoryboardEditor({ storyboard, onChange }: StoryboardEditorProps
         <Label htmlFor="fontFamily">Font Family</Label>
         <Select
           value={storyboard.branding.fontFamily}
-          onValueChange={(value) => updateBranding('fontFamily', value)}
+          onValueChange={(value) => updateBranding("fontFamily", value)}
         >
           <SelectTrigger id="fontFamily">
             <SelectValue />
@@ -82,7 +85,10 @@ export function StoryboardEditor({ storyboard, onChange }: StoryboardEditorProps
       <div className="space-y-4">
         <Label>Scenes</Label>
         {storyboard.scenes.map((scene, index) => (
-          <div key={index} className="border border-border p-4 rounded-md space-y-3">
+          <div
+            key={index}
+            className="border border-border p-4 rounded-md space-y-3"
+          >
             <div className="flex justify-between items-center">
               <span className="text-sm font-semibold">Scene {index + 1}</span>
             </div>
@@ -96,7 +102,9 @@ export function StoryboardEditor({ storyboard, onChange }: StoryboardEditorProps
                 type="text"
                 placeholder="Text Overlay"
                 value={scene.textOverlay}
-                onChange={(e) => updateScene(index, 'textOverlay', e.target.value)}
+                onChange={(e) =>
+                  updateScene(index, "textOverlay", e.target.value)
+                }
                 maxLength={200}
               />
             </div>
@@ -110,7 +118,13 @@ export function StoryboardEditor({ storyboard, onChange }: StoryboardEditorProps
                 type="number"
                 placeholder="Duration (seconds)"
                 value={scene.durationInSeconds}
-                onChange={(e) => updateScene(index, 'durationInSeconds', Number(e.target.value))}
+                onChange={(e) =>
+                  updateScene(
+                    index,
+                    "durationInSeconds",
+                    Number(e.target.value),
+                  )
+                }
                 min={1}
                 max={10}
               />

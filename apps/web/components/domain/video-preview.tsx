@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import type { TStoryboard } from '@a-ds/remotion';
-import { Master } from '@a-ds/remotion';
-import { Player } from '@remotion/player';
+import type { TStoryboard } from "@a-ds/remotion";
+import { Master } from "@a-ds/remotion";
+import { Player } from "@remotion/player";
 
 interface VideoPreviewProps {
   storyboard: TStoryboard;
@@ -11,7 +11,7 @@ interface VideoPreviewProps {
 export function VideoPreview({ storyboard }: VideoPreviewProps) {
   const durationInFrames = storyboard.scenes.reduce(
     (acc, scene) => acc + scene.durationInSeconds * 30,
-    0
+    0,
   );
 
   return (
@@ -24,7 +24,7 @@ export function VideoPreview({ storyboard }: VideoPreviewProps) {
         fps={30}
         compositionWidth={1920}
         compositionHeight={1080}
-        style={{ width: '100%' }}
+        style={{ width: "100%" }}
         controls
       />
     </div>
