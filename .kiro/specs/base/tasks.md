@@ -6,7 +6,7 @@
 
 ## Tasks
 
-- [ ] 1. Initialize project structure
+- [x] 1. Initialize project structure
   - Run `pnpm create next-app@latest apps/web --typescript --tailwind --app --src-dir`
   - Create `packages/remotion` workspace
   - Create `infra/` folder (storage.ts, compute.ts, database.ts)
