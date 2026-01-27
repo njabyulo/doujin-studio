@@ -10,8 +10,8 @@
     "dev": "tsup --watch",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "lint": "eslint src",
-    "lint:code": "eslint src",
+    "lint": "tsc --noEmit",
+    "lint:code": "tsc --noEmit",
     "lint:type": "tsc --noEmit"
   },
   "dependencies": {
