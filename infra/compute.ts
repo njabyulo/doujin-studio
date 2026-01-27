@@ -1,4 +1,5 @@
-// Remotion Lambda function configuration
+/// <reference path="../.sst/platform/config.d.ts" />
+
 import { bucket } from './storage';
 
 export const remotionFunction = new sst.aws.Function('RemotionFunction', {
