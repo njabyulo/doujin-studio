@@ -2,9 +2,7 @@
   "extends": "../../packages/config/typescript/next.json",
   "compilerOptions": {
     "paths": {
-      "~/*": [
-        "./*"
-      ]
+      "~/*": ["./*"]
     },
     "tsBuildInfoFile": "./.next/.tsbuildinfo"
   },
@@ -16,7 +14,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

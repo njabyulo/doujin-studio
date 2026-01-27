@@ -1,11 +1,11 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
-export const devDocker = new sst.x.DevCommand('Docker', {
+export const devDocker = new sst.x.DevCommand("Docker", {
   dev: {
     autostart: true,
-    title: 'Docker Services',
-    directory: '.',
-    command: 'docker compose up',
+    title: "Docker Services",
+    directory: ".",
+    command: "docker compose up",
   },
 });
 
