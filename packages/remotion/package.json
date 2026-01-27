@@ -7,7 +7,12 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "lint:code": "eslint src",
+    "lint:type": "tsc --noEmit"
   },
   "dependencies": {
     "remotion": "^4.0.410",
@@ -16,6 +21,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.10",
+    "eslint": "^9",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   }

@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "lint": "eslint",
+    "lint:code": "eslint",
+    "lint:type": "tsc --noEmit"
   },
   "dependencies": {
     "@a-ds/remotion": "workspace:*",
