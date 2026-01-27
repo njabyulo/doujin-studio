@@ -2,176 +2,117 @@
 inclusion: always
 ---
 
-# Discovery and Planning Rules
+# Discovery and Planning
 
 ## Core Principle
 
-**NEVER implement without discovery first.** Start with customer need → define success metrics → design solution → implement.
+**NEVER implement without discovery.** Always: understand problem → research → plan → clarify → implement.
 
-Before writing code:
-1. Understand the problem and customer need
-2. Define quantifiable success metrics
-3. Research codebase patterns and similar implementations
-4. Break down into actionable subtasks
-5. Identify dependencies, risks, constraints
-6. **Ask clarifying questions for any ambiguity**
-7. **Escalate critical decisions to human**
-8. Document findings and plan
-
-## Discovery Checklist
+## Discovery Steps
 
 ### 1. Understand the Problem
 
-- [ ] Read ticket thoroughly - what problem are we solving?
-- [ ] Identify customer need and value proposition
-- [ ] Define quantifiable success metrics (latency, throughput, error rates)
-- [ ] Clarify acceptance criteria - how do we know it's done?
-- [ ] Identify stakeholders and related work
-- [ ] **Ask clarifying questions if anything is unclear**
+- What problem are we solving? What's the customer need?
+- Define success metrics (latency, throughput, error rates)
+- Clarify acceptance criteria
+- **Ask clarifying questions if anything is unclear**
 
 ### 2. Research Codebase
 
-- [ ] Search for similar implementations (`grepSearch`)
-- [ ] Review architecture patterns and existing types/interfaces
-- [ ] Check related services/repositories/adapters
-- [ ] Review database schema
+- Search for similar implementations (`grepSearch`)
+- Review architecture patterns, types/interfaces
+- Check related services/repositories/adapters
+- Review database schema
 
 ### 3. Research External Dependencies
 
-- [ ] Read official documentation for libraries/APIs
-- [ ] Check API specs, version compatibility, breaking changes
-- [ ] Research best practices
+**Tools:**
+- **Context7 MCP** (preferred): `mcp_ontext7_resolve_library_id` → `mcp_ontext7_query_docs`
+  - Use for: React, Next.js, Drizzle, Hono, Better Auth, official docs
+  - Limit: 3 calls per question
+- **Web search** (fallback): `remote_web_search`, `webFetch`
+  - Use for: tutorials, troubleshooting, library comparisons
 
-**Tools:** `mcp_ontext7_resolve_library_id`, `mcp_ontext7_query_docs`, `remote_web_search`, `webFetch`
+**Research:**
+- Official documentation and API specs
+- Version compatibility and breaking changes
+- Best practices
 
-### 4. Technology Comparison (if needed)
+### 4. Define Requirements
 
-When choosing between options:
-- [ ] List 2-3 viable alternatives
-- [ ] Compare pros/cons (performance, compatibility, cost)
-- [ ] Check existing usage in codebase
-- [ ] Document decision with reasoning
+**Functional:** Features, inputs/outputs, edge cases, error handling
 
-### 5. Define Requirements
+**Non-Functional:** Performance targets, security, reliability, cost
 
-**Functional:**
-- [ ] List features, inputs/outputs, edge cases
-- [ ] Define error handling approach
+### 5. Identify Dependencies & Risks
 
-**Non-Functional:**
-- [ ] Performance targets (P50, P95, P99)
-- [ ] Security (auth, authorization, encryption)
-- [ ] Reliability (retry logic, graceful degradation)
-- [ ] Cost implications
+- Upstream/downstream dependencies
+- External services, APIs, libraries
+- Database schema changes
+- Technical and business risks
 
-### 6. Identify Dependencies & Risks
+### 6. Break Down Work
 
-- [ ] Upstream/downstream dependencies
-- [ ] External services, APIs, libraries
-- [ ] Database schema changes
-- [ ] Technical and business risks
-- [ ] Constraints (time, budget, capacity)
-
-### 7. Break Down the Ticket
-
-- [ ] Create specific, testable subtasks (completable in hours)
-- [ ] Order by dependencies
-- [ ] Estimate effort
-- [ ] Define test strategy
+- Create specific, testable subtasks (hours, not days)
+- Order by dependencies
+- Define test strategy
 
 ## Asking Clarifying Questions
 
-**CRITICAL: Ask the user for clarification before implementing if anything is unclear, ambiguous, or missing.**
+**CRITICAL: Ask before implementing if anything is unclear, ambiguous, or missing.**
 
 ### When to Ask
 
-- Unclear or missing requirements
-- Conflicting information or multiple interpretations
+- Unclear/missing requirements or conflicting information
 - Unknown constraints (performance, security)
 - Architecture decisions between approaches
-- Edge cases needing clarification
-- Assumptions requiring validation
+- Edge cases or assumptions requiring validation
 
-### Question Types
+### Effective Questions
 
-**Requirements:** Functionality details, edge case behavior, validation rules, business logic
-
-**Technical:** Technology choices, architecture patterns, performance/security requirements
-
-**Scope:** What's included/excluded, MVP vs full feature, phase boundaries
-
-**Data:** Required fields, validation, relationships, migrations, retention policies
-
-### Effective Question Format
-
-✅ **GOOD:**
-1. Provide context (what you researched and understand)
+**Good format:**
+1. Provide context (what you researched)
 2. State the ambiguity clearly
 3. Offer 2-3 options with implications
 4. Explain how answer affects implementation
 
-❌ **BAD:**
+**Bad format:**
 - Vague questions without context
-- Questions showing no research
-- Questions answerable from ticket
-- No demonstration of understanding
+- No research shown
+- Questions answerable from existing info
 
-### When NOT to Proceed
+### When to STOP vs Proceed
 
 **STOP if:**
-- Core requirement unclear (don't know what to build)
-- Critical technical decisions unresolved (affects architecture)
-- Data schema ambiguous (affects database design)
-- Security requirements unclear (affects approach)
-- Integration points undefined (affects API design)
-- Success criteria vague (won't know when done)
+- Core requirement unclear
+- Critical technical decisions unresolved (architecture, security)
+- Data schema ambiguous
+- Integration points undefined
+- Success criteria vague
 
 **CAN proceed if:**
-- Question about edge cases handleable later
-- Question about UI polish not affecting core functionality
-- Can implement flexible solution supporting multiple options
-- Question about future phases, not current scope
+- Edge cases handleable later
+- UI polish not affecting core functionality
+- Flexible solution supports multiple options
+- Question about future phases
 
-**Document assumptions:**
-```typescript
-/**
- * Implementation Plan: [Feature]
- *
- * Assumptions (pending clarification):
- * - [List assumptions]
- *
- * Questions asked:
- * - [List questions and responses]
- */
-```
+## Critical Decisions: Escalate to Human
 
-## Critical Decisions: Human-in-the-Loop
+**CRITICAL: Escalate decisions that significantly impact architecture, security, UX, or scope.**
 
-**CRITICAL: Escalate decisions that significantly impact architecture, security, UX, or scope to the human.**
+### Must Escalate
 
-### What Requires Human Input
-
-A decision is **critical** if it:
-- Changes system design, patterns, or structure
-- Affects authentication, authorization, encryption
-- Significantly alters user interaction
-- Adds/removes features or changes deliverables
-- Has cost implications (infrastructure, licensing)
-- Creates technical debt or breaks existing patterns
-- Requires new dependencies (libraries, services)
-- Changes database schema or data relationships
-- May significantly impact performance
-
-### When to Escalate
-
-**MUST escalate:**
 - Architecture pattern choices
 - Security approaches (auth, encryption, secrets)
 - Technology selection between viable options
 - Scope changes (adding/removing features)
 - Breaking changes (APIs, migrations, patterns)
+- Database schema or data relationships
+- New dependencies (libraries, services)
+- Cost implications (infrastructure, licensing)
 
-**CAN decide independently:**
+### Can Decide Independently
+
 - Implementation details within established patterns
 - Code organization within existing structure
 - Test strategy and organization
@@ -184,83 +125,59 @@ A decision is **critical** if it:
 ```markdown
 ## Critical Decision: [Topic]
 
-### Context
-[Why decision is needed]
+**Context:** [Why decision is needed]
 
-### Research
-[What you learned]
+**Research:** [What you learned]
 
-### Options
+**Options:**
 
-**Option A:** [Approach]
-- Pros: [List]
-- Cons: [List]
-- Impact: Architecture, security, performance, cost, timeline
+A. [Approach]
+   - Pros: [List]
+   - Cons: [List]
+   - Impact: [Architecture/security/performance/cost/timeline]
 
-**Option B:** [Approach]
-- Pros: [List]
-- Cons: [List]
-- Impact: Architecture, security, performance, cost, timeline
+B. [Approach]
+   - Pros: [List]
+   - Cons: [List]
+   - Impact: [Architecture/security/performance/cost/timeline]
 
-### Recommendation
-[Your recommendation and reasoning]
+**Recommendation:** [Your recommendation and reasoning]
 
-### Questions
-1. [Specific questions for decision maker]
-
-**Please select Option A, B, or provide alternative guidance.**
-```
-
-### Document Decisions
-
-```typescript
-/**
- * Critical Decisions Made:
- *
- * 1. [Decision Name]
- *    Decision: [Option chosen]
- *    Made by: [Human/date]
- *    Rationale: [Why]
- *    Impact: [Effects]
- */
+**Questions:** [Specific questions for decision maker]
 ```
 
 ### Immediate Escalation Required
 
-- Decision affects security and you're uncertain
-- Could cause data loss or corruption
-- Breaks existing functionality
-- Requires significant budget approval
-- Conflicts with policies or compliance
+- Security uncertainty
+- Potential data loss/corruption
+- Breaking existing functionality
+- Budget approval needed
+- Policy/compliance conflicts
 
 **DO NOT proceed until critical decisions are resolved.**
 
-## Discovery Workflow
+## Workflow
 
-1. **Read Ticket** - Read 2-3 times, identify requirements, note unclear points, ask questions
-2. **Clarify** (if needed) - List unclear points, ask specific questions, wait for responses, document answers
-3. **Research** - Search codebase, research dependencies, compare options, review patterns
-4. **Plan** - Break into subtasks, identify dependencies/risks, ask additional questions, identify critical decisions
-5. **Decide** (if needed) - Research options, present to human, wait for decisions, document rationale
-6. **Document** - Record findings, approach, breakdown, assumptions, questions/answers, decisions
-7. **Review** (if complex) - Get feedback, adjust plan, ask follow-ups, confirm decisions
-8. **Implement** - Follow patterns, write tests, document, ask questions if issues arise
+1. **Read** - Understand requirements, note unclear points
+2. **Clarify** - Ask questions, wait for responses, document answers
+3. **Research** - Search codebase, research dependencies, review patterns
+4. **Plan** - Break into subtasks, identify dependencies/risks/decisions
+5. **Decide** - Present options to human, wait for decisions, document
+6. **Implement** - Follow patterns, write tests, ask questions if issues arise
 
 ## Pre-Implementation Checklist
 
-- [ ] Requirements understood, customer need defined
-- [ ] Quantifiable success metrics defined
-- [ ] All ambiguities clarified with user
-- [ ] Critical decisions identified and resolved
+Before implementing, verify:
+
+- [ ] Requirements and customer need understood
+- [ ] Success metrics defined
+- [ ] All ambiguities clarified
+- [ ] Critical decisions resolved
 - [ ] Codebase searched for similar implementations
 - [ ] External dependencies researched
-- [ ] Technology options compared (if applicable)
-- [ ] Functional and non-functional requirements defined
+- [ ] Requirements defined (functional + non-functional)
 - [ ] Dependencies and risks identified
-- [ ] Ticket broken into clear subtasks
-- [ ] Research and plan documented
+- [ ] Work broken into clear subtasks
 - [ ] Approach follows existing patterns
-- [ ] Assumptions documented
-- [ ] Questions/answers documented
 
-**Only implement when checklist complete. If critical questions or decisions remain, STOP and ask the user.**
+**Only implement when checklist complete. If critical questions or decisions remain, STOP and ask.**
