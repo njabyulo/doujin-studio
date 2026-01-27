@@ -63,26 +63,26 @@
     - Return user-friendly error messages
     - _Requirements: 1.4, 8.3, 8.4, 8.6, 13.1, 13.4_
 
-- [ ] 5. Build Master Remotion template
-  - [ ] 5.1 Create packages/remotion/src/Root.tsx
+- [x] 5. Build Master Remotion template
+  - [x] 5.1 Create packages/remotion/src/Root.tsx
     - Define Master composition
     - Set default props
     - Configure 30fps, 1080p
     - _Requirements: 10.1, 10.2_
 
-  - [ ] 5.2 Create packages/remotion/src/Master.tsx
+  - [x] 5.2 Create packages/remotion/src/Master.tsx
     - Accept TStoryboard as props
     - Map scenes to Sequence components
     - Calculate frame timing from durations
     - _Requirements: 10.3, 10.4, 10.6_
 
-  - [ ] 5.3 Create packages/remotion/src/Scene.tsx
+  - [x] 5.3 Create packages/remotion/src/Scene.tsx
     - Render text overlay with branding
     - Apply primary color and font family
     - Add fade in/out animations
     - _Requirements: 10.5, 10.6_
 
-  - [ ] 5.4 Create packages/remotion/remotion.config.ts
+  - [x] 5.4 Create packages/remotion/remotion.config.ts
     - Configure Remotion bundler
     - Set output format (MP4, H.264)
     - _Requirements: 5.5_
