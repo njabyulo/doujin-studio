@@ -10,7 +10,7 @@ interface UrlInputProps {
 }
 
 export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState("https://example.com");
   const isValid = url.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
