@@ -1,8 +1,13 @@
 "use client";
 
 import type { TStoryboard } from "@a-ds/remotion";
-import { Player } from "@remotion/player";
-import React, { useState } from "react";
+import { Player, type PlayerRef } from "@remotion/player";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { AbsoluteFill } from "remotion";
 
 type FloatingControlsProps = {
@@ -212,7 +217,11 @@ const LeftRail = () => {
   );
 };
 
-const CircleBtn = ({ icon, active, activeAccent }: any) => {
+const CircleBtn: React.FC<{
+  icon: string;
+  active?: boolean;
+  activeAccent?: boolean;
+}> = ({ icon, active, activeAccent }) => {
   const bg = activeAccent
     ? "var(--accent)"
     : active
@@ -237,44 +246,148 @@ const CircleBtn = ({ icon, active, activeAccent }: any) => {
   );
 };
 
-const BottomTimeline = ({ frame, onFrameChange }: any) => {
+const BottomTimeline: React.FC<{
+  playerRef: React.RefObject<PlayerRef | null>;
+  durationInFrames: number;
+}> = ({ playerRef, durationInFrames }) => {
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const { current } = playerRef;
+    if (!current) return;
+
+    const onFrameUpdate = () => {
+      setFrame(current.getCurrentFrame());
+    };
+
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+
+    current.addEventListener("frameupdate", onFrameUpdate);
+    current.addEventListener("play", onPlay);
+    current.addEventListener("pause", onPause);
+
+    return () => {
+      current.removeEventListener("frameupdate", onFrameUpdate);
+      current.removeEventListener("play", onPlay);
+      current.removeEventListener("pause", onPause);
+    };
+  }, [playerRef]);
+
+  const handleSeek = useCallback(
+    (clientX: number) => {
+      if (!containerRef.current || !playerRef.current) return;
+
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const percentage = Math.max(0, Math.min(1, x / rect.width));
+      const targetFrame = Math.round(percentage * (durationInFrames - 1));
+
+      playerRef.current.seekTo(targetFrame);
+    },
+    [durationInFrames, playerRef],
+  );
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
+      setDragging(true);
+      if (playerRef.current) {
+        playerRef.current.pause();
+      }
+      handleSeek(e.clientX);
+    },
+    [handleSeek, playerRef],
+  );
+
+  const onPointerMove = useCallback(
+    (e: PointerEvent) => {
+      if (!dragging) return;
+      handleSeek(e.clientX);
+    },
+    [dragging, handleSeek],
+  );
+
+  const onPointerUp = useCallback(() => {
+    setDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+
+    return () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [dragging, onPointerMove, onPointerUp]);
+
+  const togglePlayPause = useCallback(() => {
+    if (!playerRef.current) return;
+    if (playing) {
+      playerRef.current.pause();
+    } else {
+      playerRef.current.play();
+    }
+  }, [playing, playerRef]);
+
+  const progress = (frame / Math.max(1, durationInFrames - 1)) * 100;
+
   return (
     <div style={{ position: "absolute", left: 18, right: 18, bottom: 18 }}>
       <div className="glassPanel" style={{ padding: 14 }}>
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            overflowX: "auto",
-            paddingBottom: 10,
-          }}
-        >
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={i}
-              className="pillDim"
-              style={{
-                minWidth: 140,
-                padding: "10px 14px",
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-              <span>{i * 10}s</span>
-              <span style={{ opacity: 0.75 }}>…</span>
-              <span>{i * 10 + 10}s</span>
-            </div>
-          ))}
-        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={togglePlayPause}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              border: 0,
+              cursor: "pointer",
+              background: "rgba(255,255,255,0.2)",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 16,
+            }}
+            aria-label={playing ? "Pause" : "Play"}
+          >
+            {playing ? "⏸" : "▶"}
+          </button>
 
-        <input
-          type="range"
-          min={0}
-          max={300}
-          value={frame}
-          onChange={(e) => onFrameChange(Number(e.target.value))}
-          style={{ width: "100%" }}
-        />
+          <div
+            ref={containerRef}
+            onPointerDown={onPointerDown}
+            style={{
+              flex: 1,
+              height: 8,
+              background: "rgba(0,0,0,0.25)",
+              borderRadius: 4,
+              cursor: "pointer",
+              position: "relative",
+              userSelect: "none",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progress}%`,
+                background: "var(--accent)",
+                borderRadius: 4,
+                transition: dragging ? "none" : "width 0.1s",
+              }}
+            />
+          </div>
+
+          <span style={{ fontSize: 12, opacity: 0.75, minWidth: 60 }}>
+            {Math.floor(frame / 30)}s / {Math.floor(durationInFrames / 30)}s
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -306,7 +419,8 @@ const VideoComposition: React.FC<{ storyboard: TStoryboard }> = ({
 export const Editor: React.FC<{ storyboard: TStoryboard }> = ({
   storyboard,
 }) => {
-  const [frame, setFrame] = useState(0);
+  const playerRef = useRef<PlayerRef>(null);
+  const durationInFrames = 300;
 
   return (
     <div className="editorRoot">
@@ -316,8 +430,9 @@ export const Editor: React.FC<{ storyboard: TStoryboard }> = ({
       <main className="canvasStage">
         <div className="canvasFrame">
           <Player
+            ref={playerRef}
             component={VideoComposition}
-            durationInFrames={300}
+            durationInFrames={durationInFrames}
             fps={30}
             compositionWidth={1920}
             compositionHeight={1080}
@@ -330,7 +445,10 @@ export const Editor: React.FC<{ storyboard: TStoryboard }> = ({
         <FloatingControls />
       </main>
 
-      <BottomTimeline frame={frame} onFrameChange={setFrame} />
+      <BottomTimeline
+        playerRef={playerRef}
+        durationInFrames={durationInFrames}
+      />
     </div>
   );
 };
