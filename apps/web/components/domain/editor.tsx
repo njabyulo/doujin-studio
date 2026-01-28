@@ -1,7 +1,9 @@
+"use client";
+
+import type { TStoryboard } from "@a-ds/remotion";
 import { Player } from "@remotion/player";
-import React, { useMemo, useState } from "react";
-import { OffthreadVideo } from "remotion";
-// import { MyComposition } from "./Composition";
+import React, { useState } from "react";
+import { AbsoluteFill } from "remotion";
 
 type FloatingControlsProps = {
   onCamera?: () => void;
@@ -109,7 +111,7 @@ const Circle: React.FC<{
   );
 };
 
-export const TopBar: React.FC = () => {
+export const TopBar: React.FC<{ projectName: string }> = ({ projectName }) => {
   return (
     <div
       style={{
@@ -120,7 +122,7 @@ export const TopBar: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        pointerEvents: "none", // let clicks pass except on buttons
+        pointerEvents: "none",
         zIndex: 20,
       }}
     >
@@ -150,7 +152,7 @@ export const TopBar: React.FC = () => {
             gap: 10,
           }}
         >
-          <span style={{ fontWeight: 600 }}>Project: Gixlo Dance</span>
+          <span style={{ fontWeight: 600 }}>Project: {projectName}</span>
           <span style={{ opacity: 0.85, cursor: "pointer" }} title="Rename">
             ✎
           </span>
@@ -278,32 +280,50 @@ const BottomTimeline = ({ frame, onFrameChange }: any) => {
   );
 };
 
-export const Editor = () => {
-  const [frame, setFrame] = useState(0);
 
-  const inputProps = useMemo(
-    () => ({
-      /* your props */
-    }),
-    [],
+const VideoComposition: React.FC<{ storyboard: TStoryboard }> = ({
+  storyboard,
+}) => {
+  return (
+    <AbsoluteFill
+      style={{ backgroundColor: storyboard.branding.primaryColor }}
+    >
+      <div
+        style={{
+          fontFamily: storyboard.branding.fontFamily,
+          color: "#fff",
+          padding: 40,
+          fontSize: 48,
+          fontWeight: "bold",
+        }}
+      >
+        {storyboard.adTitle}
+      </div>
+    </AbsoluteFill>
   );
+};
+
+export const Editor: React.FC<{ storyboard: TStoryboard }> = ({
+  storyboard,
+}) => {
+  const [frame, setFrame] = useState(0);
 
   return (
     <div className="editorRoot">
-      <TopBar />
+      <TopBar projectName={storyboard.adTitle} />
       <LeftRail />
 
       <main className="canvasStage">
         <div className="canvasFrame">
           <Player
-            component={<OffthreadVideo src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" />}
+            component={VideoComposition}
             durationInFrames={300}
             fps={30}
             compositionWidth={1920}
             compositionHeight={1080}
-            inputProps={inputProps}
-            controls={false} // build custom controls to match your design
-            frameToDisplay={frame}
+            inputProps={{ storyboard }}
+            controls={false}
+            style={{ width: "100%", height: "100%" }}
           />
         </div>
 
