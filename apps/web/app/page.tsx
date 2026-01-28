@@ -2,10 +2,8 @@
 
 import type { TStoryboard } from "@a-ds/remotion";
 import { useState } from "react";
-import { StoryboardEditor } from "~/components/domain/storyboard-editor";
 import { UrlInput } from "~/components/domain/url-input";
-import { VideoPreview } from "~/components/domain/video-preview";
-import { Button } from "~/components/ui/button";
+import { Editor } from "../components/domain/editor";
 
 export default function Home() {
   const [storyboard, setStoryboard] = useState<TStoryboard | null>(null);
@@ -110,61 +108,63 @@ export default function Home() {
         </div>
 
         {storyboard && (
-          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="order-2 lg:order-1">
-              <StoryboardEditor
-                storyboard={storyboard}
-                onChange={setStoryboard}
-              />
+          // <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+          //   <div className="order-2 lg:order-1">
+          //     <StoryboardEditor
+          //       storyboard={storyboard}
+          //       onChange={setStoryboard}
+          //     />
 
-              <div className="mt-6 space-y-4">
-                <Button
-                  onClick={handleRender}
-                  disabled={isRendering}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isRendering ? "Rendering..." : "Render Video"}
-                </Button>
+          //     <div className="mt-6 space-y-4">
+          //       <Button
+          //         onClick={handleRender}
+          //         disabled={isRendering}
+          //         className="w-full"
+          //         size="lg"
+          //       >
+          //         {isRendering ? "Rendering..." : "Render Video"}
+          //       </Button>
 
-                {isRendering && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                    <div className="flex items-center gap-3">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                      <p className="text-blue-800">Rendering your video...</p>
-                    </div>
-                  </div>
-                )}
+          //       {isRendering && (
+          //         <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+          //           <div className="flex items-center gap-3">
+          //             <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+          //             <p className="text-blue-800">Rendering your video...</p>
+          //           </div>
+          //         </div>
+          //       )}
 
-                {renderError && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-red-800 mb-2">{renderError}</p>
-                    <Button
-                      onClick={handleRetryRender}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                )}
+          //       {renderError && (
+          //         <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+          //           <p className="text-red-800 mb-2">{renderError}</p>
+          //           <Button
+          //             onClick={handleRetryRender}
+          //             variant="outline"
+          //             size="sm"
+          //           >
+          //             Retry
+          //           </Button>
+          //         </div>
+          //       )}
 
-                {downloadUrl && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-green-800 mb-3">Your video is ready!</p>
-                    <Button asChild variant="default" size="sm">
-                      <a href={downloadUrl} download>
-                        Download Video
-                      </a>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="order-1 lg:order-2">
-              <VideoPreview storyboard={storyboard} />
-            </div>
-          </div>
+          //       {downloadUrl && (
+          //         <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+          //           <p className="text-green-800 mb-3">Your video is ready!</p>
+          //           <Button asChild variant="default" size="sm">
+          //             <a href={downloadUrl} download>
+          //               Download Video
+          //             </a>
+          //           </Button>
+          //         </div>
+          //       )}
+          //     </div>
+          //   </div>
+          //   <div className="order-1 lg:order-2">
+          //     <VideoPreview storyboard={storyboard} />
+          //   </div>
+          // </div>
+
+          <Editor />
         )}
 
         {!storyboard && !isGenerating && (
