@@ -19,7 +19,7 @@ export const Scene: React.FC<SceneProps> = ({ scene, branding }) => {
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: branding.primaryColor,
+        backgroundColor: branding?.primaryColor || "#000",
         justifyContent: "center",
         alignItems: "center",
         opacity,
@@ -27,7 +27,7 @@ export const Scene: React.FC<SceneProps> = ({ scene, branding }) => {
     >
       <h1
         style={{
-          fontFamily: branding.fontFamily,
+          fontFamily: branding?.fontFamily || "Arial",
           fontSize: 80,
           color: "#fff",
           textAlign: "center",
