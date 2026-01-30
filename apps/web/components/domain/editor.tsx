@@ -2,12 +2,7 @@
 
 import type { TStoryboard } from "@a-ds/remotion";
 import { Player, type PlayerRef } from "@remotion/player";
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AbsoluteFill } from "remotion";
 
 type FloatingControlsProps = {
@@ -393,14 +388,11 @@ const BottomTimeline: React.FC<{
   );
 };
 
-
 const VideoComposition: React.FC<{ storyboard: TStoryboard }> = ({
   storyboard,
 }) => {
   return (
-    <AbsoluteFill
-      style={{ backgroundColor: storyboard.branding.primaryColor }}
-    >
+    <AbsoluteFill style={{ backgroundColor: storyboard.branding.primaryColor }}>
       <div
         style={{
           fontFamily: storyboard.branding.fontFamily,
