@@ -2,40 +2,50 @@ import { validateStoryboard, validateTotalDuration } from "@a-ds/remotion";
 import type { AwsRegion } from "@remotion/lambda";
 import { renderMediaOnLambda } from "@remotion/lambda/client";
 import { Resource } from "sst";
+import { requireAuth } from "~/lib/auth-middleware";
+import {
+  getCorrelationId,
+  withCorrelationId,
+} from "~/lib/correlation-middleware";
+import { createServerError, createValidationError } from "~/lib/error-helpers";
 
-export const maxDuration = 900; // 15 minutes
+export const maxDuration = 900;
 
 const getAwsRegion = (): AwsRegion => {
   return (process.env.AWS_REGION as AwsRegion) || "us-east-1";
 };
 
 export async function POST(req: Request) {
+  const correlationId = getCorrelationId(req);
+  console.log(`[${correlationId}] POST /api/render`);
+
+  const { error } = await requireAuth(req, correlationId);
+  if (error) return error;
+
   try {
     const body = await req.json();
 
-    // Validate storyboard with Zod schema
     let storyboard;
     try {
       storyboard = validateStoryboard(body);
     } catch (error) {
-      return Response.json(
-        {
-          error: "Invalid storyboard format",
-          details: error instanceof Error ? error.message : "Validation failed",
-        },
-        { status: 400 },
-      );
+      console.log(`[${correlationId}] Invalid storyboard format`);
+      return createValidationError(correlationId, {
+        storyboard: [
+          error instanceof Error ? error.message : "Validation failed",
+        ],
+      });
     }
 
-    // Validate total duration constraint
     if (!validateTotalDuration(storyboard)) {
-      return Response.json(
-        { error: "Total duration exceeds 30 seconds" },
-        { status: 400 },
-      );
+      console.log(`[${correlationId}] Total duration exceeds 30 seconds`);
+      return createValidationError(correlationId, {
+        duration: ["Total duration exceeds 30 seconds"],
+      });
     }
 
-    // Call Remotion Lambda to render video
+    console.log(`[${correlationId}] Starting render`);
+
     const { renderId, bucketName } = await renderMediaOnLambda({
       region: getAwsRegion(),
       functionName: Resource.RemotionFunction.name,
@@ -45,29 +55,28 @@ export async function POST(req: Request) {
       inputProps: storyboard,
     });
 
-    return Response.json({ renderId, bucketName }, { status: 200 });
+    console.log(`[${correlationId}] Render started: ${renderId}`);
+    return withCorrelationId(
+      Response.json({ renderId, bucketName }, { status: 200 }),
+      correlationId,
+    );
   } catch (error) {
-    console.error("Render error:", error);
+    console.error(`[${correlationId}] Render error:`, error);
 
     if (error instanceof Error) {
       if (error.message.includes("Lambda")) {
-        return Response.json(
-          { error: "Video rendering service unavailable. Please try again." },
-          { status: 503 },
-        );
+        return createValidationError(correlationId, {
+          service: ["Video rendering service unavailable. Please try again."],
+        });
       }
 
       if (error.message.includes("timeout")) {
-        return Response.json(
-          { error: "Render request timed out. Please try again." },
-          { status: 504 },
-        );
+        return createValidationError(correlationId, {
+          timeout: ["Render request timed out. Please try again."],
+        });
       }
     }
 
-    return Response.json(
-      { error: "Failed to start video render. Please try again." },
-      { status: 500 },
-    );
+    return createServerError(correlationId);
   }
 }

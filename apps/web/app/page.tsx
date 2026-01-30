@@ -9,15 +9,10 @@ export default function Home() {
   const [storyboard, setStoryboard] = useState<TStoryboard | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isRendering, setIsRendering] = useState(false);
-  const [renderError, setRenderError] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const handleGenerate = async (url: string) => {
     setIsGenerating(true);
     setError(null);
-    setDownloadUrl(null);
-    setRenderError(null);
 
     try {
       const response = await fetch("/api/generate", {
@@ -38,52 +33,6 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const handleRender = async () => {
-    if (!storyboard) return;
-
-    setIsRendering(true);
-    setRenderError(null);
-    setDownloadUrl(null);
-
-    try {
-      const response = await fetch("/api/render", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(storyboard),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to render video");
-      }
-
-      const { renderId } = await response.json();
-
-      // Poll for completion (simplified - in production, use websockets or better polling)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-
-      // Get download URL
-      const downloadResponse = await fetch(`/api/download/${renderId}`);
-
-      if (!downloadResponse.ok) {
-        const errorData = await downloadResponse.json();
-        throw new Error(errorData.error || "Failed to get download URL");
-      }
-
-      const { url } = await downloadResponse.json();
-      setDownloadUrl(url);
-    } catch (err) {
-      setRenderError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsRendering(false);
-    }
-  };
-
-  const handleRetryRender = () => {
-    setRenderError(null);
-    handleRender();
   };
 
   return (
