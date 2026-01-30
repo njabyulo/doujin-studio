@@ -415,7 +415,7 @@ export const Editor: React.FC<{ storyboard: TStoryboard }> = ({
   const durationInFrames = 300;
 
   return (
-    <div className="editorRoot">
+    <div className="editorRoot" style={{ position: 'relative', width: '100%', height: '100%' }}>
       <TopBar projectName={storyboard.adTitle} />
       <LeftRail />
 
