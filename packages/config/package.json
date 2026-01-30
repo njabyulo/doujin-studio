@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./tsconfig/base.json": "./tsconfig/base.json",
-    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
-    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./tsconfig/base.json": "./typescript/base.json",
+    "./tsconfig/nextjs.json": "./typescript/next.json",
+    "./tsconfig/node.json": "./typescript/node.json",
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/next.json": "./typescript/next.json",
+    "./typescript/node.json": "./typescript/node.json",
     "./eslint/base.js": "./eslint/base.js",
-    "./eslint/node": "./eslint/node.js",
-    "./eslint/next": "./eslint/next.js",
+    "./eslint/node.js": "./eslint/node.js",
+    "./eslint/next.js": "./eslint/next.js",
     "./prettier/.prettierrc.js": "./prettier/.prettierrc.js"
   }
 }

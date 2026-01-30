@@ -11,6 +11,8 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
+    "@a-ds/database": "workspace:*",
+    "@a-ds/shared": "workspace:*",
     "@remotion/lambda": "^4.0.410"
   },
   "devDependencies": {

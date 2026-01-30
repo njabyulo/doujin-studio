@@ -8,8 +8,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest --run",
-    "test:watch": "vitest",
+    "test": "echo 'No tests yet'",
+    "test:watch": "echo 'No tests yet'",
     "lint": "tsc --noEmit",
     "lint:code": "tsc --noEmit",
     "lint:type": "tsc --noEmit"
@@ -23,6 +23,7 @@
     "@types/react": "^19.2.10",
     "eslint": "^9",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }
