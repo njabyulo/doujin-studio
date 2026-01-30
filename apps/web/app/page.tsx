@@ -2,7 +2,7 @@
 
 import type { TStoryboard } from "@a-ds/remotion";
 import { useState } from "react";
-import { UrlInput } from "~/components/domain/url-input";
+import { AiChatInput } from "~/components/domain/ai-chat-input";
 import { Editor } from "../components/domain/editor";
 
 export default function Home() {
@@ -38,17 +38,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            AI Ad Creation Tool
-          </h1>
-          <p className="text-gray-600">
-            Generate video advertisements from any URL
-          </p>
-        </header>
 
         <div className="mb-6">
-          <UrlInput onGenerate={handleGenerate} isGenerating={isGenerating} />
+          {!storyboard && (
+            <AiChatInput
+              onSubmit={handleGenerate}
+              disabled={isGenerating}
+              variant="main"
+            />
+          )}
           {error && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
               <p className="text-red-800">{error}</p>
@@ -67,22 +65,10 @@ export default function Home() {
                   <div className="text-sm text-gray-500">Chat history</div>
                 </div>
               </div>
-              <div className="border-t border-gray-200 p-4">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="p-3">
+                <AiChatInput />
               </div>
             </div>
-          </div>
-        )}
-
-        {!storyboard && !isGenerating && (
-          <div className="text-center py-16">
-            <p className="text-gray-500">
-              Enter a URL above to generate your first ad
-            </p>
           </div>
         )}
 
