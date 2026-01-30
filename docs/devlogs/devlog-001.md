@@ -5,6 +5,7 @@
 I'm building an AI ad creation tool that turns any URL into a professional 30-second video ad. Think of it as your personal video production team, powered by AI.
 
 **The flow is simple:**
+
 1. Drop in a URL (product page, website, anything)
 2. AI analyzes it and generates a compelling script
 3. Customize the video in real-time
@@ -15,16 +16,19 @@ I'm building an AI ad creation tool that turns any URL into a professional 30-se
 After researching similar tools (Vibe Studio, Creatify), I chose a modern, cost-effective stack:
 
 **Frontend:**
+
 - Next.js 16 (App Router) - Fast, SEO-friendly, great DX
 - Remotion - React-based video rendering (open-source!)
 - Tailwind CSS + shadcn/ui - Beautiful UI without the bloat
 
 **Backend:**
+
 - Hono API - Lightweight, fast, TypeScript-first
 - Google Gemini 2.5 Flash - Affordable AI with great quality
 - AWS Lambda + S3 - Serverless, pay-per-use scaling
 
 **Architecture:**
+
 - Monorepo (pnpm + Turborepo) - Clean separation, shared code
 - Hexagonal architecture - Testable, maintainable, scalable
 - SST for infrastructure - Infrastructure as code, type-safe
@@ -32,20 +36,26 @@ After researching similar tools (Vibe Studio, Creatify), I chose a modern, cost-
 ## 💡 Key Technical Challenges
 
 ### 1. Real-Time Video Preview
+
 Building a smooth video editor in the browser was tricky. Remotion's Player component handles the heavy lifting, but I had to build custom controls for:
+
 - Scrubbing through the timeline
 - Play/pause with frame-accurate seeking
 - Real-time updates as users edit
 
 ### 2. AI Script Generation
+
 Getting Gemini to consistently output structured ad scripts required careful prompt engineering. The AI needs to:
+
 - Analyze URL content
 - Generate 3-6 compelling scenes
 - Include timing, text overlays, and transitions
 - Match brand voice and style
 
 ### 3. Video Rendering at Scale
+
 Remotion renders videos server-side, which is CPU-intensive. Solution:
+
 - AWS Lambda with 3GB memory
 - 15-minute timeout for complex renders
 - S3 for video storage
@@ -62,18 +72,21 @@ Remotion renders videos server-side, which is CPU-intensive. Solution:
 ## 🚧 What's Next
 
 **Phase 1 (Current):**
+
 - [ ] Multiple video templates
 - [ ] Asset library (upload images, videos, audio)
 - [ ] User authentication (Better Auth)
 - [ ] Project management
 
 **Phase 2:**
+
 - [ ] Advanced text animations
 - [ ] Multiple aspect ratios (16:9, 9:16, 1:1)
 - [ ] Background music library
 - [ ] Batch rendering
 
 **Phase 3:**
+
 - [ ] Team collaboration
 - [ ] Template marketplace
 - [ ] Analytics dashboard
@@ -83,11 +96,13 @@ Remotion renders videos server-side, which is CPU-intensive. Solution:
 One of my goals was keeping this affordable:
 
 **Development:**
+
 - Using open-source tools (Remotion, Next.js)
 - Leveraging existing APIs (Gemini, AWS)
 - No expensive custom ML models
 
 **Running Costs (estimated monthly):**
+
 - AI API (Gemini): ~$50-200
 - AWS (Lambda + S3): ~$100-500
 - Total: ~$150-700/month (scales with usage)
@@ -107,6 +122,7 @@ Compare this to building custom ML models or using expensive video APIs - this i
 ## 🎯 Why This Matters
 
 Video ads are expensive and time-consuming to produce. Small businesses and creators need:
+
 - Fast turnaround (minutes, not days)
 - Professional quality
 - Affordable pricing

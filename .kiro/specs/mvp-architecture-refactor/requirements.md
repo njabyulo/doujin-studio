@@ -90,13 +90,13 @@ This specification defines the requirements for refactoring the AI-powered video
 4. THE System SHALL support message type 'checkpoint_created' for new checkpoint snapshots
 5. THE System SHALL support message type 'checkpoint_applied' for checkpoint restoration only
 6. THE System SHALL support message type 'scene_regenerated' for individual scene updates
-6. THE System SHALL support message type 'render_requested' for render job creation
-7. THE System SHALL support message type 'render_progress' for render status updates
-8. THE System SHALL support message type 'render_completed' for finished renders
-9. THE System SHALL define a Zod schema for each message type
-10. THE System SHALL include a version field in contentJson for schema versioning
-11. THE System SHALL validate message content against the type-specific schema
-12. THE System SHALL provide a renderer component for each message type
+7. THE System SHALL support message type 'render_requested' for render job creation
+8. THE System SHALL support message type 'render_progress' for render status updates
+9. THE System SHALL support message type 'render_completed' for finished renders
+10. THE System SHALL define a Zod schema for each message type
+11. THE System SHALL include a version field in contentJson for schema versioning
+12. THE System SHALL validate message content against the type-specific schema
+13. THE System SHALL provide a renderer component for each message type
 
 ### Requirement 6: Checkpoint System for Version Control
 
@@ -141,11 +141,11 @@ This specification defines the requirements for refactoring the AI-powered video
 2. THE System SHALL target P50 generation completion under 20 seconds
 3. THE System SHALL target P95 generation completion under 60 seconds
 4. THE System SHALL stream progress events within 1 second of request start
-4. THE Storyboard SHALL include scenes with durations, on-screen text, voiceover text, and asset suggestions
-5. THE System SHALL generate scriptJson with global tone and per-scene voiceover
-6. THE System SHALL generate brandKitJson with best-effort extraction of colors, fonts, and tone
-7. WHEN generation completes, THE System SHALL create a 'generation_result' message with artifact references
-8. THE System SHALL handle URL extraction failures gracefully with fallback prompts
+5. THE Storyboard SHALL include scenes with durations, on-screen text, voiceover text, and asset suggestions
+6. THE System SHALL generate scriptJson with global tone and per-scene voiceover
+7. THE System SHALL generate brandKitJson with best-effort extraction of colors, fonts, and tone
+8. WHEN generation completes, THE System SHALL create a 'generation_result' message with artifact references
+9. THE System SHALL handle URL extraction failures gracefully with fallback prompts
 
 ### Requirement 9: Multiple Ad Format Support
 
@@ -326,7 +326,6 @@ This specification defines the requirements for refactoring the AI-powered video
 8. THE System SHALL validate all input using Zod schemas before processing
 9. THE System SHALL validate AI output JSON using Zod schemas before saving
 
-
 ### Requirement 22: Active Checkpoint Tracking
 
 **User Story:** As a user, I want the editor to automatically load my current working state, so that I can continue where I left off without manually selecting a checkpoint.
@@ -338,7 +337,6 @@ This specification defines the requirements for refactoring the AI-powered video
 3. WHEN a new checkpoint is created, THE System SHALL update activeCheckpointId to the new checkpoint
 4. WHEN a user restores a previous checkpoint, THE System SHALL update activeCheckpointId to the restored checkpoint
 5. WHEN activeCheckpointId is null, THE System SHALL display the empty state
-
 
 ### Requirement 23: Rate Limiting
 
