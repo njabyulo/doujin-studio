@@ -58,10 +58,10 @@ export default function Home() {
 
         {storyboard && (
           <div className="fixed inset-0 flex">
-            <div className="w-[60%] h-full">
+            <div className="w-[80%] h-full">
               <Editor storyboard={storyboard} />
             </div>
-            <div className="w-[40%] h-full bg-white border-l border-gray-200 flex flex-col">
+            <div className="w-[20%] h-full bg-white border-l border-gray-200 flex flex-col">
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4">
                   <div className="text-sm text-gray-500">Chat history</div>
