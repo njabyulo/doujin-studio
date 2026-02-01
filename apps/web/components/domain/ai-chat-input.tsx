@@ -85,6 +85,9 @@ interface AiChatInputProps {
   variant?: "main" | "compact";
 }
 
+const QUICK_FILL_PROMPT =
+  "https://lumina-bikes.com | 30s launch edit | emphasize carbon frame, dual motor assist, and overnight shipping. Mood: cinematic night ride with neon reflections. CTA: Preorder for March deliveries.";
+
 export function AiChatInput({
   onSubmit,
   disabled,
@@ -118,8 +121,8 @@ export function AiChatInput({
         reader.onload = () => {
           setAttachedFiles((prev) =>
             prev.map((f) =>
-              f.id === fileId ? { ...f, preview: reader.result as string } : f
-            )
+              f.id === fileId ? { ...f, preview: reader.result as string } : f,
+            ),
           );
         };
         reader.readAsDataURL(file);
@@ -201,66 +204,56 @@ export function AiChatInput({
 
   const renderMaxBadge = () => (
     <div className="flex h-[14px] items-center gap-1.5 rounded border border-border px-1 py-0">
-      <span
-        className="text-[9px] font-bold uppercase"
-        style={{
-          background:
-            "linear-gradient(to right, rgb(129, 161, 193), rgb(125, 124, 155))",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-        }}
-      >
-        MAX
-      </span>
+      <span className="text-[9px] font-bold uppercase text-sky-200">MAX</span>
     </div>
   );
 
   if (variant === "main") {
-    return (
-      <div className="mx-auto flex w-full flex-col gap-4">
-        <h1 className="text-pretty text-center font-heading font-semibold text-[29px] text-foreground tracking-tighter sm:text-[32px] md:text-[46px]">
-          Create AI-Powered Ads
-        </h1>
-        <h2 className="-my-5 pb-4 text-center text-xl text-muted-foreground">
-          Generate professional video ads from any URL
-        </h2>
+    const handleQuickFill = () => {
+      if (!disabled) {
+        setPrompt(QUICK_FILL_PROMPT);
+      }
+    };
 
-        <div className="relative z-10 flex flex-col w-full mx-auto max-w-2xl content-center">
+    return (
+      <div className="relative mx-auto flex w-full max-w-3xl flex-col gap-5">
+        <div className="relative z-10">
           <form
-            className="overflow-visible rounded-xl border p-2 transition-colors duration-200 focus-within:border-ring"
+            className="relative overflow-hidden rounded-[32px] border border-white/15 bg-[rgba(6,11,29,0.75)] p-6 shadow-[0_30px_85px_rgba(3,6,18,0.7)] backdrop-blur-2xl"
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onSubmit={handleSubmit}
           >
+            <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-white/60">
+              <Sparkles className="h-4 w-4 text-emerald-300" />
+              Compose your brief
+            </div>
+
             {attachedFiles.length > 0 && (
-              <div className="relative flex w-fit items-center gap-2 mb-2 overflow-hidden">
+              <div className="mb-3 flex flex-wrap gap-2">
                 {attachedFiles.map((file) => (
                   <Badge
-                    variant="outline"
-                    className="group relative h-6 max-w-30 cursor-pointer overflow-hidden text-[13px] transition-colors hover:bg-accent px-0"
                     key={file.id}
+                    className="group flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[13px] text-white"
+                    variant="outline"
                   >
-                    <span className="flex h-full items-center gap-1.5 overflow-hidden pl-1 font-normal">
-                      <div className="relative flex h-4 min-w-4 items-center justify-center">
-                        {file.preview ? (
-                          <Image
-                            alt={file.name}
-                            className="absolute inset-0 h-4 w-4 rounded border object-cover"
-                            src={file.preview}
-                            width={16}
-                            height={16}
-                          />
-                        ) : (
-                          <Paperclip className="opacity-60" size={12} />
-                        )}
-                      </div>
-                      <span className="inline overflow-hidden truncate pr-1.5 transition-all">
-                        {file.name}
-                      </span>
-                    </span>
+                    <div className="relative inline-flex h-5 w-5 items-center justify-center">
+                      {file.preview ? (
+                        <Image
+                          alt={file.name}
+                          className="absolute inset-0 h-5 w-5 rounded-full border border-white/20 object-cover"
+                          height={20}
+                          src={file.preview}
+                          width={20}
+                        />
+                      ) : (
+                        <Paperclip className="h-4 w-4 opacity-70" />
+                      )}
+                    </div>
+                    <span className="max-w-[160px] truncate">{file.name}</span>
                     <button
-                      className="absolute right-1 z-10 rounded-sm p-0.5 text-muted-foreground opacity-0 focus-visible:bg-accent focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-background group-hover:opacity-100"
+                      className="rounded-full bg-white/10 p-0.5 text-white/70 opacity-0 transition group-hover:opacity-100"
                       onClick={() => handleRemoveFile(file.id)}
                       type="button"
                     >
@@ -270,17 +263,18 @@ export function AiChatInput({
                 ))}
               </div>
             )}
+
             <Textarea
-              className="max-h-50 min-h-12 resize-none rounded-none border-none bg-transparent! p-0 text-sm shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              className="max-h-60 min-h-[150px] resize-none border-none bg-transparent p-0 text-base text-white placeholder:text-white/50 shadow-none focus-visible:ring-0"
+              disabled={disabled}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
-              placeholder="Enter a URL or describe your ad..."
+              placeholder="Enter a URL, mood, hook, or any guardrails for this ad"
               value={prompt}
-              disabled={disabled}
             />
 
-            <div className="flex items-center gap-1">
-              <div className="flex items-end gap-0.5 sm:gap-1">
+            <div className="mt-5 flex flex-col gap-4 border-t border-white/10 pt-4 md:flex-row md:items-center">
+              <div className="flex flex-1 items-center gap-1.5">
                 <input
                   className="sr-only"
                   multiple
@@ -292,57 +286,45 @@ export function AiChatInput({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      className="ml-[-2px] h-7 w-7 rounded-md"
+                      className="h-9 w-9 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/15"
+                      disabled={disabled}
                       size="icon"
                       type="button"
                       variant="ghost"
-                      disabled={disabled}
                     >
                       <Plus size={16} />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="start"
-                    className="max-w-xs rounded-2xl p-1.5"
+                    className="max-w-xs rounded-2xl border border-white/10 bg-[#060b1d] p-2 text-white"
                   >
                     <DropdownMenuGroup className="space-y-1">
                       <DropdownMenuItem
-                        className="rounded-[calc(1rem-6px)] text-xs"
+                        className="rounded-xl text-sm"
                         onClick={() => fileUploadRef.current?.click()}
                       >
                         <div className="flex items-center gap-2">
-                          <Paperclip
-                            className="text-muted-foreground"
-                            size={16}
-                          />
-                          <span>Attach Files</span>
+                          <Paperclip className="text-white/70" size={16} />
+                          <span>Attach files</span>
                         </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="rounded-[calc(1rem-6px)] text-xs">
+                      <DropdownMenuItem className="rounded-xl text-sm">
                         <div className="flex items-center gap-2">
-                          <LinkIcon
-                            className="text-muted-foreground"
-                            size={16}
-                          />
+                          <LinkIcon className="text-white/70" size={16} />
                           <span>Import from URL</span>
                         </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="rounded-[calc(1rem-6px)] text-xs">
+                      <DropdownMenuItem className="rounded-xl text-sm">
                         <div className="flex items-center gap-2">
-                          <Clipboard
-                            className="text-muted-foreground"
-                            size={16}
-                          />
-                          <span>Paste from Clipboard</span>
+                          <Clipboard className="text-white/70" size={16} />
+                          <span>Paste from clipboard</span>
                         </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="rounded-[calc(1rem-6px)] text-xs">
+                      <DropdownMenuItem className="rounded-xl text-sm">
                         <div className="flex items-center gap-2">
-                          <LayoutTemplate
-                            className="text-muted-foreground"
-                            size={16}
-                          />
-                          <span>Use Template</span>
+                          <LayoutTemplate className="text-white/70" size={16} />
+                          <span>Use template</span>
                         </div>
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
@@ -352,27 +334,26 @@ export function AiChatInput({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      className="size-7 rounded-md"
+                      className="h-9 w-9 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/15"
+                      disabled={disabled}
                       size="icon"
                       type="button"
                       variant="ghost"
-                      disabled={disabled}
                     >
                       <Settings2 size={16} />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="start"
-                    className="w-48 rounded-2xl p-3"
+                    className="w-52 rounded-2xl border border-white/10 bg-[#060b1d] p-3 text-white"
                   >
                     <DropdownMenuGroup className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Sparkles
-                            className="text-muted-foreground"
-                            size={16}
-                          />
-                          <Label className="text-xs">Auto-complete</Label>
+                          <Sparkles className="text-white/60" size={16} />
+                          <Label className="text-xs text-white/80">
+                            Auto-complete
+                          </Label>
                         </div>
                         <Switch
                           checked={settings.autoComplete}
@@ -385,8 +366,10 @@ export function AiChatInput({
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Play className="text-muted-foreground" size={16} />
-                          <Label className="text-xs">Streaming</Label>
+                          <Play className="text-white/60" size={16} />
+                          <Label className="text-xs text-white/80">
+                            Streaming
+                          </Label>
                         </div>
                         <Switch
                           checked={settings.streaming}
@@ -399,11 +382,10 @@ export function AiChatInput({
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <History
-                            className="text-muted-foreground"
-                            size={16}
-                          />
-                          <Label className="text-xs">Show History</Label>
+                          <History className="text-white/60" size={16} />
+                          <Label className="text-xs text-white/80">
+                            Show history
+                          </Label>
                         </div>
                         <Switch
                           checked={settings.showHistory}
@@ -416,16 +398,29 @@ export function AiChatInput({
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                <p className="hidden text-xs text-white/50 md:block">
+                  Attach inspiration or compliance notes.
+                </p>
               </div>
 
-              <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
+              <div className="flex items-center justify-end gap-2">
                 <Button
-                  className="h-7 w-7 rounded-md"
-                  disabled={!prompt.trim() || disabled}
-                  size="icon"
-                  type="submit"
-                  variant="default"
+                  className="rounded-full border border-white/20 bg-transparent px-4 py-2 text-white/70 hover:border-white/40"
+                  disabled={disabled}
+                  onClick={handleQuickFill}
+                  type="button"
+                  variant="ghost"
                 >
+                  Quick fill brand kit
+                </Button>
+                <Button
+                  className="rounded-full bg-sky-500 px-5 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:opacity-60"
+                  disabled={!prompt.trim() || disabled}
+                  size="sm"
+                  type="submit"
+                >
+                  Generate storyboard
                   <ArrowUp size={16} />
                 </Button>
               </div>
@@ -433,28 +428,28 @@ export function AiChatInput({
 
             <div
               className={cn(
-                "absolute inset-0 flex items-center justify-center pointer-events-none z-20 rounded-[inherit] border border-border border-dashed bg-muted text-foreground text-sm transition-opacity duration-200",
-                isDragOver ? "opacity-100" : "opacity-0"
+                "pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] border border-dashed border-white/30 bg-white/5 text-sm font-medium text-white transition-opacity",
+                isDragOver ? "opacity-100" : "opacity-0",
               )}
             >
-              <span className="flex w-full items-center justify-center gap-1 font-medium">
-                <CirclePlus className="min-w-4" size={16} />
-                Drop files here to add as attachments
+              <span className="flex items-center gap-2">
+                <CirclePlus className="h-4 w-4" /> Drop files to include
+                references
               </span>
             </div>
           </form>
         </div>
 
-        <div className="max-w-250 mx-auto flex-wrap gap-3 flex min-h-0 shrink-0 items-center justify-center">
+        <div className="relative z-10 flex flex-wrap items-center justify-center gap-2">
           {ACTIONS.map((action) => (
             <Button
-              className="gap-2 rounded-full"
               key={action.id}
-              size="sm"
-              variant="outline"
+              className="gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-xs uppercase tracking-[0.3em] text-white/70 hover:bg-white/15"
               disabled={disabled}
+              size="sm"
+              variant="ghost"
             >
-              <action.icon size={16} />
+              <action.icon className="h-4 w-4" />
               {action.label}
             </Button>
           ))}
@@ -542,7 +537,7 @@ export function AiChatInput({
             onClick={submitPrompt}
             className={cn(
               "h-6 w-6 rounded-full transition-all duration-100 cursor-pointer bg-primary",
-              prompt && "bg-primary hover:bg-primary/90!"
+              prompt && "bg-primary hover:bg-primary/90!",
             )}
             disabled={!prompt || disabled}
           >
