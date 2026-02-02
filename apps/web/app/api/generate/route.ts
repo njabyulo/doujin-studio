@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     const result = await withRetry(
       async () =>
         await streamText({
+          // TODO: Switch to Google Veo once backend support lands
           model: google("gemini-2.5-flash"),
           output: Output.object({ schema: SStoryboard }),
           prompt: `Analyze the content at this URL: ${url}

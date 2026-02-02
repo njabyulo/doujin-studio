@@ -57,30 +57,15 @@ const ACTIONS = [
 
 const MODELS = [
   {
-    value: "gpt-5",
-    name: "GPT-5",
-    description: "Most advanced model",
+    value: "google-veo",
+    name: "Google Veo",
+    description: "High-fidelity video reasoning",
     max: true,
-  },
-  {
-    value: "gpt-4o",
-    name: "GPT-4o",
-    description: "Fast and capable",
-  },
-  {
-    value: "gpt-4",
-    name: "GPT-4",
-    description: "Reliable and accurate",
-  },
-  {
-    value: "claude-3.5",
-    name: "Claude 3.5 Sonnet",
-    description: "Great for coding tasks",
   },
 ];
 
 interface AiChatInputProps {
-  onSubmit?: (message: string) => void;
+  onSubmit?: (payload: { prompt: string; model: string }) => void;
   disabled?: boolean;
   variant?: "main" | "compact";
 }
@@ -134,7 +119,7 @@ export function AiChatInput({
 
   const submitPrompt = () => {
     if (prompt.trim() && onSubmit) {
-      onSubmit(prompt.trim());
+      onSubmit({ prompt: prompt.trim(), model: selectedModel.value });
       setPrompt("");
       if (fileInputRef.current) {
         fileInputRef.current.style.height = "auto";
