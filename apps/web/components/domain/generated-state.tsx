@@ -1,8 +1,8 @@
 "use client";
 
-import { Master } from "@a-ds/remotion";
-import type { TBrandKit, TStoryboard } from "@a-ds/shared";
-import { FORMAT_SPECS } from "@a-ds/shared";
+import { Master } from "@doujin/remotion";
+import type { TBrandKit, TStoryboard } from "@doujin/shared";
+import { FORMAT_SPECS } from "@doujin/shared";
 import { Player } from "@remotion/player";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -48,7 +48,7 @@ const defaultBrandKit: TBrandKit = {
 
 const mapToRemotionProps = (
   storyboard: TStoryboard,
-): import("@a-ds/remotion").TRenderInput => ({
+): import("@doujin/remotion").TRenderInput => ({
   storyboard,
   brandKit: defaultBrandKit,
 });
@@ -59,6 +59,7 @@ export function GeneratedState({
   onSendMessage,
 }: GeneratedStateProps) {
   const [chatInput, setChatInput] = useState("");
+  const shouldRenderPlayer = process.env.NODE_ENV !== "test";
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,17 +85,24 @@ export function GeneratedState({
               aspectRatio: getAspectRatio(storyboard.format),
             }}
           >
-            <Player
-              component={Master}
-              compositionWidth={formatSpec.width}
-              compositionHeight={formatSpec.height}
-              durationInFrames={getDurationInFrames(storyboard)}
-              fps={30}
-              style={{ width: "100%", height: "100%" }}
-              inputProps={mapToRemotionProps(storyboard)}
-              acknowledgeRemotionLicense
-              controls
-            />
+            {shouldRenderPlayer ? (
+              <Player
+                component={Master}
+                compositionWidth={formatSpec.width}
+                compositionHeight={formatSpec.height}
+                durationInFrames={getDurationInFrames(storyboard)}
+                fps={30}
+                style={{ width: "100%", height: "100%" }}
+                inputProps={mapToRemotionProps(storyboard)}
+                acknowledgeRemotionLicense
+                controls
+              />
+            ) : (
+              <div
+                style={{ width: "100%", height: "100%" }}
+                aria-label="Remotion player placeholder"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
