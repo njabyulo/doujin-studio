@@ -1,0 +1,16 @@
+export const dsTheme = {
+  bgLight: "#f5efe8",
+  bgLight2: "#efe3d7",
+  bgDark: "#0b0c11",
+  bgDark2: "#12141c",
+  textLight: "#1f1a15",
+  textDark: "#f6f2ee",
+  mutedLight: "rgba(31, 26, 21, 0.62)",
+  mutedDark: "rgba(246, 242, 238, 0.6)",
+  borderLight: "rgba(25, 27, 36, 0.12)",
+  borderDark: "rgba(255, 255, 255, 0.12)",
+  glassLight: "rgba(255, 255, 255, 0.72)",
+  glassDark: "rgba(18, 20, 28, 0.78)",
+  accent: "#d8dd5a",
+  accentWarm: "#f58d39",
+} as const;
