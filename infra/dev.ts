@@ -5,7 +5,7 @@ export const devDocker = new sst.x.DevCommand("Docker", {
     autostart: true,
     title: "Docker Services",
     directory: ".",
-    command: "docker compose up",
+    command: "docker compose up"
   },
 });
 
