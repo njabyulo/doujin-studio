@@ -3,7 +3,11 @@
 import { computeConfig } from "./config";
 import { bucket } from "./storage";
 
-export const renderQueue = new sst.aws.Queue("RenderQueue");
+export const renderQueue = new sst.aws.Queue("RenderQueue", {
+  // Must be >= the subscriber Lambda timeout (15 minutes).
+  // AWS recommends setting this higher to allow for retries.
+  visibilityTimeout: "1 hour",
+});
 
 export const renderWorker = new sst.aws.Function("RenderWorker", {
   handler: "apps/functions/src/handlers/queue/render-worker.handler",
@@ -32,7 +36,7 @@ export const web = new sst.aws.Nextjs("WebApp", {
   path: "apps/web",
   // domain: config.network.domain.web,
   // link: [apiGateway],
-  link: [renderQueue],
+  link: [bucket, renderQueue],
   environment: {
     // NEXT_PUBLIC_API_URL: apiGateway.url,
     // API_URL: apiGateway.url,

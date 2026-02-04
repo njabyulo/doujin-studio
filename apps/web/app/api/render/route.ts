@@ -1,7 +1,8 @@
-import { validateStoryboard, validateTotalDuration } from "@a-ds/remotion";
+import { SBrandKit, SStoryboard } from "@a-ds/shared";
 import type { AwsRegion } from "@remotion/lambda";
 import { renderMediaOnLambda } from "@remotion/lambda/client";
 import { Resource } from "sst";
+import { z } from "zod";
 import { requireAuth } from "~/lib/auth-middleware";
 import {
   getCorrelationId,
@@ -25,22 +26,17 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    let storyboard;
-    try {
-      storyboard = validateStoryboard(body);
-    } catch (error) {
-      console.log(`[${correlationId}] Invalid storyboard format`);
-      return createValidationError(correlationId, {
-        storyboard: [
-          error instanceof Error ? error.message : "Validation failed",
-        ],
-      });
-    }
+    const input = z
+      .object({
+        storyboard: SStoryboard,
+        brandKit: SBrandKit,
+      })
+      .safeParse(body);
 
-    if (!validateTotalDuration(storyboard)) {
-      console.log(`[${correlationId}] Total duration exceeds 30 seconds`);
+    if (!input.success) {
+      console.log(`[${correlationId}] Invalid render input`);
       return createValidationError(correlationId, {
-        duration: ["Total duration exceeds 30 seconds"],
+        input: input.error.issues.map((issue) => issue.message),
       });
     }
 
@@ -52,7 +48,7 @@ export async function POST(req: Request) {
       composition: "Master",
       serveUrl: process.env.REMOTION_SERVE_URL!,
       codec: "h264",
-      inputProps: storyboard,
+      inputProps: input.data,
     });
 
     console.log(`[${correlationId}] Render started: ${renderId}`);

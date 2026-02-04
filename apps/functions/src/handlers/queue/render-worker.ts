@@ -49,7 +49,7 @@ export const handler: SQSHandler = async (event) => {
         codec: "h264",
         inputProps: {
           storyboard: checkpointData.storyboardJson,
-          format: job.format,
+          brandKit: checkpointData.brandKitJson,
         },
       });
 

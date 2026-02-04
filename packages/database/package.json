@@ -12,10 +12,11 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "lint": "eslint .",
-    "lint:code": "eslint .",
+    "lint": "pnpm lint:type && pnpm lint:code",
     "lint:type": "tsc --noEmit",
-    "type-check": "tsc --noEmit"
+    "lint:code": "eslint . --max-warnings 0",
+    "clean": "rm -rf dist .turbo",
+    "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.3",

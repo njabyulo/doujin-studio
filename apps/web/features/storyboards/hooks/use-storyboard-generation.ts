@@ -1,6 +1,5 @@
 "use client";
 
-import type { TStoryboard } from "@a-ds/remotion";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
@@ -17,7 +16,34 @@ interface UseStoryboardGeneration {
   clearError: () => void;
 }
 
-const projectStorageKey = (id: string) => `project:${id}`;
+type Format = "1:1" | "9:16" | "16:9";
+
+function extractBrief(prompt: string): {
+  url: string;
+  format: Format;
+  tone?: string;
+  title: string;
+} | null {
+  const urlMatch = prompt.match(/https?:\/\/[^\s|]+/);
+  if (!urlMatch) return null;
+
+  const url = urlMatch[0];
+  const formatMatch = prompt.match(/\b(16:9|9:16|1:1)\b/);
+  const format = (formatMatch?.[1] as Format | undefined) ?? "9:16";
+
+  const toneRaw = prompt.replace(url, "").trim().replace(/^\|+/, "").trim();
+  const tone = toneRaw.length > 0 ? toneRaw : undefined;
+
+  let title = "Untitled project";
+  try {
+    const hostname = new URL(url).hostname;
+    title = hostname.replace(/^www\./, "");
+  } catch {
+    // ignore
+  }
+
+  return { url, format, tone, title };
+}
 
 export function useStoryboardGeneration(): UseStoryboardGeneration {
   const router = useRouter();
@@ -37,31 +63,33 @@ export function useStoryboardGeneration(): UseStoryboardGeneration {
       setError(null);
 
       try {
-        const response = await fetch("/api/generate", {
+        void model;
+
+        const brief = extractBrief(trimmed);
+        if (!brief) {
+          throw new Error(
+            "Include a URL in your brief (starting with http:// or https://).",
+          );
+        }
+
+        const projectResponse = await fetch("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: trimmed, model }),
+          body: JSON.stringify({ title: brief.title }),
         });
 
-        if (!response.ok) {
-          const message = await response.text();
-          throw new Error(message || "Failed to generate storyboard");
+        if (!projectResponse.ok) {
+          const message = await projectResponse.text();
+          throw new Error(message || "Failed to create project");
         }
 
-        const raw = await response.text();
-        const storyboard = JSON.parse(raw) as TStoryboard & { id?: string };
-        const projectId = storyboard.id ?? crypto.randomUUID();
+        const created = (await projectResponse.json()) as { id: string };
+        const urlParams = new URLSearchParams();
+        urlParams.set("url", brief.url);
+        urlParams.set("format", brief.format);
+        if (brief.tone) urlParams.set("tone", brief.tone);
 
-        try {
-          sessionStorage.setItem(
-            projectStorageKey(projectId),
-            JSON.stringify({ ...storyboard, id: projectId }),
-          );
-        } catch (storageError) {
-          console.error("Failed to persist storyboard", storageError);
-        }
-
-        router.push(`/projects/${projectId}`);
+        router.push(`/projects/${created.id}?${urlParams.toString()}`);
       } catch (generationError) {
         console.error("Storyboard generation failed", generationError);
         setIsTransitioning(false);
@@ -78,16 +106,4 @@ export function useStoryboardGeneration(): UseStoryboardGeneration {
   );
 
   return { handleGenerate, isGenerating, isTransitioning, error, clearError };
-}
-
-export function readStoryboardFromStorage(id: string): TStoryboard | null {
-  if (typeof window === "undefined") return null;
-  const payload = sessionStorage.getItem(projectStorageKey(id));
-  if (!payload) return null;
-  try {
-    return JSON.parse(payload) as TStoryboard;
-  } catch (error) {
-    console.error("Failed to parse storyboard", error);
-    return null;
-  }
 }

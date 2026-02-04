@@ -1,6 +1,11 @@
 import { and, eq } from "@a-ds/database";
 import { db } from "@a-ds/database/client";
-import { idempotencyKey, message, renderJob } from "@a-ds/database/schema";
+import {
+  checkpoint,
+  idempotencyKey,
+  message,
+  renderJob,
+} from "@a-ds/database/schema";
 
 type TOperation = "generate" | "regenerate_scene" | "render";
 
@@ -37,6 +42,16 @@ export async function checkIdempotency(
       .limit(1);
 
     return { existing: job ?? null };
+  }
+
+  if (operation === "generate") {
+    const [cp] = await db
+      .select()
+      .from(checkpoint)
+      .where(eq(checkpoint.id, existing.resultRef))
+      .limit(1);
+
+    return { existing: cp ?? null };
   }
 
   const [msg] = await db

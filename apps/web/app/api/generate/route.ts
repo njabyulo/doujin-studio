@@ -1,6 +1,7 @@
-import { SStoryboard } from "@a-ds/remotion";
+import { SBrandKit, SScript, SStoryboard } from "@a-ds/shared";
 import { google } from "@ai-sdk/google";
 import { Output, streamText } from "ai";
+import { z } from "zod";
 import { requireAuth } from "~/lib/auth-middleware";
 import { getCorrelationId } from "~/lib/correlation-middleware";
 import { createServerError, createValidationError } from "~/lib/error-helpers";
@@ -38,21 +39,40 @@ export async function POST(req: Request) {
     const result = await withRetry(
       async () =>
         await streamText({
-          // TODO: Switch to Google Veo once backend support lands
           model: google("gemini-2.5-flash"),
-          output: Output.object({ schema: SStoryboard }),
+          output: Output.object({
+            schema: z.object({
+              storyboard: SStoryboard,
+              script: SScript,
+              brandKit: SBrandKit,
+            }),
+          }),
           prompt: `Analyze the content at this URL: ${url}
 
-Generate a compelling 30-second video advertisement storyboard with the following requirements:
-- Create an engaging ad title (max 100 characters)
-- Choose a primary brand color (hex format)
-- Select an appropriate font family (Inter, Roboto, or Montserrat)
-- Generate 3-6 scenes, each with:
-  * Text overlay for the scene (max 200 characters)
-  * Voiceover script (max 500 characters)
-  * Image prompt describing the visual (max 300 characters)
-  * Duration in seconds (1-10 seconds, default 5)
-- Ensure total duration of all scenes does not exceed 30 seconds
+Generate a compelling 15-30s video advertisement plan with:
+
+STORYBOARD (strict JSON):
+- version: "1"
+- format: "9:16"
+- totalDuration: sum of all scene durations
+- scenes: array of 3-6 scenes
+  * id: UUID
+  * duration: 3-8 seconds
+  * onScreenText: max 100 chars
+  * voiceoverText: max 200 chars
+  * assetSuggestions: 1-2 items with { type: "image"|"video", description }
+
+SCRIPT (strict JSON):
+- version: "1"
+- tone: short description
+- scenes: aligned to storyboard sceneIds, with start/end timing
+
+BRAND KIT (strict JSON):
+- version: "1"
+- productName, tagline, benefits
+- colors { primary, secondary, accent }
+- fonts { heading, body }
+- tone
 
 Make the storyboard compelling, professional, and aligned with the content from the URL.`,
         }),

@@ -2,27 +2,23 @@
 import React from "react";
 import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
 import { Scene } from "./Scene";
-import { TStoryboard } from "./types";
+import type { TRenderInput } from "./types";
 
-export const Master: React.FC<TStoryboard> = ({
-  adTitle,
-  branding,
-  scenes,
-}) => {
+export const Master: React.FC<TRenderInput> = ({ storyboard, brandKit }) => {
   const { fps } = useVideoConfig();
 
   let currentFrame = 0;
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      {scenes.map((scene, index) => {
-        const durationInFrames = scene.durationInSeconds * fps;
+      {storyboard.scenes.map((scene, index) => {
+        const durationInFrames = Math.round(scene.duration * fps);
         const from = currentFrame;
         currentFrame += durationInFrames;
 
         return (
           <Sequence key={index} from={from} durationInFrames={durationInFrames}>
-            <Scene scene={scene} branding={branding} />
+            <Scene scene={scene} brandKit={brandKit} />
           </Sequence>
         );
       })}

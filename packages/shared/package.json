@@ -11,10 +11,13 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "eslint .",
-    "type-check": "tsc --noEmit",
+    "lint": "pnpm lint:code && pnpm lint:type",
+    "lint:code": "eslint .",
+    "lint:type": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "clean": "rm -rf dist .turbo",
+    "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
     "zod": "^4.3.6"

@@ -1,7 +1,7 @@
 "use client";
 
 import { Master } from "@a-ds/remotion";
-import type { TStoryboard } from "@a-ds/shared";
+import type { TBrandKit, TStoryboard } from "@a-ds/shared";
 import { FORMAT_SPECS } from "@a-ds/shared";
 import { Player } from "@remotion/player";
 import { useState } from "react";
@@ -29,20 +29,28 @@ const getDurationInFrames = (storyboard: TStoryboard): number => {
   return Math.round(storyboard.totalDuration * 30);
 };
 
+const defaultBrandKit: TBrandKit = {
+  version: "1",
+  productName: "Untitled",
+  tagline: "",
+  benefits: [],
+  colors: {
+    primary: "#3B82F6",
+    secondary: "#1E40AF",
+    accent: "#F97316",
+  },
+  fonts: {
+    heading: "Inter",
+    body: "Inter",
+  },
+  tone: "professional",
+};
+
 const mapToRemotionProps = (
   storyboard: TStoryboard,
-): import("@a-ds/remotion").TStoryboard => ({
-  adTitle: "Generated Ad",
-  branding: {
-    primaryColor: "#3B82F6",
-    fontFamily: "Inter",
-  },
-  scenes: storyboard.scenes.map((scene) => ({
-    textOverlay: scene.onScreenText,
-    voiceoverScript: scene.voiceoverText,
-    imagePrompt: scene.assetSuggestions[0]?.description || "",
-    durationInSeconds: scene.duration,
-  })),
+): import("@a-ds/remotion").TRenderInput => ({
+  storyboard,
+  brandKit: defaultBrandKit,
 });
 
 export function GeneratedState({
@@ -84,6 +92,7 @@ export function GeneratedState({
               fps={30}
               style={{ width: "100%", height: "100%" }}
               inputProps={mapToRemotionProps(storyboard)}
+              acknowledgeRemotionLicense
               controls
             />
           </div>

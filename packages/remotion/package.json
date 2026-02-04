@@ -10,9 +10,11 @@
     "dev": "tsup --watch",
     "test": "echo 'No tests yet'",
     "test:watch": "echo 'No tests yet'",
-    "lint": "tsc --noEmit",
+    "lint": "pnpm lint:type && pnpm lint:code",
+    "lint:type": "tsc --noEmit",
     "lint:code": "tsc --noEmit",
-    "lint:type": "tsc --noEmit"
+    "clean": "rm -rf dist .turbo",
+    "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
     "remotion": "^4.0.410",

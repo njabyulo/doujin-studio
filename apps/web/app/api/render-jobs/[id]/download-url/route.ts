@@ -14,6 +14,7 @@ import {
   createServerError,
   createValidationError,
 } from "~/lib/error-helpers";
+import { Resource } from "sst";
 
 export const runtime = "nodejs";
 
@@ -73,7 +74,7 @@ export async function GET(
     }
 
     const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
+      Bucket: Resource.VideoBucket.name,
       Key: existingRenderJob.renderJob.outputS3Key,
     });
 

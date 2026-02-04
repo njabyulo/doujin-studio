@@ -1,14 +1,14 @@
 "use client";
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
-import { TScene, TStoryboard } from "./types";
+import type { TBrandKit, TScene } from "../../shared/src/types";
 
 interface SceneProps {
   scene: TScene;
-  branding: TStoryboard["branding"];
+  brandKit: TBrandKit;
 }
 
-export const Scene: React.FC<SceneProps> = ({ scene, branding }) => {
+export const Scene: React.FC<SceneProps> = ({ scene, brandKit }) => {
   const frame = useCurrentFrame();
 
   const opacity = interpolate(frame, [0, 15, 135, 150], [0, 1, 1, 0], {
@@ -19,7 +19,7 @@ export const Scene: React.FC<SceneProps> = ({ scene, branding }) => {
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: branding?.primaryColor || "#000",
+        backgroundColor: brandKit.colors.primary || "#000",
         justifyContent: "center",
         alignItems: "center",
         opacity,
@@ -27,14 +27,14 @@ export const Scene: React.FC<SceneProps> = ({ scene, branding }) => {
     >
       <h1
         style={{
-          fontFamily: branding?.fontFamily || "Arial",
+          fontFamily: brandKit.fonts.heading || "Arial",
           fontSize: 80,
           color: "#fff",
           textAlign: "center",
           padding: "0 100px",
         }}
       >
-        {scene.textOverlay}
+        {scene.onScreenText}
       </h1>
     </AbsoluteFill>
   );
