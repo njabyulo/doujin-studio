@@ -2,71 +2,155 @@
 @import "tw-animate-css";
 
 :root {
-  --bg: #bcae98;
-  /* warm wall tone */
-  --glass: rgba(40, 40, 40, 0.35);
-  --glass-2: rgba(40, 40, 40, 0.55);
-  --chip: rgba(255, 255, 255, 0.85);
-  --chip-dim: rgba(255, 255, 255, 0.35);
-  --text: rgba(255, 255, 255, 0.95);
-  --muted: rgba(255, 255, 255, 0.7);
-  --accent: #d8dd5a;
-  /* yellow highlight */
-  --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
-  --radius-xl: 28px;
+  --ds-bg-light: #f5efe8;
+  --ds-bg-light-2: #efe3d7;
+  --ds-bg-dark: #0b0c11;
+  --ds-bg-dark-2: #12141c;
+  --ds-glass-light: rgba(255, 255, 255, 0.72);
+  --ds-glass-dark: rgba(18, 20, 28, 0.78);
+  --ds-surface-light: rgba(255, 255, 255, 0.9);
+  --ds-surface-dark: rgba(22, 24, 34, 0.88);
+  --ds-border-light: rgba(25, 27, 36, 0.12);
+  --ds-border-dark: rgba(255, 255, 255, 0.12);
+  --ds-text-light: #1f1a15;
+  --ds-text-dark: #f6f2ee;
+  --ds-muted-light: rgba(31, 26, 21, 0.62);
+  --ds-muted-dark: rgba(246, 242, 238, 0.6);
+  --ds-accent: #d8dd5a;
+  --ds-accent-warm: #f58d39;
+  --ds-shadow-soft: 0 18px 60px rgba(11, 12, 18, 0.12);
+  --ds-shadow-strong: 0 30px 90px rgba(11, 12, 18, 0.24);
+  --ds-radius-xl: 28px;
+  --ds-radius-lg: 22px;
+  --ds-radius-md: 16px;
 }
 
-.editorRoot {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(1200px 800px at 20% 10%, rgba(255, 255, 255, 0.15), transparent 55%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.45)),
-    var(--bg);
+body {
+  font-family: var(--font-sora);
+  background: var(--ds-bg-light);
+  color: var(--ds-text-light);
+}
+
+.display-font {
+  font-family: var(--font-fraunces);
+}
+
+.ds-light {
+  --ds-bg: var(--ds-bg-light);
+  --ds-bg-2: var(--ds-bg-light-2);
+  --ds-glass: var(--ds-glass-light);
+  --ds-surface: var(--ds-surface-light);
+  --ds-border: var(--ds-border-light);
+  --ds-text: var(--ds-text-light);
+  --ds-muted: var(--ds-muted-light);
+}
+
+.ds-dark {
+  --ds-bg: var(--ds-bg-dark);
+  --ds-bg-2: var(--ds-bg-dark-2);
+  --ds-glass: var(--ds-glass-dark);
+  --ds-surface: var(--ds-surface-dark);
+  --ds-border: var(--ds-border-dark);
+  --ds-text: var(--ds-text-dark);
+  --ds-muted: var(--ds-muted-dark);
+}
+
+.ds-landing {
+  position: relative;
+  background: radial-gradient(1200px 800px at 15% 10%, rgba(255, 255, 255, 0.65), transparent 55%),
+    radial-gradient(1100px 700px at 85% 20%, rgba(250, 200, 170, 0.45), transparent 55%),
+    linear-gradient(135deg, var(--ds-bg), var(--ds-bg-2));
+  color: var(--ds-text);
   overflow: hidden;
 }
 
-.canvasStage {
-  position: absolute;
-  inset: 0;
-  padding: 26px 26px 150px 90px;
-  /* leave room for rail + timeline */
-  display: grid;
-  place-items: center;
-}
-
-.canvasFrame {
-  width: min(1200px, calc(100vw - 160px));
-  aspect-ratio: 16/9;
-  border-radius: calc(var(--radius-xl) + 8px);
+.ds-editor {
+  position: relative;
+  background: radial-gradient(1200px 800px at 20% 10%, rgba(75, 190, 160, 0.18), transparent 55%),
+    radial-gradient(1200px 800px at 85% 20%, rgba(230, 110, 70, 0.2), transparent 55%),
+    linear-gradient(180deg, rgba(10, 11, 16, 0.9), rgba(10, 11, 16, 0.95)),
+    var(--ds-bg);
+  color: var(--ds-text);
   overflow: hidden;
-  box-shadow: var(--shadow);
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(10px);
 }
 
 .glassPanel {
-  background: var(--glass);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(14px);
-  border-radius: var(--radius-xl);
+  background: var(--ds-glass);
+  border: 1px solid var(--ds-border);
+  backdrop-filter: blur(18px);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-soft);
 }
 
-.pill {
+.softCard {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-soft);
+}
+
+.accentPill {
   border-radius: 999px;
-  background: var(--chip);
-  color: rgba(0, 0, 0, 0.85);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  background: var(--ds-accent);
+  color: #1a1a14;
+  box-shadow: 0 12px 30px rgba(216, 221, 90, 0.35);
 }
 
-.pillDim {
-  border-radius: 999px;
-  background: var(--chip-dim);
-  color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(14px);
+.timelineDock {
+  background: var(--ds-glass-dark);
+  border: 1px solid var(--ds-border-dark);
+  border-radius: var(--ds-radius-xl);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--ds-shadow-strong);
 }
 
-.accent {
-  background: var(--accent);
-  color: rgba(0, 0, 0, 0.85);
+.glow-accent {
+  box-shadow: 0 0 35px rgba(216, 221, 90, 0.4);
+}
+
+.glow-warm {
+  box-shadow: 0 0 40px rgba(245, 141, 57, 0.35);
+}
+
+.bg-drift {
+  animation: gradientDrift 18s ease-in-out infinite;
+}
+
+.float-card {
+  animation: floatCard 8s ease-in-out infinite;
+}
+
+.page-enter {
+  animation: pageEnter 0.8s ease both;
+}
+
+@keyframes gradientDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-20px, 18px, 0);
+  }
+}
+
+@keyframes floatCard {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }

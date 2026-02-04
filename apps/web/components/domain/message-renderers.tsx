@@ -11,7 +11,7 @@ import type {
   TRenderRequested,
   TSceneRegenerated,
   TUrlSubmitted,
-} from "@a-ds/shared";
+} from "@doujin/shared";
 
 interface MessageRendererProps {
   content: TMessageContent;
@@ -20,8 +20,8 @@ interface MessageRendererProps {
 function UrlSubmittedRenderer({ content }: { content: TUrlSubmitted }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">URL Submitted</div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm font-medium text-white/90">URL Submitted</div>
+      <div className="text-xs text-white/60">
         <a
           href={content.url}
           target="_blank"
@@ -31,7 +31,7 @@ function UrlSubmittedRenderer({ content }: { content: TUrlSubmitted }) {
           {content.url}
         </a>
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-white/50">
         Format: {content.format}
         {content.tone && ` • Tone: ${content.tone}`}
       </div>
@@ -46,15 +46,15 @@ function GenerationProgressRenderer({
 }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm">{content.message}</div>
+      <div className="text-sm text-white/80">{content.message}</div>
       <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+        <div className="h-1.5 flex-1 rounded-full bg-black/30 overflow-hidden">
           <div
-            className="h-full bg-blue-500"
+            className="h-full bg-[color:var(--accent)]"
             style={{ width: `${content.progress}%` }}
           />
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-white/60">
           {content.progress}%
         </span>
       </div>
@@ -65,10 +65,10 @@ function GenerationProgressRenderer({
 function GenerationResultRenderer({ content }: { content: TGenerationResult }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">Generation Complete</div>
-      <div className="text-sm">{content.summary}</div>
+      <div className="text-sm font-medium text-white/90">Generation Complete</div>
+      <div className="text-sm text-white/70">{content.summary}</div>
       {content.artifactRefs.length > 0 && (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-white/50">
           Checkpoint: {content.checkpointId.slice(0, 8)}...
         </div>
       )}
@@ -90,11 +90,11 @@ function CheckpointCreatedRenderer({
 
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">Checkpoint Created</div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm font-medium text-white/90">Checkpoint Created</div>
+      <div className="text-xs text-white/60">
         Reason: {reasonLabels[content.reason]}
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-white/50">
         ID: {content.checkpointId.slice(0, 8)}...
       </div>
     </div>
@@ -108,12 +108,12 @@ function CheckpointAppliedRenderer({
 }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">Checkpoint Restored</div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm font-medium text-white/90">Checkpoint Restored</div>
+      <div className="text-xs text-white/60">
         Applied: {content.checkpointId.slice(0, 8)}...
       </div>
       {content.previousCheckpointId && (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-white/50">
           Previous: {content.previousCheckpointId.slice(0, 8)}...
         </div>
       )}
@@ -124,9 +124,9 @@ function CheckpointAppliedRenderer({
 function SceneRegeneratedRenderer({ content }: { content: TSceneRegenerated }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">Scene Regenerated</div>
-      <div className="text-sm">{content.instruction}</div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm font-medium text-white/90">Scene Regenerated</div>
+      <div className="text-sm text-white/70">{content.instruction}</div>
+      <div className="text-xs text-white/50">
         Scene: {content.sceneId.slice(0, 8)}...
       </div>
     </div>
@@ -136,11 +136,11 @@ function SceneRegeneratedRenderer({ content }: { content: TSceneRegenerated }) {
 function RenderRequestedRenderer({ content }: { content: TRenderRequested }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">Render Requested</div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm font-medium text-white/90">Render Requested</div>
+      <div className="text-xs text-white/60">
         Format: {content.format}
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-white/50">
         Job: {content.renderJobId.slice(0, 8)}...
       </div>
     </div>
@@ -150,15 +150,15 @@ function RenderRequestedRenderer({ content }: { content: TRenderRequested }) {
 function RenderProgressRenderer({ content }: { content: TRenderProgress }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm">Rendering: {content.status}</div>
+      <div className="text-sm text-white/80">Rendering: {content.status}</div>
       <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+        <div className="h-1.5 flex-1 rounded-full bg-black/30 overflow-hidden">
           <div
-            className="h-full bg-green-500"
+            className="h-full bg-[color:var(--accent)]"
             style={{ width: `${content.progress}%` }}
           />
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-white/60">
           {content.progress}%
         </span>
       </div>
@@ -181,7 +181,7 @@ function RenderCompletedRenderer({ content }: { content: TRenderCompleted }) {
 
   return (
     <div className="space-y-1">
-      <div className="text-sm font-medium">
+      <div className="text-sm font-medium text-white/90">
         Render {statusLabels[content.status]}
       </div>
       {content.outputUrl && (
@@ -189,7 +189,7 @@ function RenderCompletedRenderer({ content }: { content: TRenderCompleted }) {
           href={content.outputUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs underline text-blue-500"
+          className="text-xs underline text-[#d8dd5a]"
         >
           Download Video
         </a>
@@ -223,7 +223,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
       return <RenderCompletedRenderer content={content} />;
     default:
       return (
-        <div className="text-xs text-muted-foreground">Unknown message</div>
+      <div className="text-xs text-white/50">Unknown message</div>
       );
   }
 }

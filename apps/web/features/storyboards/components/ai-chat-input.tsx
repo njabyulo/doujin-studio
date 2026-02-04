@@ -188,8 +188,10 @@ export function AiChatInput({
   };
 
   const renderMaxBadge = () => (
-    <div className="flex h-[14px] items-center gap-1.5 rounded border border-border px-1 py-0">
-      <span className="text-[9px] font-bold uppercase text-sky-200">MAX</span>
+    <div className="flex h-[14px] items-center gap-1.5 rounded border border-[color:var(--ds-border)] px-1 py-0">
+      <span className="text-[9px] font-bold uppercase text-[color:var(--ds-muted)]">
+        MAX
+      </span>
     </div>
   );
 
@@ -204,14 +206,14 @@ export function AiChatInput({
       <div className="relative mx-auto flex w-full max-w-3xl flex-col gap-5">
         <div className="relative z-10">
           <form
-            className="relative overflow-hidden rounded-[32px] border border-white/15 bg-[rgba(6,11,29,0.75)] p-6 shadow-[0_30px_85px_rgba(3,6,18,0.7)] backdrop-blur-2xl"
+            className="relative overflow-hidden rounded-[32px] border border-[color:var(--ds-border)] bg-[color:var(--ds-glass)] p-6 text-[color:var(--ds-text)] shadow-[var(--ds-shadow-strong)] backdrop-blur-2xl"
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onSubmit={handleSubmit}
           >
-            <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-white/60">
-              <Sparkles className="h-4 w-4 text-emerald-300" />
+            <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[color:var(--ds-muted)]">
+              <Sparkles className="h-4 w-4 text-[color:var(--ds-accent-warm)]" />
               Compose your brief
             </div>
 
@@ -220,14 +222,14 @@ export function AiChatInput({
                 {attachedFiles.map((file) => (
                   <Badge
                     key={file.id}
-                    className="group flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[13px] text-white"
+                    className="group flex items-center gap-2 rounded-full border border-[color:var(--ds-border)] bg-white/70 px-3 py-1 text-[13px] text-[color:var(--ds-text)]"
                     variant="outline"
                   >
                     <div className="relative inline-flex h-5 w-5 items-center justify-center">
                       {file.preview ? (
                         <Image
                           alt={file.name}
-                          className="absolute inset-0 h-5 w-5 rounded-full border border-white/20 object-cover"
+                          className="absolute inset-0 h-5 w-5 rounded-full border border-[color:var(--ds-border)] object-cover"
                           height={20}
                           src={file.preview}
                           width={20}
@@ -238,7 +240,7 @@ export function AiChatInput({
                     </div>
                     <span className="max-w-[160px] truncate">{file.name}</span>
                     <button
-                      className="rounded-full bg-white/10 p-0.5 text-white/70 opacity-0 transition group-hover:opacity-100"
+                      className="rounded-full bg-white/50 p-0.5 text-[color:var(--ds-muted)] opacity-0 transition group-hover:opacity-100"
                       onClick={() => handleRemoveFile(file.id)}
                       type="button"
                     >
@@ -250,7 +252,7 @@ export function AiChatInput({
             )}
 
             <Textarea
-              className="max-h-60 min-h-[150px] resize-none border-none bg-transparent p-0 text-base text-white placeholder:text-white/50 shadow-none focus-visible:ring-0"
+              className="max-h-60 min-h-[150px] resize-none border-none bg-transparent p-0 text-base text-[color:var(--ds-text)] placeholder:text-[color:var(--ds-muted)] shadow-none focus-visible:ring-0"
               disabled={disabled}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
@@ -258,7 +260,7 @@ export function AiChatInput({
               value={prompt}
             />
 
-            <div className="mt-5 flex flex-col gap-4 border-t border-white/10 pt-4 md:flex-row md:items-center">
+            <div className="mt-5 flex flex-col gap-4 border-t border-[color:var(--ds-border)] pt-4 md:flex-row md:items-center">
               <div className="flex flex-1 items-center gap-1.5">
                 <input
                   className="sr-only"
@@ -271,7 +273,7 @@ export function AiChatInput({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      className="h-9 w-9 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/15"
+                      className="h-9 w-9 rounded-2xl border border-[color:var(--ds-border)] bg-white/70 text-[color:var(--ds-text)] hover:bg-white"
                       disabled={disabled}
                       size="icon"
                       type="button"
@@ -282,7 +284,7 @@ export function AiChatInput({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="start"
-                    className="max-w-xs rounded-2xl border border-white/10 bg-[#060b1d] p-2 text-white"
+                    className="max-w-xs rounded-2xl border border-[color:var(--ds-border)] bg-[color:var(--ds-surface)] p-2 text-[color:var(--ds-text)] shadow-[var(--ds-shadow-soft)]"
                   >
                     <DropdownMenuGroup className="space-y-1">
                       <DropdownMenuItem
@@ -290,25 +292,25 @@ export function AiChatInput({
                         onClick={() => fileUploadRef.current?.click()}
                       >
                         <div className="flex items-center gap-2">
-                          <Paperclip className="text-white/70" size={16} />
+                          <Paperclip className="text-[color:var(--ds-muted)]" size={16} />
                           <span>Attach files</span>
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem className="rounded-xl text-sm">
                         <div className="flex items-center gap-2">
-                          <LinkIcon className="text-white/70" size={16} />
+                          <LinkIcon className="text-[color:var(--ds-muted)]" size={16} />
                           <span>Import from URL</span>
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem className="rounded-xl text-sm">
                         <div className="flex items-center gap-2">
-                          <Clipboard className="text-white/70" size={16} />
+                          <Clipboard className="text-[color:var(--ds-muted)]" size={16} />
                           <span>Paste from clipboard</span>
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem className="rounded-xl text-sm">
                         <div className="flex items-center gap-2">
-                          <LayoutTemplate className="text-white/70" size={16} />
+                          <LayoutTemplate className="text-[color:var(--ds-muted)]" size={16} />
                           <span>Use template</span>
                         </div>
                       </DropdownMenuItem>
@@ -319,7 +321,7 @@ export function AiChatInput({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      className="h-9 w-9 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/15"
+                      className="h-9 w-9 rounded-2xl border border-[color:var(--ds-border)] bg-white/70 text-[color:var(--ds-text)] hover:bg-white"
                       disabled={disabled}
                       size="icon"
                       type="button"
@@ -330,13 +332,13 @@ export function AiChatInput({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="start"
-                    className="w-52 rounded-2xl border border-white/10 bg-[#060b1d] p-3 text-white"
+                    className="w-52 rounded-2xl border border-[color:var(--ds-border)] bg-[color:var(--ds-surface)] p-3 text-[color:var(--ds-text)] shadow-[var(--ds-shadow-soft)]"
                   >
                     <DropdownMenuGroup className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Sparkles className="text-white/60" size={16} />
-                          <Label className="text-xs text-white/80">
+                          <Sparkles className="text-[color:var(--ds-muted)]" size={16} />
+                          <Label className="text-xs text-[color:var(--ds-muted)]">
                             Auto-complete
                           </Label>
                         </div>
@@ -351,8 +353,8 @@ export function AiChatInput({
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Play className="text-white/60" size={16} />
-                          <Label className="text-xs text-white/80">
+                          <Play className="text-[color:var(--ds-muted)]" size={16} />
+                          <Label className="text-xs text-[color:var(--ds-muted)]">
                             Streaming
                           </Label>
                         </div>
@@ -367,8 +369,8 @@ export function AiChatInput({
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <History className="text-white/60" size={16} />
-                          <Label className="text-xs text-white/80">
+                          <History className="text-[color:var(--ds-muted)]" size={16} />
+                          <Label className="text-xs text-[color:var(--ds-muted)]">
                             Show history
                           </Label>
                         </div>
@@ -384,14 +386,14 @@ export function AiChatInput({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <p className="hidden text-xs text-white/50 md:block">
+                <p className="hidden text-xs text-[color:var(--ds-muted)] md:block">
                   Attach inspiration or compliance notes.
                 </p>
               </div>
 
               <div className="flex items-center justify-end gap-2">
                 <Button
-                  className="rounded-full border border-white/20 bg-transparent px-4 py-2 text-white/70 hover:border-white/40"
+                  className="rounded-full border border-[color:var(--ds-border)] bg-white/70 px-4 py-2 text-[color:var(--ds-text)] hover:bg-white"
                   disabled={disabled}
                   onClick={handleQuickFill}
                   type="button"
@@ -400,7 +402,7 @@ export function AiChatInput({
                   Quick fill brand kit
                 </Button>
                 <Button
-                  className="rounded-full bg-sky-500 px-5 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:opacity-60"
+                  className="rounded-full bg-[color:var(--ds-accent-warm)] px-5 py-2 font-semibold text-[#1b1a16] transition hover:brightness-95 disabled:opacity-60"
                   disabled={!prompt.trim() || disabled}
                   size="sm"
                   type="submit"
@@ -413,7 +415,7 @@ export function AiChatInput({
 
             <div
               className={cn(
-                "pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] border border-dashed border-white/30 bg-white/5 text-sm font-medium text-white transition-opacity",
+                "pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] border border-dashed border-[color:var(--ds-border)] bg-white/70 text-sm font-medium text-[color:var(--ds-text)] transition-opacity",
                 isDragOver ? "opacity-100" : "opacity-0",
               )}
             >
@@ -429,7 +431,7 @@ export function AiChatInput({
           {ACTIONS.map((action) => (
             <Button
               key={action.id}
-              className="gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-xs uppercase tracking-[0.3em] text-white/70 hover:bg-white/15"
+              className="gap-2 rounded-full border border-[color:var(--ds-border)] bg-white/70 px-4 text-xs uppercase tracking-[0.3em] text-[color:var(--ds-muted)] hover:bg-white"
               disabled={disabled}
               size="sm"
               variant="ghost"

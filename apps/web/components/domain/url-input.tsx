@@ -19,7 +19,10 @@ export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form
+      onSubmit={handleSubmit}
+      className="flex gap-2 rounded-2xl border border-[color:var(--ds-border)] bg-[color:var(--ds-glass)] p-2 shadow-[var(--ds-shadow-soft)] backdrop-blur-xl"
+    >
       <Input
         type="url"
         placeholder="Enter URL to analyze..."
@@ -27,9 +30,9 @@ export function UrlInput({ onGenerate, isGenerating }: UrlInputProps) {
         onChange={(e) => setUrl(e.target.value)}
         disabled={isGenerating}
         required
-        className="flex-1"
+        className="flex-1 border-none bg-transparent text-[color:var(--ds-text)] placeholder:text-[color:var(--ds-muted)] shadow-none focus-visible:ring-0"
       />
-      <Button type="submit" disabled={isGenerating || !isValid}>
+      <Button type="submit" disabled={isGenerating || !isValid} variant="accent">
         {isGenerating ? "Generating..." : "Generate"}
       </Button>
     </form>

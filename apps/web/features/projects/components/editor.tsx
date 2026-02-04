@@ -1,8 +1,8 @@
 "use client";
 
-import { Master } from "@a-ds/remotion";
-import type { TBrandKit, TMessageContent, TStoryboard } from "@a-ds/shared";
-import { FORMAT_SPECS, SMessageContent } from "@a-ds/shared";
+import { Master } from "@doujin/remotion";
+import type { TBrandKit, TMessageContent, TStoryboard } from "@doujin/shared";
+import { FORMAT_SPECS, SMessageContent } from "@doujin/shared";
 import { Player } from "@remotion/player";
 import {
   ArrowLeft,
@@ -451,7 +451,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
 
   if (!projectId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-700">
+      <div className="ds-dark ds-editor flex min-h-screen items-center justify-center text-[color:var(--muted)]">
         Project id missing.
       </div>
     );
@@ -459,14 +459,14 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
 
   if (isLoading && !payload) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0B1020] text-white/70">
+      <div className="ds-dark ds-editor flex min-h-screen items-center justify-center text-[color:var(--muted)]">
         Loading project…
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1020] text-white">
+    <div className="ds-dark ds-editor min-h-screen">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-emerald-400/25 via-sky-400/10 to-transparent blur-3xl" />
         <div className="absolute -bottom-40 -right-40 h-[560px] w-[560px] rounded-full bg-gradient-to-tr from-orange-500/25 via-fuchsia-500/10 to-transparent blur-3xl" />
@@ -477,17 +477,17 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           <div className="flex items-center gap-3">
             <Button
               type="button"
-              variant="ghost"
-              className="h-10 w-10 rounded-full border border-white/10 bg-white/5 p-0 text-white/80 hover:bg-white/10"
+              variant="glass"
+              className="h-10 w-10 rounded-full p-0 text-[color:var(--text)]"
               onClick={() => window.history.back()}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.5em] text-white/45">
+              <p className="text-xs uppercase tracking-[0.5em] text-[color:var(--muted)]">
                 Doujin Studio
               </p>
-              <p className="truncate text-xl font-semibold">
+              <p className="truncate text-xl font-semibold text-[color:var(--text)]">
                 {payload?.project.title ?? "Project"}
               </p>
             </div>
@@ -496,15 +496,16 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant="ghost"
-              className="rounded-full border border-white/10 bg-white/5 px-4 text-white/80 hover:bg-white/10"
+              variant="glass"
+              className="rounded-full px-4 text-[color:var(--text)]"
               disabled
             >
               <Bot className="mr-2 h-4 w-4" />
               Ask AI
             </Button>
             <Button
-              className="rounded-full bg-[#FE7F2D] px-5 text-sm font-semibold text-white hover:bg-[#e67123]"
+              variant="accent"
+              className="rounded-full px-5 text-sm font-semibold"
               onClick={() => void startRender()}
               disabled={!activeCheckpoint || isGenerating}
             >
@@ -514,7 +515,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
         </header>
 
         {error && (
-          <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/15 px-4 py-3 text-sm text-red-100">
             {error}
           </div>
         )}
@@ -522,7 +523,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
         <div className="mt-6 grid flex-1 gap-6 lg:grid-cols-[56px_minmax(0,1fr)_420px]">
           {/* Left tool rail */}
           <div className="hidden lg:flex">
-            <div className="flex h-[640px] w-14 flex-col items-center gap-2 rounded-3xl border border-white/10 bg-white/5 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="glassPanel flex h-[640px] w-14 flex-col items-center gap-2 p-2 shadow-[var(--shadow-strong)]">
               <RailButton icon={Sparkles} label="AI" active />
               <RailButton icon={Film} label="Clips" />
               <RailButton icon={Palette} label="Style" />
@@ -533,14 +534,14 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           </div>
 
           {/* Canvas */}
-          <section className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-3 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-4">
+          <section className="glassPanel flex flex-col gap-4 p-3 shadow-[var(--shadow-strong)] sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                <span className="rounded-full border border-[color:var(--border)] bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
                   {storyboard?.format ?? generateFormat}
                 </span>
                 {storyboard && (
-                  <span className="text-xs text-white/50">
+                  <span className="text-xs text-[color:var(--muted)]">
                     {Math.round(storyboard.totalDuration)}s •{" "}
                     {storyboard.scenes.length} scenes
                   </span>
@@ -549,15 +550,16 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="rounded-full border border-white/10 bg-white/5 px-4 text-white/80 hover:bg-white/10"
+                  variant="glass"
+                  className="rounded-full px-4 text-[color:var(--text)]"
                   onClick={() => setInspectorTab("activity")}
                 >
                   Activity
                 </Button>
                 <Button
                   type="button"
-                  className="rounded-full bg-[#215E61] px-4 text-sm font-semibold text-white hover:bg-[#1b4c4f]"
+                  variant="accent"
+                  className="rounded-full px-4 text-sm font-semibold"
                   onClick={() => void startGeneration()}
                   disabled={isGenerating}
                 >
@@ -566,10 +568,10 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/40 p-3">
+            <div className="relative overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/40 p-3">
               <div className="relative mx-auto w-full max-w-[980px]">
                 {storyboard ? (
-                  <div className="relative overflow-hidden rounded-2xl bg-black/30">
+                  <div className="relative overflow-hidden rounded-2xl bg-black/30 shadow-[var(--shadow-soft)]">
                     <Player
                       component={Master}
                       compositionWidth={formatSpec.width}
@@ -583,7 +585,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                     />
                   </div>
                 ) : (
-                  <div className="flex min-h-[460px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/5 text-sm text-white/60">
+                  <div className="flex min-h-[460px] items-center justify-center rounded-2xl border border-dashed border-[color:var(--border)] bg-white/5 text-sm text-[color:var(--muted)]">
                     Generate a storyboard to start editing.
                   </div>
                 )}
@@ -603,16 +605,17 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
 
             {/* Filmstrip / timeline */}
             {storyboard && sceneCards.length > 0 && (
-              <div className="mt-1 rounded-3xl border border-white/10 bg-white/5 p-3">
+              <div className="timelineDock mt-1 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
                     Timeline
                   </p>
-                  <span className="text-xs text-white/45">
+                  <span className="text-xs text-[color:var(--muted)]">
                     Click a card to select.
                   </span>
                 </div>
-                <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
+                <div className="relative mt-3 flex gap-3 overflow-x-auto pb-2">
+                  <div className="pointer-events-none absolute left-4 top-0 h-full w-0.5 bg-[color:var(--accent)] shadow-[0_0_12px_rgba(216,221,90,0.6)]" />
                   {sceneCards.map((card) => {
                     const isSelected = card.id === selectedSceneId;
                     return (
@@ -661,7 +664,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           </section>
 
           {/* Inspector */}
-          <aside className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-5">
+          <aside className="glassPanel flex flex-col gap-4 p-4 shadow-[var(--shadow-strong)] sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
                 <button
@@ -786,8 +789,8 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                             Scene actions
                           </p>
                           <Button
-                            variant="ghost"
-                            className="rounded-full border border-white/10 bg-white/5 px-3 text-white/80 hover:bg-white/10"
+                            variant="glass"
+                            className="rounded-full px-3 text-white/80"
                             onClick={() => setEditingSceneId(selectedScene.id)}
                           >
                             Manual edit
@@ -809,7 +812,8 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                             className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
                           />
                           <Button
-                            className="w-full rounded-full bg-[#215E61] text-white hover:bg-[#1b4c4f]"
+                            variant="accent"
+                            className="w-full rounded-full"
                             onClick={() => void handleRegenerateScene()}
                             disabled={!sceneInstruction.trim()}
                           >
@@ -882,7 +886,7 @@ function RailButton({
       className={[
         "group flex h-10 w-10 items-center justify-center rounded-2xl border transition",
         active
-          ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-200"
+          ? "border-[#d8dd5a]/40 bg-[#d8dd5a]/15 text-[#d8dd5a]"
           : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/85",
       ].join(" ")}
       aria-label={label}

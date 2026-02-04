@@ -1,6 +1,6 @@
 "use client";
 
-import type { TScene } from "@a-ds/shared";
+import type { TScene } from "@doujin/shared";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -37,11 +37,18 @@ export function SceneEditor({ scene, onSave, onCancel }: SceneEditorProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg">
-      <h3 className="text-lg font-semibold">Edit Scene</h3>
+    <form
+      onSubmit={handleSubmit}
+      className="glassPanel space-y-4 p-4 text-white/90"
+    >
+      <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+        Edit Scene
+      </h3>
 
       <div className="space-y-2">
-        <Label htmlFor="duration">Duration (seconds)</Label>
+        <Label htmlFor="duration" className="text-white/70">
+          Duration (seconds)
+        </Label>
         <Input
           id="duration"
           type="number"
@@ -50,32 +57,46 @@ export function SceneEditor({ scene, onSave, onCancel }: SceneEditorProps) {
           value={duration}
           onChange={(e) => setDuration(e.target.value)}
           required
+          className="border-white/10 bg-black/30 text-white placeholder:text-white/40"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="onScreenText">On-Screen Text</Label>
+        <Label htmlFor="onScreenText" className="text-white/70">
+          On-Screen Text
+        </Label>
         <Input
           id="onScreenText"
           value={onScreenText}
           onChange={(e) => setOnScreenText(e.target.value)}
           required
+          className="border-white/10 bg-black/30 text-white placeholder:text-white/40"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="voiceoverText">Voiceover Text</Label>
+        <Label htmlFor="voiceoverText" className="text-white/70">
+          Voiceover Text
+        </Label>
         <Input
           id="voiceoverText"
           value={voiceoverText}
           onChange={(e) => setVoiceoverText(e.target.value)}
           required
+          className="border-white/10 bg-black/30 text-white placeholder:text-white/40"
         />
       </div>
 
       <div className="flex gap-2">
-        <Button type="submit">Save Changes</Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="submit" variant="accent" className="rounded-full">
+          Save Changes
+        </Button>
+        <Button
+          type="button"
+          variant="glass"
+          className="rounded-full"
+          onClick={onCancel}
+        >
           Cancel
         </Button>
       </div>
