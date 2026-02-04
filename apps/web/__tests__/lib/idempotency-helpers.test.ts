@@ -1,8 +1,8 @@
-import { db } from "@a-ds/database/client";
+import { db } from "@doujin/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { storeIdempotencyKey } from "~/lib/idempotency-helpers";
 
-vi.mock("@a-ds/database/client", () => ({
+vi.mock("@doujin/database/client", () => ({
   db: {
     insert: vi.fn(),
   },

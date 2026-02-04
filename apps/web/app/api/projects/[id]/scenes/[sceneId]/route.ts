@@ -1,7 +1,7 @@
-import { and, eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { checkpoint, project } from "@a-ds/database/schema";
-import type { TBrandKit, TScript, TStoryboard } from "@a-ds/shared";
+import { and, eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { checkpoint, project } from "@doujin/database/schema";
+import type { TBrandKit, TScript, TStoryboard } from "@doujin/shared";
 import { z } from "zod";
 import { requireAuth } from "~/lib/auth-middleware";
 import { createCheckpoint } from "~/lib/checkpoint-helpers";

@@ -1,6 +1,6 @@
-import { and, eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { checkpoint, message, project, renderJob } from "@a-ds/database/schema";
+import { and, eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { checkpoint, message, project, renderJob } from "@doujin/database/schema";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Resource } from "sst";
 import { z } from "zod";

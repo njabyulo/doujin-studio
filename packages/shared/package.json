@@ -1,5 +1,5 @@
 {
-  "name": "@a-ds/shared",
+  "name": "@doujin/shared",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@a-ds/config": "workspace:*",
+    "@doujin/config": "workspace:*",
     "@types/node": "^20.19.30",
     "eslint": "^9.39.2",
     "fast-check": "^4.5.3",

@@ -1,8 +1,8 @@
 // Feature: mvp-architecture-refactor, Property 3: Best-Effort Extraction
 // Validates: Requirements 2.7
 
-import { SBrandKit } from "@a-ds/shared/schemas";
-import type { TBrandKit } from "@a-ds/shared/types";
+import { SBrandKit } from "@doujin/shared/schemas";
+import type { TBrandKit } from "@doujin/shared/types";
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 

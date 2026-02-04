@@ -1,7 +1,7 @@
-import { and, eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { checkpoint, message, project } from "@a-ds/database/schema";
-import { SCheckpointApplied } from "@a-ds/shared";
+import { and, eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { checkpoint, message, project } from "@doujin/database/schema";
+import { SCheckpointApplied } from "@doujin/shared";
 import { requireAuth } from "~/lib/auth-middleware";
 import {
   getCorrelationId,

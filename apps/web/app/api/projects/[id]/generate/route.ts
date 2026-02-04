@@ -1,7 +1,7 @@
-import { eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { message, project } from "@a-ds/database/schema";
-import { SBrandKit, SScript, SStoryboard } from "@a-ds/shared";
+import { eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { message, project } from "@doujin/database/schema";
+import { SBrandKit, SScript, SStoryboard } from "@doujin/shared";
 import { google } from "@ai-sdk/google";
 import { Output, streamText } from "ai";
 import { z } from "zod";

@@ -1,5 +1,5 @@
 {
-  "name": "a-ds",
+  "name": "doujin",
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@10.28.2",
@@ -14,9 +14,9 @@
     "lint:type": "turbo run lint:type",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "db:generate": "turbo run db:generate --filter=@a-ds/database",
-    "db:migrate": "turbo run db:migrate --filter=@a-ds/database",
-    "db:studio": "turbo run db:studio --filter=@a-ds/database",
+    "db:generate": "turbo run db:generate --filter=@doujin/database",
+    "db:migrate": "turbo run db:migrate --filter=@doujin/database",
+    "db:studio": "turbo run db:studio --filter=@doujin/database",
     "clean": "turbo clean",
     "clean:all": "turbo clean:all && rm -rf node_modules .turbo .sst"
   },

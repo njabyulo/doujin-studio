@@ -1,6 +1,6 @@
-import { eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { project, renderJob } from "@a-ds/database/schema";
+import { eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { project, renderJob } from "@doujin/database/schema";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireAuth } from "~/lib/auth-middleware";

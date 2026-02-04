@@ -3,7 +3,7 @@
 export default $config({
   app(input) {
     return {
-      name: "a-ds",
+      name: "doujin",
       removal: input?.stage === "production" ? "retain" : "remove",
       home: "aws",
     };

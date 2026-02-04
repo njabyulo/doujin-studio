@@ -1,13 +1,13 @@
-import { eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { checkpoint, message, project } from "@a-ds/database/schema";
-import type { TBrandKit, TScript, TStoryboard } from "@a-ds/shared";
+import { eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { checkpoint, message, project } from "@doujin/database/schema";
+import type { TBrandKit, TScript, TStoryboard } from "@doujin/shared";
 import {
   SBrandKit,
   SCheckpointCreated,
   SScript,
   SStoryboard,
-} from "@a-ds/shared";
+} from "@doujin/shared";
 
 interface CreateCheckpointParams {
   projectId: string;

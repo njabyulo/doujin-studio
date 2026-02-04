@@ -1,3 +1,3 @@
-import baseConfig from "@a-ds/config/eslint/base.js";
+import baseConfig from "@doujin/config/eslint/base.js";
 
 export default [...baseConfig];

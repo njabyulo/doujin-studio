@@ -1,5 +1,5 @@
-import { db } from "@a-ds/database";
-import * as schema from "@a-ds/database/schema";
+import { db } from "@doujin/database";
+import * as schema from "@doujin/database/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 

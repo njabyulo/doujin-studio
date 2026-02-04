@@ -1,4 +1,4 @@
-import { SBrandKit, SStoryboard } from "@a-ds/shared";
+import { SBrandKit, SStoryboard } from "@doujin/shared";
 import type { AwsRegion } from "@remotion/lambda";
 import { renderMediaOnLambda } from "@remotion/lambda/client";
 import { Resource } from "sst";

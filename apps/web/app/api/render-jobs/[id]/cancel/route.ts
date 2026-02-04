@@ -1,6 +1,6 @@
-import { eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { project, renderJob } from "@a-ds/database/schema";
+import { eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { project, renderJob } from "@doujin/database/schema";
 import { requireAuth } from "~/lib/auth-middleware";
 import {
   getCorrelationId,

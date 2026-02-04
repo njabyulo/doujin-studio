@@ -1,4 +1,4 @@
-import { checkpoint, db, eq, message, renderJob } from "@a-ds/database";
+import { checkpoint, db, eq, message, renderJob } from "@doujin/database";
 import type { AwsRegion } from "@remotion/lambda";
 import {
   getRenderProgress,

@@ -23,10 +23,10 @@ importers:
 
   apps/functions:
     dependencies:
-      '@a-ds/database':
+      '@doujin/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@a-ds/shared':
+      '@doujin/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@remotion/lambda':
@@ -45,13 +45,13 @@ importers:
 
   apps/web:
     dependencies:
-      '@a-ds/database':
+      '@doujin/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@a-ds/remotion':
+      '@doujin/remotion':
         specifier: workspace:*
         version: link:../../packages/remotion
-      '@a-ds/shared':
+      '@doujin/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@ai-sdk/google':
@@ -190,7 +190,7 @@ importers:
         specifier: ^3.4.5
         version: 3.4.8
     devDependencies:
-      '@a-ds/config':
+      '@doujin/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -243,7 +243,7 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
-      '@a-ds/config':
+      '@doujin/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':

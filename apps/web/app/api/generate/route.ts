@@ -1,4 +1,4 @@
-import { SBrandKit, SScript, SStoryboard } from "@a-ds/shared";
+import { SBrandKit, SScript, SStoryboard } from "@doujin/shared";
 import { google } from "@ai-sdk/google";
 import { Output, streamText } from "ai";
 import { z } from "zod";

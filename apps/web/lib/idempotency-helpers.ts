@@ -1,11 +1,11 @@
-import { and, eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
+import { and, eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
 import {
   checkpoint,
   idempotencyKey,
   message,
   renderJob,
-} from "@a-ds/database/schema";
+} from "@doujin/database/schema";
 
 type TOperation = "generate" | "regenerate_scene" | "render";
 

@@ -15,9 +15,9 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
-    "@a-ds/database": "workspace:*",
-    "@a-ds/remotion": "workspace:*",
-    "@a-ds/shared": "workspace:*",
+    "@doujin/database": "workspace:*",
+    "@doujin/remotion": "workspace:*",
+    "@doujin/shared": "workspace:*",
     "@ai-sdk/google": "^3.0.14",
     "@aws-sdk/client-s3": "^3.975.0",
     "@aws-sdk/client-sqs": "^3.978.0",

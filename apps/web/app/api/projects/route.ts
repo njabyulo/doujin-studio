@@ -1,6 +1,6 @@
-import { desc, eq } from "@a-ds/database";
-import { db } from "@a-ds/database/client";
-import { project } from "@a-ds/database/schema";
+import { desc, eq } from "@doujin/database";
+import { db } from "@doujin/database/client";
+import { project } from "@doujin/database/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "~/lib/auth-middleware";
 import {

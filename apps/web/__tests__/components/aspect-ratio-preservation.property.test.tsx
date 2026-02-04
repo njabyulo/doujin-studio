@@ -1,5 +1,5 @@
-import type { TStoryboard } from "@a-ds/shared";
-import { FORMAT_SPECS } from "@a-ds/shared";
+import type { TStoryboard } from "@doujin/shared";
+import { FORMAT_SPECS } from "@doujin/shared";
 import { render } from "@testing-library/react";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
