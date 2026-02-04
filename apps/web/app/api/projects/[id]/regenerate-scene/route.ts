@@ -120,7 +120,7 @@ export async function POST(
     console.log(`[${correlationId}] Regenerating scene ${sceneIndex + 1}`);
 
     const { output: regeneratedScene } = await generateText({
-      model: google("gemini-2.0-flash-exp"),
+      model: google("gemini-2.5-flash"),
       output: Output.object({
         schema: z.object({
           duration: z.number().positive(),

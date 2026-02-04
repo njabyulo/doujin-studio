@@ -126,7 +126,7 @@ export async function POST(
           );
 
           const result = streamText({
-            model: google("gemini-2.0-flash-exp"),
+            model: google("gemini-2.5-flash"),
             output: Output.object({
               schema: SGenerationOutput,
             }),
