@@ -18,10 +18,10 @@ export const databaseConfig = {
     dev: {
       username: "postgres",
       password: "password",
-      database: "local",
+      database: "doujin",
       host: "localhost",
       port: 5432,
-      url: "postgresql://postgres:password@localhost:5432/local",
+      url: process.env.DATABASE_URL!,
     },
     username: process.env.POSTGRES_USERNAME || "dbadmin",
     password: process.env.POSTGRES_PASSWORD || "Pssw0rd",
