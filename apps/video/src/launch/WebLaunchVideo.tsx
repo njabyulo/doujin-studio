@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { Audio } from "@remotion/media";
 import {
   AbsoluteFill,
   interpolate,
@@ -12,9 +13,15 @@ import { BrowserFrame } from "./components/BrowserFrame";
 import { bodyFont, displayFont } from "./fonts";
 import { dsTheme } from "./theme";
 
-const FPS = 30;
+type WebLaunchVideoProps = {
+  voiceoverSrc: string;
+};
 
-export const WebLaunchVideo: React.FC = () => {
+export const WebLaunchVideo: React.FC<WebLaunchVideoProps> = ({
+  voiceoverSrc,
+}) => {
+  const { fps, durationInFrames: totalFrames } = useVideoConfig();
+
   const scenes = useMemo(
     () => [
       { id: "intro", seconds: 4 },
@@ -27,16 +34,33 @@ export const WebLaunchVideo: React.FC = () => {
   );
 
   const starts = useMemo(() => {
+    const baseDurations = scenes.map((s) =>
+      Math.max(1, Math.round(s.seconds * fps)),
+    );
+    const baseTotal = baseDurations.reduce((sum, d) => sum + d, 0);
+    const scale = totalFrames / baseTotal;
+
     let acc = 0;
-    return scenes.map((s) => {
+    return scenes.map((s, i) => {
       const start = acc;
-      acc += Math.round(s.seconds * FPS);
-      return { ...s, start, durationInFrames: Math.round(s.seconds * FPS) };
+      const isLast = i === scenes.length - 1;
+      const remainingScenes = scenes.length - i - 1;
+      const remainingBudget = Math.max(0, totalFrames - acc);
+
+      const raw = Math.max(1, Math.round(baseDurations[i] * scale));
+      const maxThis = Math.max(1, remainingBudget - remainingScenes);
+      const durationInFrames = isLast
+        ? Math.max(1, remainingBudget)
+        : Math.min(raw, maxThis);
+
+      acc += durationInFrames;
+      return { ...s, start, durationInFrames };
     });
-  }, [scenes]);
+  }, [fps, scenes, totalFrames]);
 
   return (
     <AbsoluteFill style={{ fontFamily: bodyFont.fontFamily }}>
+      <Audio src={voiceoverSrc} />
       <Sequence
         from={starts[0].start}
         durationInFrames={starts[0].durationInFrames}
