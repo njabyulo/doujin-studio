@@ -27,6 +27,7 @@ interface AssetsPanelProps {
   renders: AssetItem[];
   selectedSceneId?: string;
   emptyState?: ReactNode;
+  onAssetClick?: (asset: AssetItem) => void;
 }
 
 const FILTERS: Array<{
@@ -49,6 +50,7 @@ export function AssetsPanel({
   renders,
   selectedSceneId,
   emptyState,
+  onAssetClick,
 }: AssetsPanelProps) {
   return (
     <div className="flex h-full flex-col gap-4">
@@ -113,10 +115,26 @@ export function AssetsPanel({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {assets.map((asset) => (
-              <AssetCard key={asset.id} asset={asset} />
+              <AssetCard
+                key={asset.id}
+                asset={asset}
+                onClick={
+                  onAssetClick && (asset.type === "video" || asset.type === "render")
+                    ? () => onAssetClick(asset)
+                    : undefined
+                }
+              />
             ))}
             {renders.map((asset) => (
-              <AssetCard key={asset.id} asset={asset} />
+              <AssetCard
+                key={asset.id}
+                asset={asset}
+                onClick={
+                  onAssetClick && (asset.type === "video" || asset.type === "render")
+                    ? () => onAssetClick(asset)
+                    : undefined
+                }
+              />
             ))}
           </div>
         )}
@@ -125,16 +143,29 @@ export function AssetsPanel({
   );
 }
 
-function AssetCard({ asset }: { asset: AssetItem }) {
+function AssetCard({
+  asset,
+  onClick,
+}: {
+  asset: AssetItem;
+  onClick?: () => void;
+}) {
   const tag =
     asset.type === "render"
       ? "Render"
       : asset.type === "video"
         ? "Video"
         : "Image";
-
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 shadow-[var(--shadow-strong)] transition hover:border-white/20 hover:bg-white/5">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={[
+        "group relative overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 shadow-[var(--shadow-strong)] transition hover:border-white/20 hover:bg-white/5",
+        onClick ? "cursor-pointer" : "cursor-default",
+      ].join(" ")}
+    >
       <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100">
         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br from-[#d8dd5a]/30 to-transparent blur-2xl" />
         <div className="absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-gradient-to-tr from-orange-400/30 to-transparent blur-2xl" />
@@ -169,6 +200,7 @@ function AssetCard({ asset }: { asset: AssetItem }) {
                 href={asset.outputUrl}
                 target="_blank"
                 rel="noreferrer"
+                onClick={(event) => event.stopPropagation()}
                 className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white"
               >
                 Open render
@@ -186,6 +218,6 @@ function AssetCard({ asset }: { asset: AssetItem }) {
           </p>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

@@ -17,7 +17,8 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
-    "remotion": "^4.0.410",
+    "@remotion/media": "4.0.417",
+    "remotion": "4.0.417",
     "react": "^19.2.4",
     "zod": "^4.3.6"
   },
