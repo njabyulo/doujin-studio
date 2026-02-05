@@ -52,6 +52,7 @@ const SGenerationDraft = z.object({
         voiceoverText: z.string(),
         assetSuggestions: z.array(
           z.object({
+            id: z.string().uuid().optional(),
             type: z.enum(["image", "video"]),
             description: z.string(),
             placeholderUrl: z.string().url().optional(),
@@ -79,11 +80,15 @@ const SGenerationDraft = z.object({
 
 function normalizeGenerationOutput(draft: z.infer<typeof SGenerationDraft>) {
   const sceneIdMap = new Map<string, string>();
-  const normalizedScenes = draft.storyboard.scenes.map((scene, index) => {
+  const normalizedScenes = draft.storyboard.scenes.map((scene) => {
     const newId = crypto.randomUUID();
     sceneIdMap.set(scene.id, newId);
     return {
       ...scene,
+      assetSuggestions: scene.assetSuggestions.map((asset) => ({
+        ...asset,
+        id: asset.id ?? crypto.randomUUID(),
+      })),
       id: newId,
     };
   });
@@ -334,7 +339,7 @@ STORYBOARD:
   * duration: 3-8 seconds
   * onScreenText: compelling text overlay (max 100 chars)
   * voiceoverText: script for voiceover (max 200 chars)
-  * assetSuggestions: array of 1-2 suggestions with type ("image" or "video") and description
+  * assetSuggestions: array of 1-2 suggestions with id (UUID), type ("image" or "video"), and description
 
 SCRIPT:
 - version: "1"

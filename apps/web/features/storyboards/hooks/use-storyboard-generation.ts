@@ -75,7 +75,11 @@ export function useStoryboardGeneration(): UseStoryboardGeneration {
         const projectResponse = await fetch("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: brief.title }),
+          body: JSON.stringify({
+            prompt: trimmed,
+            format: brief.format,
+            tone: brief.tone,
+          }),
         });
 
         if (!projectResponse.ok) {
@@ -83,13 +87,12 @@ export function useStoryboardGeneration(): UseStoryboardGeneration {
           throw new Error(message || "Failed to create project");
         }
 
-        const created = (await projectResponse.json()) as { id: string };
-        const urlParams = new URLSearchParams();
-        urlParams.set("url", brief.url);
-        urlParams.set("format", brief.format);
-        if (brief.tone) urlParams.set("tone", brief.tone);
+        const created = (await projectResponse.json()) as {
+          project: { id: string };
+          checkpointId: string;
+        };
 
-        router.push(`/projects/${created.id}?${urlParams.toString()}`);
+        router.push(`/projects/${created.project.id}`);
       } catch (generationError) {
         console.error("Storyboard generation failed", generationError);
         setIsTransitioning(false);

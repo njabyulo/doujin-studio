@@ -125,6 +125,7 @@ export async function POST(
         schema: z.object({
           assetSuggestions: z.array(
             z.object({
+              id: z.string().uuid().optional(),
               type: z.enum(["image", "video"]),
               description: z.string(),
               placeholderUrl: z.string().url().optional(),
@@ -146,7 +147,10 @@ Return 4-8 asset suggestions. Keep descriptions short, specific, and cinematic.`
 
     const updatedScene = {
       ...currentScene,
-      assetSuggestions: output.assetSuggestions,
+      assetSuggestions: output.assetSuggestions.map((asset) => ({
+        ...asset,
+        id: asset.id ?? crypto.randomUUID(),
+      })),
     };
 
     const updatedScenes = [...storyboard.scenes];

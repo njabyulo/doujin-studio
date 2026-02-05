@@ -17,7 +17,7 @@ export const idempotencyKey = pgTable(
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
     operation: text("operation", {
-      enum: ["generate", "regenerate_scene", "render"],
+      enum: ["generate", "generate_assets", "regenerate_scene", "render"],
     }).notNull(),
     key: text("key").notNull(),
     resultRef: text("result_ref").notNull(),

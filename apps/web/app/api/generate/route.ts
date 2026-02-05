@@ -60,7 +60,7 @@ STORYBOARD (strict JSON):
   * duration: 3-8 seconds
   * onScreenText: max 100 chars
   * voiceoverText: max 200 chars
-  * assetSuggestions: 1-2 items with { type: "image"|"video", description }
+  * assetSuggestions: 1-2 items with { id: UUID, type: "image"|"video", description }
 
 SCRIPT (strict JSON):
 - version: "1"

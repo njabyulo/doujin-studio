@@ -128,6 +128,7 @@ export async function POST(
           voiceoverText: z.string(),
           assetSuggestions: z.array(
             z.object({
+              id: z.string().uuid().optional(),
               type: z.enum(["image", "video"]),
               description: z.string(),
             }),
@@ -149,6 +150,10 @@ Generate an improved version of this scene that follows the instruction while ma
     const updatedScene = {
       id: input.sceneId,
       ...regeneratedScene,
+      assetSuggestions: regeneratedScene.assetSuggestions.map((asset) => ({
+        ...asset,
+        id: asset.id ?? crypto.randomUUID(),
+      })),
     };
 
     const updatedScenes = [...storyboard.scenes];
