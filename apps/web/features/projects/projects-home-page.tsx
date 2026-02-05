@@ -25,7 +25,7 @@ const PLACEHOLDER_GRADIENTS = [
   "linear-gradient(160deg, #f7ead7 0%, #cfe0f0 55%, #f0d1c2 100%)",
 ];
 
-const QUICK_FILTERS = ["All", "Brand kits", "Social cuts", "Storyboards"];
+const QUICK_FILTERS = ["All", "Brand kits", "Social cuts", "Media plans"];
 
 function formatShortDate(value: string) {
   const date = new Date(value);
@@ -144,7 +144,7 @@ export function ProjectsHomePage() {
             >
               <Link href="/">
                 <Sparkles className="h-4 w-4" />
-                New Project
+                Generate Media
               </Link>
             </Button>
           </div>

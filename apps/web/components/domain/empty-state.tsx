@@ -45,19 +45,19 @@ export function EmptyState({
     <div className="flex min-h-screen items-center justify-center p-8">
       <div className="w-full max-w-2xl space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold">Create Your Ad</h1>
+          <h1 className="text-4xl font-bold">Create Your Media</h1>
           <p className="text-muted-foreground">
-            Enter a URL to generate a video ad with AI
+            Enter a prompt or URL to generate a media kit with AI
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="url">Product URL</Label>
+            <Label htmlFor="url">Prompt or URL</Label>
             <Input
               id="url"
-              type="url"
-              placeholder="https://example.com/product"
+              type="text"
+              placeholder="https://example.com/product or describe your idea"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               required
@@ -65,7 +65,7 @@ export function EmptyState({
             />
           </div>
           <Button type="submit" size="lg" className="w-full">
-            Generate Ad
+            Generate Media
           </Button>
         </form>
 

@@ -5,8 +5,7 @@ type StreamEvent =
   | { type: "generation_error"; error: string }
   | {
       type: "asset_generated";
-      assetId: string;
-      sceneId: string;
+      promptId: string;
       assetType: "image" | "video";
       mimeType?: string;
       base64?: string;

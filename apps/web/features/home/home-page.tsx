@@ -88,16 +88,16 @@ export function HomePage() {
           <section className="space-y-7">
             <div className="inline-flex items-center gap-3 rounded-full border border-[color:var(--ds-border)] bg-[color:var(--ds-glass)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--ds-muted)] shadow-[var(--ds-shadow-soft)] backdrop-blur-xl">
               <Sparkles className="h-4 w-4 text-[color:var(--ds-accent-warm)]" />
-              Launch video + 1 cutdown in minutes
+              Personal-to-business media in minutes
             </div>
 
             <div className="space-y-4">
               <h1 className="display-font text-4xl font-semibold leading-tight text-[color:var(--ds-text)] sm:text-5xl">
-                Doujin Studio makes brand‑ready launch videos feel cinematic.
+                Doujin Studio turns personal ideas into business‑ready media kits.
               </h1>
               <p className="max-w-xl text-base text-[color:var(--ds-muted)] sm:text-lg">
-                Drop a URL and a brief. We extract brand cues, draft a storyboard,
-                and prep the edit plan so you can ship polished social kits fast.
+                Drop a prompt or URL. We capture your intent, generate video + image
+                prompts, and deliver a kit ready for social or paid distribution.
               </p>
             </div>
 
@@ -105,10 +105,10 @@ export function HomePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.4em] text-[color:var(--ds-muted)]">
-                    Start with a brief
+                    Start with a prompt
                   </p>
                   <p className="mt-2 text-lg font-semibold text-[color:var(--ds-text)]">
-                    URL + mood + CTA is enough.
+                    A sentence or URL is enough.
                   </p>
                 </div>
                 <Button variant="glass" className="rounded-full px-4">
@@ -203,8 +203,8 @@ export function HomePage() {
                 Output
               </p>
               <p className="mt-2 text-base text-[color:var(--ds-text)]">
-                Deliver a hero launch video plus one social cutdown, ready for
-                paid or organic distribution.
+                Deliver a hero video, supporting cutdowns, and image variants
+                ready for personal creators or business teams.
               </p>
             </div>
           </section>
@@ -247,7 +247,7 @@ function Header() {
           Log in
         </Button>
         <Button variant="accent" className="rounded-full px-5">
-          Start a project
+          Generate Media
         </Button>
       </div>
     </header>
@@ -259,7 +259,7 @@ function StatusBanner() {
     <div className="mx-auto mt-6 flex max-w-4xl items-center gap-3 rounded-2xl border border-[color:var(--ds-border)] bg-[color:var(--ds-glass)] px-4 py-3 text-sm text-[color:var(--ds-text)] shadow-[var(--ds-shadow-soft)] backdrop-blur-xl">
       <div className="h-2 w-2 animate-pulse rounded-full bg-[color:var(--ds-accent-warm)]" />
       <Timer className="h-4 w-4" />
-      <p>Generating storyboard… hold tight.</p>
+      <p>Generating media… hold tight.</p>
     </div>
   );
 }
@@ -273,7 +273,7 @@ function GenerationOverlay() {
           Setting up your editor
         </p>
         <p className="mt-2 text-[color:var(--ds-muted)]">
-          We’re generating the storyboard and opening the project workspace.
+          We’re generating media prompts and opening the project workspace.
         </p>
       </div>
     </div>

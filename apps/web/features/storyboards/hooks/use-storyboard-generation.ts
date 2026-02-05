@@ -16,35 +16,6 @@ interface UseStoryboardGeneration {
   clearError: () => void;
 }
 
-type Format = "1:1" | "9:16" | "16:9";
-
-function extractBrief(prompt: string): {
-  url: string;
-  format: Format;
-  tone?: string;
-  title: string;
-} | null {
-  const urlMatch = prompt.match(/https?:\/\/[^\s|]+/);
-  if (!urlMatch) return null;
-
-  const url = urlMatch[0];
-  const formatMatch = prompt.match(/\b(16:9|9:16|1:1)\b/);
-  const format = (formatMatch?.[1] as Format | undefined) ?? "9:16";
-
-  const toneRaw = prompt.replace(url, "").trim().replace(/^\|+/, "").trim();
-  const tone = toneRaw.length > 0 ? toneRaw : undefined;
-
-  let title = "Untitled project";
-  try {
-    const hostname = new URL(url).hostname;
-    title = hostname.replace(/^www\./, "");
-  } catch {
-    // ignore
-  }
-
-  return { url, format, tone, title };
-}
-
 export function useStoryboardGeneration(): UseStoryboardGeneration {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -65,20 +36,11 @@ export function useStoryboardGeneration(): UseStoryboardGeneration {
       try {
         void model;
 
-        const brief = extractBrief(trimmed);
-        if (!brief) {
-          throw new Error(
-            "Include a URL in your brief (starting with http:// or https://).",
-          );
-        }
-
         const projectResponse = await fetch("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: trimmed,
-            format: brief.format,
-            tone: brief.tone,
           }),
         });
 
@@ -89,12 +51,11 @@ export function useStoryboardGeneration(): UseStoryboardGeneration {
 
         const created = (await projectResponse.json()) as {
           project: { id: string };
-          checkpointId: string;
         };
 
         router.push(`/projects/${created.project.id}`);
       } catch (generationError) {
-        console.error("Storyboard generation failed", generationError);
+        console.error("Media generation failed", generationError);
         setIsTransitioning(false);
         setError(
           generationError instanceof Error

@@ -110,7 +110,7 @@ export function AssetsPanel({
         {assets.length === 0 && renders.length === 0 ? (
           emptyState ?? (
             <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 text-sm text-white/60">
-              Generate a storyboard to populate your asset library.
+              Generate media to populate your asset library.
             </div>
           )
         ) : (

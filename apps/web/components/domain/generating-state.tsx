@@ -35,7 +35,7 @@ const LoadingComposition = () => {
           fontFamily: "Inter, sans-serif",
         }}
       >
-        Generating...
+        Generating media...
       </div>
     </AbsoluteFill>
   );
@@ -63,7 +63,7 @@ export function GeneratingState({
         <div className="p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" />
-            <span className="text-sm font-medium">Generating...</span>
+            <span className="text-sm font-medium">Generating media...</span>
           </div>
         </div>
 
@@ -82,7 +82,7 @@ export function GeneratingState({
 
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground">
-              Scenes
+              Prompts
             </h3>
             {partialStoryboard?.scenes && partialStoryboard.scenes.length > 0
               ? partialStoryboard.scenes.map((scene, idx) => (

@@ -14,7 +14,8 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Doujin Studio",
-  description: "AI media studio for launch videos and social kits.",
+  description:
+    "AI media studio for personal-to-business video and image kits.",
 };
 
 export default function RootLayout({

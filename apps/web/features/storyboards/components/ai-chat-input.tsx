@@ -71,7 +71,7 @@ interface AiChatInputProps {
 }
 
 const QUICK_FILL_PROMPT =
-  "https://lumina-bikes.com | 30s launch edit | emphasize carbon frame, dual motor assist, and overnight shipping. Mood: cinematic night ride with neon reflections. CTA: Preorder for March deliveries.";
+  "https://lumina-bikes.com | 2 short launch videos + 3 social images | emphasize carbon frame, dual motor assist, and overnight shipping. Mood: cinematic night ride with neon reflections. CTA: Preorder for March deliveries.";
 
 export function AiChatInput({
   onSubmit,
@@ -214,7 +214,7 @@ export function AiChatInput({
           >
             <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[color:var(--ds-muted)]">
               <Sparkles className="h-4 w-4 text-[color:var(--ds-accent-warm)]" />
-              Compose your brief
+              Compose your media plan
             </div>
 
             {attachedFiles.length > 0 && (
@@ -256,7 +256,7 @@ export function AiChatInput({
               disabled={disabled}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
-              placeholder="Enter a URL, mood, hook, or any guardrails for this ad"
+              placeholder="Describe your product, audience, and desired media outputs"
               value={prompt}
             />
 
@@ -399,7 +399,7 @@ export function AiChatInput({
                   type="button"
                   variant="ghost"
                 >
-                  Quick fill brand kit
+                  Quick fill example
                 </Button>
                 <Button
                   className="rounded-full bg-[color:var(--ds-accent-warm)] px-5 py-2 font-semibold text-[#1b1a16] transition hover:brightness-95 disabled:opacity-60"
@@ -407,7 +407,7 @@ export function AiChatInput({
                   size="sm"
                   type="submit"
                 >
-                  Generate storyboard
+                  Generate Media
                   <ArrowUp size={16} />
                 </Button>
               </div>
