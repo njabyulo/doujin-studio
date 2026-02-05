@@ -163,7 +163,7 @@ function buildFallbackDraft(
           id: crypto.randomUUID(),
           prompt: `${prompt} Create a tight 3-scene vertical video shot list with pacing cues.`,
           aspectRatio,
-          durationSec: 15,
+          durationSec: 8,
           style: "punchy, social-first",
         },
       ],
@@ -189,9 +189,50 @@ function isNoOutputError(error: unknown) {
   if (NoObjectGeneratedError.isInstance(error)) return true;
   if (error && typeof error === "object" && "name" in error) {
     const name = String((error as { name?: string }).name);
-    return name.includes("NoOutputGeneratedError") || name.includes("NoObjectGeneratedError");
+    return (
+      name.includes("NoOutputGeneratedError") ||
+      name.includes("NoObjectGeneratedError")
+    );
   }
   return false;
+}
+
+class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  if (Number.isNaN(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+
+  try {
+    // Note: not all upstream SDKs support abort signals; we still bound request time
+    // by racing with an abort timer and falling back.
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        controller.signal.addEventListener(
+          "abort",
+          () => reject(new TimeoutError(`${label} timed out after ${ms}ms`)),
+          { once: true },
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -257,7 +298,7 @@ Guidelines:
 - Provide 2-5 video prompts and 2-6 image prompts.
 - Prompts should be specific, cinematic, and production-ready.
 - Include aspectRatio when relevant (default to 9:16 if unsure).
-- Include durationSec only for videos (8-20 seconds).
+- Include durationSec only for videos (4-8 seconds).
 - Keep style short and punchy.
 - If no source URL is available, omit sourceUrl.
 `;
@@ -265,17 +306,27 @@ Guidelines:
     let draft: z.infer<typeof SMediaPlanDraft>;
 
     try {
-      const { output } = await generateText({
-        model: google("gemini-2.5-flash"),
-        output: Output.object({
-          schema: SMediaPlanDraft,
+      const timeoutMs = clampNumber(
+        Number(process.env.MEDIA_PLAN_TIMEOUT_MS ?? 15_000),
+        2_000,
+        60_000,
+      );
+
+      const { output } = await withTimeout(
+        generateText({
+          model: google("gemini-2.5-flash"),
+          output: Output.object({
+            schema: SMediaPlanDraft,
+          }),
+          prompt: mediaPlanPrompt,
+          maxRetries: 2,
         }),
-        prompt: mediaPlanPrompt,
-        maxRetries: 2,
-      });
+        timeoutMs,
+        "Media plan generation",
+      );
       draft = output;
     } catch (error) {
-      if (isNoOutputError(error)) {
+      if (isNoOutputError(error) || error instanceof TimeoutError) {
         console.error(
           `[${correlationId}] Structured output failed; falling back.`,
           {
@@ -286,6 +337,10 @@ Guidelines:
             text:
               error && typeof error === "object" && "text" in error
                 ? (error as { text?: unknown }).text
+                : undefined,
+            errorName:
+              error && typeof error === "object" && "name" in error
+                ? (error as { name?: unknown }).name
                 : undefined,
           },
         );
@@ -332,7 +387,9 @@ Guidelines:
         },
       });
     } else {
-      console.log(`[${correlationId}] No URL detected; skipping url_submitted message`);
+      console.log(
+        `[${correlationId}] No URL detected; skipping url_submitted message`,
+      );
     }
 
     console.log(`[${correlationId}] Project created: ${newProject.id}`);
