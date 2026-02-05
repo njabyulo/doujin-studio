@@ -1,13 +1,12 @@
 import { desc, eq } from "@doujin/database";
 import { db } from "@doujin/database/client";
 import { message, project } from "@doujin/database/schema";
-import { SBrandKit, SScript, SStoryboard } from "@doujin/shared";
+import { SMediaPlan } from "@doujin/shared";
 import { google } from "@ai-sdk/google";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "~/lib/auth-middleware";
-import { createCheckpoint } from "~/lib/checkpoint-helpers";
 import {
   getCorrelationId,
   withCorrelationId,
@@ -21,51 +20,35 @@ const SCreateProjectInput = z.object({
   tone: z.string().optional(),
 });
 
-const SGenerationDraft = z.object({
-  title: z.string().optional(),
-  storyboard: z.object({
-    version: z.string(),
-    format: z.enum(["1:1", "9:16", "16:9"]),
-    totalDuration: z.number().positive(),
-    scenes: z.array(
-      z.object({
-        id: z.string(),
-        duration: z.number().positive(),
-        onScreenText: z.string(),
-        voiceoverText: z.string(),
-        assetSuggestions: z.array(
-          z.object({
-            id: z.string().uuid().optional(),
-            type: z.enum(["image", "video"]),
-            description: z.string(),
-            placeholderUrl: z.string().url().optional(),
-          }),
-        ),
-      }),
-    ),
-  }),
-  script: z.object({
-    version: z.string(),
-    tone: z.string(),
-    scenes: z.array(
-      z.object({
-        sceneId: z.string(),
-        voiceover: z.string(),
-        timing: z.object({
-          start: z.number(),
-          end: z.number(),
-        }),
-      }),
-    ),
-  }),
-  brandKit: SBrandKit,
+const SMediaPromptDraft = z.object({
+  id: z.string().uuid().optional(),
+  prompt: z.string(),
+  aspectRatio: z.enum(["1:1", "9:16", "16:9"]).optional(),
+  durationSec: z.number().positive().optional(),
+  style: z.string().optional(),
+  asset: z
+    .object({
+      url: z.string().url().optional(),
+      mimeType: z.string().optional(),
+    })
+    .optional(),
 });
 
-const SGenerationOutput = z.object({
-  storyboard: SStoryboard,
-  script: SScript,
-  brandKit: SBrandKit,
-  title: z.string(),
+const SMediaPlanDraft = z.object({
+  version: z.string().optional(),
+  project: z
+    .object({
+      title: z.string().optional(),
+      summary: z.string().optional(),
+      sourceUrl: z.string().url().optional(),
+    })
+    .optional(),
+  prompts: z
+    .object({
+      videos: z.array(SMediaPromptDraft).optional(),
+      images: z.array(SMediaPromptDraft).optional(),
+    })
+    .optional(),
 });
 
 function extractUrl(prompt: string): string | null {
@@ -93,52 +76,122 @@ function deriveTitleFromUrl(url: string) {
   }
 }
 
-function normalizeGenerationOutput(
-  draft: z.infer<typeof SGenerationDraft>,
-  resolvedFormat: "1:1" | "9:16" | "16:9",
+function deriveTitleFromPrompt(prompt: string) {
+  const compact = prompt.replace(/\s+/g, " ").trim();
+  if (!compact) return "Untitled project";
+  const words = compact.split(" ").slice(0, 5).join(" ");
+  return words || "Untitled project";
+}
+
+function normalizeMediaPlan(
+  draft: z.infer<typeof SMediaPlanDraft>,
   fallbackTitle: string,
+  sourceUrl?: string | null,
 ) {
-  const sceneIdMap = new Map<string, string>();
-  const normalizedScenes = draft.storyboard.scenes.map((scene) => {
-    const newId = crypto.randomUUID();
-    sceneIdMap.set(scene.id, newId);
-    return {
-      ...scene,
-      id: newId,
-      assetSuggestions: scene.assetSuggestions.map((asset) => ({
-        ...asset,
-        id: asset.id ?? crypto.randomUUID(),
-      })),
-    };
-  });
+  const projectDraft = draft.project ?? {};
+  const title = (projectDraft.title ?? fallbackTitle).trim() || fallbackTitle;
+  const summary = projectDraft.summary?.trim();
+  const resolvedSourceUrl = projectDraft.sourceUrl ?? sourceUrl ?? undefined;
 
-  const normalizedScriptScenes = draft.script.scenes.map((scene, index) => {
-    const mapped = sceneIdMap.get(scene.sceneId) ?? normalizedScenes[index]?.id;
+  const normalizePrompt = (item: z.infer<typeof SMediaPromptDraft>) => {
+    const prompt = item.prompt.trim();
+    if (!prompt) return null;
     return {
-      ...scene,
-      sceneId: mapped ?? scene.sceneId,
+      id: item.id ?? crypto.randomUUID(),
+      prompt,
+      aspectRatio: item.aspectRatio,
+      durationSec: item.durationSec,
+      style: item.style?.trim() || undefined,
+      asset: item.asset,
     };
-  });
+  };
 
-  const totalDuration = normalizedScenes.reduce(
-    (sum, scene) => sum + scene.duration,
-    0,
-  );
+  const videos = (draft.prompts?.videos ?? [])
+    .map(normalizePrompt)
+    .filter(Boolean) as Array<{
+    id: string;
+    prompt: string;
+    aspectRatio?: "1:1" | "9:16" | "16:9";
+    durationSec?: number;
+    style?: string;
+    asset?: { url?: string; mimeType?: string };
+  }>;
+
+  const images = (draft.prompts?.images ?? [])
+    .map(normalizePrompt)
+    .filter(Boolean) as Array<{
+    id: string;
+    prompt: string;
+    aspectRatio?: "1:1" | "9:16" | "16:9";
+    durationSec?: number;
+    style?: string;
+    asset?: { url?: string; mimeType?: string };
+  }>;
+
+  return SMediaPlan.parse({
+    version: "1",
+    project: {
+      title,
+      summary: summary && summary.length > 0 ? summary : undefined,
+      sourceUrl: resolvedSourceUrl,
+    },
+    prompts: {
+      videos,
+      images,
+    },
+  });
+}
+
+function buildFallbackDraft(
+  prompt: string,
+  fallbackTitle: string,
+  sourceUrl?: string | null,
+  fallbackAspectRatio?: "1:1" | "9:16" | "16:9",
+): z.infer<typeof SMediaPlanDraft> {
+  const aspectRatio = fallbackAspectRatio ?? "9:16";
 
   return {
-    title: (draft.title ?? fallbackTitle).trim() || fallbackTitle,
-    storyboard: {
-      ...draft.storyboard,
-      format: resolvedFormat,
-      totalDuration,
-      scenes: normalizedScenes,
+    version: "1",
+    project: {
+      title: fallbackTitle,
+      summary: prompt.slice(0, 180),
+      sourceUrl: sourceUrl ?? undefined,
     },
-    script: {
-      ...draft.script,
-      scenes: normalizedScriptScenes,
+    prompts: {
+      videos: [
+        {
+          id: crypto.randomUUID(),
+          prompt: `${prompt} Create a tight 3-scene vertical video shot list with pacing cues.`,
+          aspectRatio,
+          durationSec: 15,
+          style: "punchy, social-first",
+        },
+      ],
+      images: [
+        {
+          id: crypto.randomUUID(),
+          prompt: `${prompt} Hero key visual with product focus and clean typography space.`,
+          aspectRatio: fallbackAspectRatio ?? "1:1",
+          style: "clean, premium",
+        },
+        {
+          id: crypto.randomUUID(),
+          prompt: `${prompt} Lifestyle scene with human context and branded color accents.`,
+          aspectRatio: fallbackAspectRatio ?? "1:1",
+          style: "warm, authentic",
+        },
+      ],
     },
-    brandKit: draft.brandKit,
   };
+}
+
+function isNoOutputError(error: unknown) {
+  if (NoObjectGeneratedError.isInstance(error)) return true;
+  if (error && typeof error === "object" && "name" in error) {
+    const name = String((error as { name?: string }).name);
+    return name.includes("NoOutputGeneratedError") || name.includes("NoObjectGeneratedError");
+  }
+  return false;
 }
 
 export async function POST(request: NextRequest) {
@@ -162,27 +215,110 @@ export async function POST(request: NextRequest) {
     const input = SCreateProjectInput.parse(body);
 
     const url = extractUrl(input.prompt);
-    if (!url) {
-      return createValidationError(correlationId, {
-        prompt: ["Include a URL in your prompt (http:// or https://)."],
+    const derivedTitle = url
+      ? deriveTitleFromUrl(url)
+      : deriveTitleFromPrompt(input.prompt);
+
+    const mediaPlanPrompt = `You are a creative media planner. Generate a JSON media plan for the prompt below.
+
+Prompt:
+${input.prompt}
+
+Return JSON with this shape:
+{
+  "version": "1",
+  "project": {
+    "title": "...",
+    "summary": "...",
+    "sourceUrl": "https://..."
+  },
+  "prompts": {
+    "videos": [
+      {
+        "id": "UUID",
+        "prompt": "...",
+        "aspectRatio": "9:16",
+        "durationSec": 12,
+        "style": "short descriptor"
+      }
+    ],
+    "images": [
+      {
+        "id": "UUID",
+        "prompt": "...",
+        "aspectRatio": "1:1",
+        "style": "short descriptor"
+      }
+    ]
+  }
+}
+
+Guidelines:
+- Provide 2-5 video prompts and 2-6 image prompts.
+- Prompts should be specific, cinematic, and production-ready.
+- Include aspectRatio when relevant (default to 9:16 if unsure).
+- Include durationSec only for videos (8-20 seconds).
+- Keep style short and punchy.
+- If no source URL is available, omit sourceUrl.
+`;
+
+    let draft: z.infer<typeof SMediaPlanDraft>;
+
+    try {
+      const { output } = await generateText({
+        model: google("gemini-2.5-flash"),
+        output: Output.object({
+          schema: SMediaPlanDraft,
+        }),
+        prompt: mediaPlanPrompt,
+        maxRetries: 2,
       });
+      draft = output;
+    } catch (error) {
+      if (isNoOutputError(error)) {
+        console.error(
+          `[${correlationId}] Structured output failed; falling back.`,
+          {
+            cause:
+              error && typeof error === "object" && "cause" in error
+                ? (error as { cause?: unknown }).cause
+                : undefined,
+            text:
+              error && typeof error === "object" && "text" in error
+                ? (error as { text?: unknown }).text
+                : undefined,
+          },
+        );
+        const fallbackAspectRatio =
+          input.format ?? extractFormat(input.prompt) ?? "9:16";
+        draft = buildFallbackDraft(
+          input.prompt,
+          derivedTitle,
+          url,
+          fallbackAspectRatio,
+        );
+      } else {
+        throw error;
+      }
     }
 
-    const resolvedFormat = input.format ?? extractFormat(input.prompt) ?? "9:16";
-    const resolvedTone = input.tone ?? extractTone(input.prompt, url);
-    const derivedTitle = deriveTitleFromUrl(url);
+    const normalized = normalizeMediaPlan(draft, derivedTitle, url);
 
     const [newProject] = await db
       .insert(project)
       .values({
         userId: authResult.user.id,
-        title: derivedTitle,
+        title: normalized.project.title,
+        mediaPlanJson: normalized,
       })
       .returning();
 
-    const [userMessage] = await db
-      .insert(message)
-      .values({
+    if (url) {
+      const resolvedFormat =
+        input.format ?? extractFormat(input.prompt) ?? "9:16";
+      const resolvedTone = input.tone ?? extractTone(input.prompt, url);
+
+      await db.insert(message).values({
         projectId: newProject.id,
         role: "user",
         type: "url_submitted",
@@ -194,53 +330,10 @@ export async function POST(request: NextRequest) {
           tone: resolvedTone,
           artifactRefs: [],
         },
-      })
-      .returning();
-
-    const { output } = await generateText({
-      model: google("gemini-2.5-flash"),
-      output: Output.object({
-        schema: SGenerationDraft,
-      }),
-      prompt: `Analyze the prompt below and generate a storyboard + script + brand kit.
-
-Prompt:
-${input.prompt}
-
-Requirements:
-- Storyboard format: ${resolvedFormat}
-- 3-6 scenes, 3-8 seconds each
-- Each scene includes assetSuggestions with id (UUID), type ("image" | "video"), and a short description
-- Script scenes align with storyboard scene ids
-- Brand kit includes productName, tagline, benefits, colors, fonts, and tone
-
-Return JSON with: { title, storyboard, script, brandKit }`,
-    });
-
-    const normalized = normalizeGenerationOutput(
-      output,
-      resolvedFormat,
-      derivedTitle,
-    );
-    const finalOutput = SGenerationOutput.parse(normalized);
-
-    if (finalOutput.title && finalOutput.title !== derivedTitle) {
-      await db
-        .update(project)
-        .set({ title: finalOutput.title, updatedAt: new Date() })
-        .where(eq(project.id, newProject.id));
+      });
+    } else {
+      console.log(`[${correlationId}] No URL detected; skipping url_submitted message`);
     }
-
-    const newCheckpoint = await createCheckpoint({
-      projectId: newProject.id,
-      sourceMessageId: userMessage.id,
-      parentCheckpointId: null,
-      storyboard: finalOutput.storyboard,
-      script: finalOutput.script,
-      brandKit: finalOutput.brandKit,
-      name: `Generated from ${new URL(url).hostname}`,
-      reason: "generation",
-    });
 
     console.log(`[${correlationId}] Project created: ${newProject.id}`);
     return withCorrelationId(
@@ -248,9 +341,9 @@ Return JSON with: { title, storyboard, script, brandKit }`,
         {
           project: {
             ...newProject,
-            title: finalOutput.title,
+            title: normalized.project.title,
+            mediaPlanJson: normalized,
           },
-          checkpointId: newCheckpoint.id,
         },
         { status: 201 },
       ),
