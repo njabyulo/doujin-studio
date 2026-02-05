@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const SAssetSuggestion = z.object({
+  id: z.string().uuid(),
   type: z.enum(["image", "video"]),
   description: z.string(),
   placeholderUrl: z.string().url().optional(),

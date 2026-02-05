@@ -22,6 +22,7 @@ describe("Property 23: Storyboard Schema Validation", () => {
                 voiceoverText: fc.string(),
                 assetSuggestions: fc.array(
                   fc.record({
+                    id: fc.uuid(),
                     type: fc.constantFrom("image", "video"),
                     description: fc.string({ minLength: 1 }),
                   }),

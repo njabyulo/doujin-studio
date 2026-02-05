@@ -9,7 +9,7 @@ interface Scene {
   duration: number;
   onScreenText: string;
   voiceoverText: string;
-  assetSuggestions: Array<{ type: string; description: string }>;
+  assetSuggestions: Array<{ id: string; type: string; description: string }>;
 }
 
 interface Storyboard {
@@ -101,7 +101,9 @@ async function generateArtifacts(params: {
     duration: 5,
     onScreenText: `Scene ${i + 1}`,
     voiceoverText: `Voiceover ${i + 1}`,
-    assetSuggestions: [{ type: "image", description: "Product shot" }],
+    assetSuggestions: [
+      { id: crypto.randomUUID(), type: "image", description: "Product shot" },
+    ],
   }));
 
   return {

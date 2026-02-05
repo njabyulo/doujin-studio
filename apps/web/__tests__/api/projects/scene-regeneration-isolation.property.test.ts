@@ -10,6 +10,7 @@ interface Scene {
   onScreenText: string;
   voiceoverText: string;
   assetSuggestions: Array<{
+    id: string;
     type: "image" | "video";
     description: string;
   }>;
@@ -100,6 +101,7 @@ function generateScene(): fc.Arbitrary<Scene> {
     voiceoverText: fc.string({ minLength: 10, maxLength: 200 }),
     assetSuggestions: fc.array(
       fc.record({
+        id: fc.uuid(),
         type: fc.constantFrom("image" as const, "video" as const),
         description: fc.string({ minLength: 5, maxLength: 50 }),
       }),

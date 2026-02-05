@@ -4,19 +4,6 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-interface AssetSuggestion {
-  type: string;
-  description: string;
-}
-
-interface Scene {
-  id: string;
-  duration: number;
-  onScreenText: string;
-  voiceoverText: string;
-  assetSuggestions: AssetSuggestion[];
-}
-
 describe("Property 21: Scene Structure Completeness", () => {
   it("should include all required fields in every scene (min 100 iterations)", async () => {
     await fc.assert(
@@ -29,6 +16,7 @@ describe("Property 21: Scene Structure Completeness", () => {
             voiceoverText: fc.string({ minLength: 1 }),
             assetSuggestions: fc.array(
               fc.record({
+                id: fc.uuid(),
                 type: fc.constantFrom("image", "video"),
                 description: fc.string({ minLength: 1 }),
               }),

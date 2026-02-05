@@ -8,7 +8,7 @@ interface Scene {
   id: string;
   onScreenText: string;
   voiceoverText: string;
-  assetSuggestions: Array<{ type: string; description: string }>;
+  assetSuggestions: Array<{ id: string; type: string; description: string }>;
 }
 
 interface Storyboard {
@@ -28,6 +28,7 @@ describe("Property 18: Format-Agnostic Content", () => {
                 voiceoverText: fc.string({ minLength: 1 }),
                 assetSuggestions: fc.array(
                   fc.record({
+                    id: fc.uuid(),
                     type: fc.constantFrom("image", "video"),
                     description: fc.string({ minLength: 1 }),
                   }),
@@ -58,7 +59,7 @@ describe("Property 18: Format-Agnostic Content", () => {
 
 async function renderStoryboard(
   storyboard: Storyboard,
-  format: string,
+  _format: string,
 ): Promise<Storyboard> {
   return {
     scenes: storyboard.scenes,
