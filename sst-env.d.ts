@@ -6,6 +6,37 @@
 
 declare module "sst" {
   export interface Resource {
+    "Database": {
+      "database": string
+      "host": string
+      "password": string
+      "port": number
+      "type": "sst.aws.Postgres"
+      "username": string
+    }
+    "MyVpc": {
+      "type": "sst.aws.Vpc"
+    }
+    "RemotionFunction": {
+      "name": string
+      "type": "sst.aws.Function"
+    }
+    "RenderQueue": {
+      "type": "sst.aws.Queue"
+      "url": string
+    }
+    "RenderWorker": {
+      "name": string
+      "type": "sst.aws.Function"
+    }
+    "VideoBucket": {
+      "name": string
+      "type": "sst.aws.Bucket"
+    }
+    "WebApp": {
+      "type": "sst.aws.Nextjs"
+      "url": string
+    }
   }
 }
 /// <reference path="sst-env.d.ts" />
