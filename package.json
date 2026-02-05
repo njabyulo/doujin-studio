@@ -22,8 +22,11 @@
   },
   "devDependencies": {
     "prettier": "^3.8.1",
+    "sst": "3.17.38",
     "turbo": "^2.8.1",
-    "typescript": "^5.9.3",
-    "sst": "3.17.38"
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@google/genai": "^1.40.0"
   }
 }
