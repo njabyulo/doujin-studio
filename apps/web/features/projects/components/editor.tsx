@@ -105,6 +105,15 @@ const defaultBrandKit: TBrandKit = {
 
 type EditorView = "editor" | "assets";
 
+function base64ToBlob(base64: string, mimeType: string) {
+  const byteString = atob(base64);
+  const buffer = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i += 1) {
+    buffer[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([buffer], { type: mimeType });
+}
+
 export function Editor({ projectId, initialGenerate }: EditorProps) {
   const [payload, setPayload] = useState<ProjectPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,12 +140,23 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
   const [assetFilter, setAssetFilter] = useState<AssetFilter>("all");
   const [assetError, setAssetError] = useState<string | null>(null);
   const [isAssetGenerating, setIsAssetGenerating] = useState(false);
+  const [assetOverrides, setAssetOverrides] = useState<
+    Record<
+      string,
+      {
+        placeholderUrl?: string;
+        outputUrl?: string | null;
+        isNew?: boolean;
+      }
+    >
+  >({});
   const [activeAsset, setActiveAsset] = useState<AssetItem | null>(null);
   const [isVideoEditorOpen, setIsVideoEditorOpen] = useState(false);
 
   const [renderState, setRenderState] = useState<RenderState | null>(null);
 
   const didAutoGenerate = useRef(false);
+  const mediaStreamStarted = useRef(false);
   const shouldRenderPlayer = process.env.NODE_ENV !== "test";
 
   const loadProject = useCallback(async () => {
@@ -311,17 +331,36 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
   const assetItems = useMemo<AssetItem[]>(() => {
     if (!storyboard) return [];
     return storyboard.scenes.flatMap((scene, sceneIndex) =>
-      scene.assetSuggestions.map((asset, assetIndex) => ({
-        id: `${scene.id}-${assetIndex}`,
+      scene.assetSuggestions.map((asset) => ({
+        id: asset.id,
         type: asset.type,
         title: asset.description,
         description: asset.description,
         sceneId: scene.id,
         sceneIndex,
         placeholderUrl: asset.placeholderUrl,
+        outputUrl: asset.type === "video" ? asset.placeholderUrl ?? null : undefined,
       })),
     );
   }, [storyboard]);
+
+  const mergedAssetItems = useMemo(() => {
+    if (assetItems.length === 0) return [];
+    return assetItems.map((asset) => {
+      const override = assetOverrides[asset.id];
+      if (!override) return asset;
+      const placeholderUrl = override.placeholderUrl ?? asset.placeholderUrl;
+      return {
+        ...asset,
+        placeholderUrl,
+        outputUrl:
+          override.outputUrl ??
+          asset.outputUrl ??
+          (asset.type === "video" ? placeholderUrl ?? null : undefined),
+        isNew: override.isNew,
+      };
+    });
+  }, [assetItems, assetOverrides]);
 
   const sceneTileSizes = useMemo(
     () => ["tall", "medium", "short", "tall", "short", "medium"] as const,
@@ -331,10 +370,13 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
   const sceneTiles = useMemo(() => {
     if (!storyboard) return [];
     return storyboard.scenes.map((scene, index) => {
-      const imageAsset = scene.assetSuggestions.find(
-        (item) => item.type === "image" && item.placeholderUrl,
+      const imageAsset = mergedAssetItems.find(
+        (asset) =>
+          asset.sceneId === scene.id &&
+          asset.type === "image" &&
+          asset.placeholderUrl,
       );
-      const videoAsset = assetItems.find(
+      const videoAsset = mergedAssetItems.find(
         (asset) => asset.sceneId === scene.id && asset.type === "video",
       );
       return {
@@ -347,7 +389,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
         videoAsset,
       };
     });
-  }, [assetItems, sceneTileSizes, storyboard]);
+  }, [mergedAssetItems, sceneTileSizes, storyboard]);
 
   const renderItems = useMemo<AssetItem[]>(() => {
     const items: AssetItem[] = [];
@@ -392,10 +434,10 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
       asset.title.toLowerCase().includes(term) ||
       asset.description.toLowerCase().includes(term);
 
-    return assetItems.filter(
+    return mergedAssetItems.filter(
       (asset) => matchesFilter(asset) && matchesSearch(asset),
     );
-  }, [assetFilter, assetItems, assetSearch]);
+  }, [assetFilter, assetSearch, mergedAssetItems]);
 
   const filteredRenders = useMemo(() => {
     if (assetFilter !== "all" && assetFilter !== "render") return [];
@@ -408,29 +450,134 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
     );
   }, [assetFilter, assetSearch, renderItems]);
 
+  const pendingAssets = useMemo(
+    () =>
+      mergedAssetItems.filter(
+        (asset) => asset.type !== "render" && !asset.placeholderUrl,
+      ),
+    [mergedAssetItems],
+  );
+
+  const markAssetOverride = useCallback((assetId: string, update: {
+    placeholderUrl?: string;
+    outputUrl?: string | null;
+  }) => {
+    setAssetOverrides((prev) => ({
+      ...prev,
+      [assetId]: {
+        ...prev[assetId],
+        ...update,
+        isNew: true,
+      },
+    }));
+
+    setTimeout(() => {
+      setAssetOverrides((prev) => {
+        const current = prev[assetId];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [assetId]: { ...current, isNew: false },
+        };
+      });
+    }, 1200);
+  }, []);
+
+  const requestUploadUrl = useCallback(
+    async (assetId: string, contentType: string) => {
+      const res = await fetch(`/api/projects/${projectId}/assets/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId, contentType }),
+      });
+
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || "Failed to request upload URL");
+      }
+
+      return (await res.json()) as {
+        uploadUrl: string;
+        s3Key: string;
+        publicUrl: string;
+      };
+    },
+    [projectId],
+  );
+
+  const confirmAssetUpload = useCallback(
+    async (assetId: string, sceneId: string, s3Key: string) => {
+      const res = await fetch(`/api/projects/${projectId}/assets/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId, sceneId, s3Key }),
+      });
+
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || "Failed to confirm asset upload");
+      }
+    },
+    [projectId],
+  );
+
+  const uploadAssetBlob = useCallback(
+    async (
+      assetId: string,
+      sceneId: string,
+      assetType: "image" | "video",
+      blob: Blob,
+    ) => {
+      const contentType =
+        blob.type ||
+        (assetType === "video" ? "video/mp4" : "image/png");
+      const { uploadUrl, s3Key, publicUrl } = await requestUploadUrl(
+        assetId,
+        contentType,
+      );
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        body: blob,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error("Upload failed");
+      }
+
+      await confirmAssetUpload(assetId, sceneId, s3Key);
+      markAssetOverride(
+        assetId,
+        assetType === "video"
+          ? { placeholderUrl: publicUrl, outputUrl: publicUrl }
+          : { placeholderUrl: publicUrl },
+      );
+    },
+    [confirmAssetUpload, markAssetOverride, requestUploadUrl],
+  );
+
   const startGeneration = useCallback(async () => {
     if (!projectId) return;
-    if (!generateUrl.trim()) {
-      setError("Enter a URL to generate from.");
+    if (isGenerating) return;
+    if (pendingAssets.length === 0) {
+      setGenerationProgress([
+        { message: "All assets are already generated.", progress: 100 },
+      ]);
       return;
     }
 
+    mediaStreamStarted.current = true;
     setIsGenerating(true);
     setError(null);
     setGenerationProgress([
-      { message: "Starting generation", progress: 5 },
+      { message: "Starting media generation", progress: 5 },
     ]);
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
+      const res = await fetch(`/api/projects/${projectId}/media-stream`, {
+        method: "GET",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: generateUrl.trim(),
-          format: generateFormat,
-          tone: generateTone.trim() || undefined,
-          idempotencyKey: crypto.randomUUID(),
-        }),
       });
 
       if (!res.ok) {
@@ -440,16 +587,33 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
 
       for await (const event of consumeGenerationStream(res)) {
         if (event.type === "generation_progress") {
-          setGenerationProgress((prev) => [
-            ...prev,
-            { message: event.message, progress: event.progress },
-          ]);
+          setGenerationProgress([{ message: event.message, progress: event.progress }]);
+        } else if (event.type === "asset_generated") {
+          if (event.assetType === "image" && event.base64 && event.mimeType) {
+            const blob = base64ToBlob(event.base64, event.mimeType);
+            const previewUrl = URL.createObjectURL(blob);
+            markAssetOverride(event.assetId, { placeholderUrl: previewUrl });
+            await uploadAssetBlob(event.assetId, event.sceneId, "image", blob);
+          }
+
+          if (event.assetType === "video" && event.sourceUrl) {
+            const proxyUrl = `/api/projects/${projectId}/assets/video-proxy?uri=${encodeURIComponent(
+              event.sourceUrl,
+            )}`;
+            const response = await fetch(proxyUrl);
+            if (!response.ok) {
+              throw new Error("Failed to download generated video");
+            }
+            const blob = await response.blob();
+            const previewUrl = URL.createObjectURL(blob);
+            markAssetOverride(event.assetId, { placeholderUrl: previewUrl, outputUrl: previewUrl });
+            await uploadAssetBlob(event.assetId, event.sceneId, "video", blob);
+          }
         } else if (event.type === "generation_error") {
           throw new Error(event.error);
-        } else if (event.type === "generation_complete") {
-          setGenerationProgress((prev) => [
-            ...prev,
-            { message: "Generation complete", progress: 100 },
+        } else if (event.type === "asset_generation_complete") {
+          setGenerationProgress([
+            { message: "Media generation complete", progress: 100 },
           ]);
         }
       }
@@ -460,15 +624,22 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
     } finally {
       setIsGenerating(false);
     }
-  }, [generateFormat, generateTone, generateUrl, loadProject, projectId]);
+  }, [
+    isGenerating,
+    loadProject,
+    markAssetOverride,
+    pendingAssets.length,
+    projectId,
+    uploadAssetBlob,
+  ]);
 
   useEffect(() => {
-    if (!payload || didAutoGenerate.current) return;
-    if (payload.checkpoints.length > 0) return;
-    if (!initialGenerate?.url) return;
+    if (!payload || didAutoGenerate.current || mediaStreamStarted.current) return;
+    if (pendingAssets.length === 0) return;
     didAutoGenerate.current = true;
+    mediaStreamStarted.current = true;
     void startGeneration();
-  }, [initialGenerate?.url, payload, startGeneration]);
+  }, [payload, pendingAssets.length, startGeneration]);
 
   const handleManualSceneSave = useCallback(
     async (updates: { duration: number; onScreenText: string; voiceoverText: string }) => {
@@ -794,6 +965,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                       >
                         <div className="absolute inset-0">
                           {tile.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={tile.imageUrl}
                               alt={tile.title}

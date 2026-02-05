@@ -2,7 +2,17 @@ type StreamEvent =
   | { type: "generation_progress"; message: string; progress: number }
   | { type: "generation_partial"; storyboard: unknown }
   | { type: "generation_complete"; checkpointId: string; summary: string }
-  | { type: "generation_error"; error: string };
+  | { type: "generation_error"; error: string }
+  | {
+      type: "asset_generated";
+      assetId: string;
+      sceneId: string;
+      assetType: "image" | "video";
+      mimeType?: string;
+      base64?: string;
+      sourceUrl?: string;
+    }
+  | { type: "asset_generation_complete"; total: number };
 
 export async function* consumeGenerationStream(
   response: Response,

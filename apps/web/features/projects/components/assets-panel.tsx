@@ -16,6 +16,7 @@ export interface AssetItem {
   sceneIndex?: number;
   placeholderUrl?: string;
   outputUrl?: string | null;
+  isNew?: boolean;
 }
 
 interface AssetsPanelProps {
@@ -156,6 +157,7 @@ function AssetCard({
       : asset.type === "video"
         ? "Video"
         : "Image";
+  const previewUrl = asset.outputUrl ?? asset.placeholderUrl;
   return (
     <button
       type="button"
@@ -163,6 +165,9 @@ function AssetCard({
       disabled={!onClick}
       className={[
         "group relative overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 shadow-[var(--shadow-strong)] transition hover:border-white/20 hover:bg-white/5",
+        asset.isNew
+          ? "animate-in fade-in-0 slide-in-from-bottom-2 duration-500"
+          : "",
         onClick ? "cursor-pointer" : "cursor-default",
       ].join(" ")}
     >
@@ -184,17 +189,27 @@ function AssetCard({
         </div>
 
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-          {asset.placeholderUrl ? (
+          {asset.type === "video" && previewUrl ? (
+            <video
+              src={previewUrl}
+              className="h-40 w-full object-cover"
+              muted
+              loop
+              playsInline
+              preload="metadata"
+            />
+          ) : previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={asset.placeholderUrl}
+              src={previewUrl}
               alt={asset.title}
               className="h-40 w-full object-cover"
+              loading="lazy"
             />
           ) : (
             <div className="h-40 w-full bg-gradient-to-br from-white/10 via-white/5 to-black/30" />
           )}
-          {asset.outputUrl && (
+          {asset.type === "render" && asset.outputUrl && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
               <a
                 href={asset.outputUrl}
