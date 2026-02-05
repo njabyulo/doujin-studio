@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Bot,
   Film,
+  LayoutGrid,
   Music,
   Palette,
   SlidersHorizontal,
@@ -29,6 +30,8 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { consumeGenerationStream } from "~/lib/stream-consumer";
+import { AssetsChat } from "./assets-chat";
+import { AssetsPanel, type AssetFilter, type AssetItem } from "./assets-panel";
 
 type Format = "1:1" | "9:16" | "16:9";
 
@@ -97,6 +100,7 @@ const defaultBrandKit: TBrandKit = {
 };
 
 type InspectorTab = "scenes" | "activity";
+type EditorView = "editor" | "assets";
 
 function hashToHue(input: string): number {
   let hash = 0;
@@ -111,6 +115,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("scenes");
+  const [editorView, setEditorView] = useState<EditorView>("editor");
 
   const [generateUrl, setGenerateUrl] = useState(initialGenerate?.url ?? "");
   const [generateTone, setGenerateTone] = useState(initialGenerate?.tone ?? "");
@@ -127,6 +132,11 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
   );
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
   const [sceneInstruction, setSceneInstruction] = useState("");
+  const [assetPrompt, setAssetPrompt] = useState("");
+  const [assetSearch, setAssetSearch] = useState("");
+  const [assetFilter, setAssetFilter] = useState<AssetFilter>("all");
+  const [assetError, setAssetError] = useState<string | null>(null);
+  const [isAssetGenerating, setIsAssetGenerating] = useState(false);
 
   const [renderState, setRenderState] = useState<RenderState | null>(null);
 
@@ -204,6 +214,14 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
     }>;
   }, [payload]);
 
+  const sceneOptions = useMemo(() => {
+    if (!storyboard) return [];
+    return storyboard.scenes.map((scene, index) => ({
+      id: scene.id,
+      label: `Scene ${index + 1} — ${scene.onScreenText}`,
+    }));
+  }, [storyboard]);
+
   const selectedScene = useMemo(() => {
     if (!storyboard || !selectedSceneId) return null;
     return storyboard.scenes.find((s) => s.id === selectedSceneId) ?? null;
@@ -232,6 +250,80 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
       };
     });
   }, [storyboard]);
+
+  const assetItems = useMemo<AssetItem[]>(() => {
+    if (!storyboard) return [];
+    return storyboard.scenes.flatMap((scene, sceneIndex) =>
+      scene.assetSuggestions.map((asset, assetIndex) => ({
+        id: `${scene.id}-${assetIndex}`,
+        type: asset.type,
+        title: asset.description,
+        description: asset.description,
+        sceneId: scene.id,
+        sceneIndex,
+        placeholderUrl: asset.placeholderUrl,
+      })),
+    );
+  }, [storyboard]);
+
+  const renderItems = useMemo<AssetItem[]>(() => {
+    const items: AssetItem[] = [];
+    const seen = new Set<string>();
+    parsedMessages.forEach((msg) => {
+      if (msg.content.type !== "render_completed") return;
+      if (!msg.content.outputUrl) return;
+      if (seen.has(msg.content.outputUrl)) return;
+      seen.add(msg.content.outputUrl);
+      items.push({
+        id: msg.id,
+        type: "render",
+        title: "Rendered video",
+        description: `Render ${msg.content.renderJobId.slice(0, 8)}…`,
+        outputUrl: msg.content.outputUrl,
+      });
+    });
+
+    if (renderState?.outputUrl && !seen.has(renderState.outputUrl)) {
+      items.push({
+        id: renderState.renderJobId,
+        type: "render",
+        title: "Latest render",
+        description: "New render output",
+        outputUrl: renderState.outputUrl,
+      });
+    }
+
+    return items;
+  }, [parsedMessages, renderState?.outputUrl, renderState?.renderJobId]);
+
+  const filteredAssets = useMemo(() => {
+    const term = assetSearch.trim().toLowerCase();
+    const matchesFilter = (asset: AssetItem) => {
+      if (assetFilter === "all") return true;
+      if (assetFilter === "render") return asset.type === "render";
+      return asset.type === assetFilter;
+    };
+
+    const matchesSearch = (asset: AssetItem) =>
+      term.length === 0 ||
+      asset.title.toLowerCase().includes(term) ||
+      asset.description.toLowerCase().includes(term);
+
+    return assetItems.filter(
+      (asset) => matchesFilter(asset) && matchesSearch(asset),
+    );
+  }, [assetFilter, assetItems, assetSearch]);
+
+  const filteredRenders = useMemo(() => {
+    if (assetFilter !== "all" && assetFilter !== "render") return [];
+    const term = assetSearch.trim().toLowerCase();
+    if (!term) return renderItems;
+    return renderItems.filter(
+      (asset) =>
+        asset.title.toLowerCase().includes(term) ||
+        asset.description.toLowerCase().includes(term),
+    );
+  }, [assetFilter, assetSearch, renderItems]);
 
   const startGeneration = useCallback(async () => {
     if (!projectId) return;
@@ -350,6 +442,47 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
       setError(e instanceof Error ? e.message : "Failed to regenerate scene");
     }
   }, [activeCheckpoint, loadProject, projectId, sceneInstruction, selectedSceneId]);
+
+  const handleGenerateAssets = useCallback(async () => {
+    if (!projectId || !activeCheckpoint || !selectedSceneId) {
+      setAssetError("Select a scene before generating assets.");
+      return;
+    }
+    if (!assetPrompt.trim()) return;
+    setAssetError(null);
+    setIsAssetGenerating(true);
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}/generate-assets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checkpointId: activeCheckpoint.id,
+          sceneId: selectedSceneId,
+          prompt: assetPrompt.trim(),
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      });
+
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || "Failed to generate assets");
+      }
+
+      setAssetPrompt("");
+      await loadProject();
+    } catch (e) {
+      setAssetError(e instanceof Error ? e.message : "Failed to generate assets");
+    } finally {
+      setIsAssetGenerating(false);
+    }
+  }, [
+    activeCheckpoint,
+    assetPrompt,
+    loadProject,
+    projectId,
+    selectedSceneId,
+  ]);
 
   const startRender = useCallback(async () => {
     if (!projectId || !activeCheckpoint) return;
@@ -493,7 +626,33 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+              <button
+                type="button"
+                onClick={() => setEditorView("editor")}
+                className={[
+                  "rounded-full px-3 py-1 text-xs font-semibold transition",
+                  editorView === "editor"
+                    ? "bg-white/10 text-white"
+                    : "text-white/60 hover:text-white/80",
+                ].join(" ")}
+              >
+                Editor
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditorView("assets")}
+                className={[
+                  "rounded-full px-3 py-1 text-xs font-semibold transition",
+                  editorView === "assets"
+                    ? "bg-white/10 text-white"
+                    : "text-white/60 hover:text-white/80",
+                ].join(" ")}
+              >
+                Assets
+              </button>
+            </div>
             <Button
               type="button"
               variant="glass"
@@ -520,351 +679,431 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           </div>
         )}
 
-        <div className="mt-6 grid flex-1 gap-6 lg:grid-cols-[56px_minmax(0,1fr)_420px]">
-          {/* Left tool rail */}
-          <div className="hidden lg:flex">
-            <div className="glassPanel flex h-[640px] w-14 flex-col items-center gap-2 p-2 shadow-[var(--shadow-strong)]">
-              <RailButton icon={Sparkles} label="AI" active />
-              <RailButton icon={Film} label="Clips" />
-              <RailButton icon={Palette} label="Style" />
-              <RailButton icon={Music} label="Audio" />
-              <div className="my-2 h-px w-full bg-white/10" />
-              <RailButton icon={SlidersHorizontal} label="Tuning" />
-            </div>
-          </div>
-
-          {/* Canvas */}
-          <section className="glassPanel flex flex-col gap-4 p-3 shadow-[var(--shadow-strong)] sm:p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-              <div className="flex items-center gap-2">
-                <span className="rounded-full border border-[color:var(--border)] bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
-                  {storyboard?.format ?? generateFormat}
-                </span>
-                {storyboard && (
-                  <span className="text-xs text-[color:var(--muted)]">
-                    {Math.round(storyboard.totalDuration)}s •{" "}
-                    {storyboard.scenes.length} scenes
-                  </span>
-                )}
+        <div className="mt-6 flex-1">
+          {editorView === "editor" ? (
+            <div className="grid gap-6 lg:grid-cols-[56px_minmax(0,1fr)_420px]">
+              {/* Left tool rail */}
+              <div className="hidden lg:flex">
+                <div className="glassPanel flex h-[640px] w-14 flex-col items-center gap-2 p-2 shadow-[var(--shadow-strong)]">
+                  <RailButton icon={Sparkles} label="AI" active />
+                  <RailButton icon={Film} label="Clips" />
+                  <RailButton icon={Palette} label="Style" />
+                  <RailButton icon={Music} label="Audio" />
+                  <div className="my-2 h-px w-full bg-white/10" />
+                  <RailButton icon={SlidersHorizontal} label="Tuning" />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="glass"
-                  className="rounded-full px-4 text-[color:var(--text)]"
-                  onClick={() => setInspectorTab("activity")}
-                >
-                  Activity
-                </Button>
-                <Button
-                  type="button"
-                  variant="accent"
-                  className="rounded-full px-4 text-sm font-semibold"
-                  onClick={() => void startGeneration()}
-                  disabled={isGenerating}
-                >
-                  {isGenerating ? "Generating…" : "Generate"}
-                </Button>
-              </div>
-            </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/40 p-3">
-              <div className="relative mx-auto w-full max-w-[980px]">
-                {storyboard ? (
-                  <div className="relative overflow-hidden rounded-2xl bg-black/30 shadow-[var(--shadow-soft)]">
-                    <Player
-                      component={Master}
-                      compositionWidth={formatSpec.width}
-                      compositionHeight={formatSpec.height}
-                      durationInFrames={durationInFrames}
-                      fps={30}
-                      style={{ width: "100%", height: "100%" }}
-                      inputProps={{ storyboard, brandKit }}
-                      acknowledgeRemotionLicense
-                      controls
-                    />
+              {/* Canvas */}
+              <section className="glassPanel flex flex-col gap-4 p-3 shadow-[var(--shadow-strong)] sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-[color:var(--border)] bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
+                      {storyboard?.format ?? generateFormat}
+                    </span>
+                    {storyboard && (
+                      <span className="text-xs text-[color:var(--muted)]">
+                        {Math.round(storyboard.totalDuration)}s •{" "}
+                        {storyboard.scenes.length} scenes
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex min-h-[460px] items-center justify-center rounded-2xl border border-dashed border-[color:var(--border)] bg-white/5 text-sm text-[color:var(--muted)]">
-                    Generate a storyboard to start editing.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {renderState && (
-              <RenderProgress
-                renderJobId={renderState.renderJobId}
-                status={renderState.status}
-                progress={renderState.progress}
-                outputUrl={renderState.outputUrl}
-                onCancel={cancelRender}
-                onDownload={downloadRender}
-              />
-            )}
-
-            {/* Filmstrip / timeline */}
-            {storyboard && sceneCards.length > 0 && (
-              <div className="timelineDock mt-1 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
-                    Timeline
-                  </p>
-                  <span className="text-xs text-[color:var(--muted)]">
-                    Click a card to select.
-                  </span>
-                </div>
-                <div className="relative mt-3 flex gap-3 overflow-x-auto pb-2">
-                  <div className="pointer-events-none absolute left-4 top-0 h-full w-0.5 bg-[color:var(--accent)] shadow-[0_0_12px_rgba(216,221,90,0.6)]" />
-                  {sceneCards.map((card) => {
-                    const isSelected = card.id === selectedSceneId;
-                    return (
-                      <button
-                        key={card.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSceneId(card.id);
-                          setEditingSceneId(null);
-                          setInspectorTab("scenes");
-                        }}
-                        className={[
-                          "group relative h-20 min-w-[220px] overflow-hidden rounded-2xl border p-3 text-left transition",
-                          isSelected
-                            ? "border-white/30 bg-white/10"
-                            : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5",
-                        ].join(" ")}
-                      >
-                        <div
-                          className="absolute inset-0 opacity-80"
-                          style={{
-                            background: `radial-gradient(1200px circle at 10% 10%, hsla(${card.hue}, 85%, 65%, 0.25), transparent 45%), radial-gradient(1200px circle at 90% 80%, hsla(${
-                              (card.hue + 60) % 360
-                            }, 85%, 65%, 0.18), transparent 55%)`,
-                          }}
-                        />
-                        <div className="relative flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-white/80">
-                              Scene {card.index + 1}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-sm text-white/70">
-                              {card.label}
-                            </p>
-                          </div>
-                          <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-white/70">
-                            {Math.round(card.duration)}s
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* Inspector */}
-          <aside className="glassPanel flex flex-col gap-4 p-4 shadow-[var(--shadow-strong)] sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
-                <button
-                  type="button"
-                  onClick={() => setInspectorTab("scenes")}
-                  className={[
-                    "rounded-full px-3 py-1 text-xs font-semibold transition",
-                    inspectorTab === "scenes"
-                      ? "bg-white/10 text-white"
-                      : "text-white/60 hover:text-white/80",
-                  ].join(" ")}
-                >
-                  Scenes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInspectorTab("activity")}
-                  className={[
-                    "rounded-full px-3 py-1 text-xs font-semibold transition",
-                    inspectorTab === "activity"
-                      ? "bg-white/10 text-white"
-                      : "text-white/60 hover:text-white/80",
-                  ].join(" ")}
-                >
-                  Activity
-                </button>
-              </div>
-              <span className="text-xs text-white/45">
-                {storyboard ? "Live" : "Ready"}
-              </span>
-            </div>
-
-            {/* Generation controls live in inspector too */}
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
-                Brief
-              </p>
-              <div className="mt-3 space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="generateUrl" className="text-white/70">
-                    Source URL
-                  </Label>
-                  <Input
-                    id="generateUrl"
-                    value={generateUrl}
-                    onChange={(e) => setGenerateUrl(e.target.value)}
-                    placeholder="https://example.com/product"
-                    disabled={isGenerating}
-                    className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
-                  />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-white/70">Format</Label>
-                    <Select
-                      value={generateFormat}
-                      onValueChange={(v) => setGenerateFormat(v as Format)}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="glass"
+                      className="rounded-full px-4 text-[color:var(--text)]"
+                      onClick={() => setInspectorTab("activity")}
+                    >
+                      Activity
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="accent"
+                      className="rounded-full px-4 text-sm font-semibold"
+                      onClick={() => void startGeneration()}
                       disabled={isGenerating}
                     >
-                      <SelectTrigger className="border-white/10 bg-white/5 text-white">
-                        <SelectValue placeholder="Format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="9:16">9:16</SelectItem>
-                        <SelectItem value="16:9">16:9</SelectItem>
-                        <SelectItem value="1:1">1:1</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="generateTone" className="text-white/70">
-                      Tone
-                    </Label>
-                    <Input
-                      id="generateTone"
-                      value={generateTone}
-                      onChange={(e) => setGenerateTone(e.target.value)}
-                      placeholder="cinematic, neon, fast hook"
-                      disabled={isGenerating}
-                      className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
-                    />
+                      {isGenerating ? "Generating…" : "Generate"}
+                    </Button>
                   </div>
                 </div>
-              </div>
 
-              {isGenerating && generationProgress.length > 0 && (
-                <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-xs text-white/70">
-                    {generationProgress[generationProgress.length - 1]?.progress}
-                    % —{" "}
-                    {generationProgress[generationProgress.length - 1]?.message}
-                  </p>
-                  <div className="mt-2 h-1.5 rounded-full bg-black/30">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
-                      style={{
-                        width: `${generationProgress[generationProgress.length - 1]?.progress ?? 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {inspectorTab === "scenes" ? (
-              <>
-                {storyboard ? (
-                  <>
-                    <SceneList
-                      scenes={storyboard.scenes}
-                      selectedSceneId={selectedSceneId}
-                      onSceneSelect={(id) => {
-                        setSelectedSceneId(id);
-                        setEditingSceneId(null);
-                      }}
-                    />
-
-                    {selectedScene && (
-                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-white/90">
-                            Scene actions
-                          </p>
-                          <Button
-                            variant="glass"
-                            className="rounded-full px-3 text-white/80"
-                            onClick={() => setEditingSceneId(selectedScene.id)}
-                          >
-                            Manual edit
-                          </Button>
-                        </div>
-
-                        <div className="mt-4 space-y-2">
-                          <Label
-                            htmlFor="sceneInstruction"
-                            className="text-white/70"
-                          >
-                            Regenerate prompt
-                          </Label>
-                          <Input
-                            id="sceneInstruction"
-                            value={sceneInstruction}
-                            onChange={(e) => setSceneInstruction(e.target.value)}
-                            placeholder='e.g. "make it more cinematic and shorter"'
-                            className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
-                          />
-                          <Button
-                            variant="accent"
-                            className="w-full rounded-full"
-                            onClick={() => void handleRegenerateScene()}
-                            disabled={!sceneInstruction.trim()}
-                          >
-                            Regenerate scene
-                          </Button>
-                        </div>
+                <div className="relative overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/40 p-3">
+                  <div className="relative mx-auto w-full max-w-[980px]">
+                    {storyboard ? (
+                      <div className="relative overflow-hidden rounded-2xl bg-black/30 shadow-[var(--shadow-soft)]">
+                        <Player
+                          component={Master}
+                          compositionWidth={formatSpec.width}
+                          compositionHeight={formatSpec.height}
+                          durationInFrames={durationInFrames}
+                          fps={30}
+                          style={{ width: "100%", height: "100%" }}
+                          inputProps={{ storyboard, brandKit }}
+                          acknowledgeRemotionLicense
+                          controls
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[460px] items-center justify-center rounded-2xl border border-dashed border-[color:var(--border)] bg-white/5 text-sm text-[color:var(--muted)]">
+                        Generate a storyboard to start editing.
                       </div>
                     )}
+                  </div>
+                </div>
 
-                    {editingSceneId && selectedScene && (
-                      <div className="rounded-2xl border border-white/10 bg-black/20 p-1">
-                        <SceneEditor
-                          scene={selectedScene}
-                          onSave={(updates) =>
-                            void handleManualSceneSave(updates)
-                          }
-                          onCancel={() => setEditingSceneId(null)}
+                {renderState && (
+                  <RenderProgress
+                    renderJobId={renderState.renderJobId}
+                    status={renderState.status}
+                    progress={renderState.progress}
+                    outputUrl={renderState.outputUrl}
+                    onCancel={cancelRender}
+                    onDownload={downloadRender}
+                  />
+                )}
+
+                {/* Filmstrip / timeline */}
+                {storyboard && sceneCards.length > 0 && (
+                  <div className="timelineDock mt-1 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
+                        Timeline
+                      </p>
+                      <span className="text-xs text-[color:var(--muted)]">
+                        Click a card to select.
+                      </span>
+                    </div>
+                    <div className="relative mt-3 flex gap-3 overflow-x-auto pb-2">
+                      <div className="pointer-events-none absolute left-4 top-0 h-full w-0.5 bg-[color:var(--accent)] shadow-[0_0_12px_rgba(216,221,90,0.6)]" />
+                      {sceneCards.map((card) => {
+                        const isSelected = card.id === selectedSceneId;
+                        return (
+                          <button
+                            key={card.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSceneId(card.id);
+                              setEditingSceneId(null);
+                              setInspectorTab("scenes");
+                              setAssetError(null);
+                            }}
+                            className={[
+                              "group relative h-20 min-w-[220px] overflow-hidden rounded-2xl border p-3 text-left transition",
+                              isSelected
+                                ? "border-white/30 bg-white/10"
+                                : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5",
+                            ].join(" ")}
+                          >
+                            <div
+                              className="absolute inset-0 opacity-80"
+                              style={{
+                                background: `radial-gradient(1200px circle at 10% 10%, hsla(${card.hue}, 85%, 65%, 0.25), transparent 45%), radial-gradient(1200px circle at 90% 80%, hsla(${
+                                  (card.hue + 60) % 360
+                                }, 85%, 65%, 0.18), transparent 55%)`,
+                              }}
+                            />
+                            <div className="relative flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-white/80">
+                                  Scene {card.index + 1}
+                                </p>
+                                <p className="mt-1 line-clamp-2 text-sm text-white/70">
+                                  {card.label}
+                                </p>
+                              </div>
+                              <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-white/70">
+                                {Math.round(card.duration)}s
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Inspector */}
+              <aside className="glassPanel flex flex-col gap-4 p-4 shadow-[var(--shadow-strong)] sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setInspectorTab("scenes")}
+                      className={[
+                        "rounded-full px-3 py-1 text-xs font-semibold transition",
+                        inspectorTab === "scenes"
+                          ? "bg-white/10 text-white"
+                          : "text-white/60 hover:text-white/80",
+                      ].join(" ")}
+                    >
+                      Scenes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInspectorTab("activity")}
+                      className={[
+                        "rounded-full px-3 py-1 text-xs font-semibold transition",
+                        inspectorTab === "activity"
+                          ? "bg-white/10 text-white"
+                          : "text-white/60 hover:text-white/80",
+                      ].join(" ")}
+                    >
+                      Activity
+                    </button>
+                  </div>
+                  <span className="text-xs text-white/45">
+                    {storyboard ? "Live" : "Ready"}
+                  </span>
+                </div>
+
+                {/* Generation controls live in inspector too */}
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
+                    Brief
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="generateUrl" className="text-white/70">
+                        Source URL
+                      </Label>
+                      <Input
+                        id="generateUrl"
+                        value={generateUrl}
+                        onChange={(e) => setGenerateUrl(e.target.value)}
+                        placeholder="https://example.com/product"
+                        disabled={isGenerating}
+                        className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                        <Label htmlFor="generateFormat" className="text-white/70">
+                          Format
+                        </Label>
+                        <Select
+                          value={generateFormat}
+                          onValueChange={(v) => setGenerateFormat(v as Format)}
+                          disabled={isGenerating}
+                        >
+                          <SelectTrigger
+                            id="generateFormat"
+                            className="border-white/10 bg-white/5 text-white"
+                          >
+                            <SelectValue placeholder="Format" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="9:16">9:16</SelectItem>
+                            <SelectItem value="16:9">16:9</SelectItem>
+                            <SelectItem value="1:1">1:1</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="generateTone" className="text-white/70">
+                          Tone
+                        </Label>
+                        <Input
+                          id="generateTone"
+                          value={generateTone}
+                          onChange={(e) => setGenerateTone(e.target.value)}
+                          placeholder="cinematic, neon, fast hook"
+                          disabled={isGenerating}
+                          className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {isGenerating && generationProgress.length > 0 && (
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs text-white/70">
+                        {generationProgress[generationProgress.length - 1]?.progress}
+                        % —{" "}
+                        {generationProgress[generationProgress.length - 1]?.message}
+                      </p>
+                      <div className="mt-2 h-1.5 rounded-full bg-black/30">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
+                          style={{
+                            width: `${generationProgress[generationProgress.length - 1]?.progress ?? 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {inspectorTab === "scenes" ? (
+                  <>
+                    {storyboard ? (
+                      <>
+                        <SceneList
+                          scenes={storyboard.scenes}
+                          selectedSceneId={selectedSceneId}
+                          onSceneSelect={(id) => {
+                            setSelectedSceneId(id);
+                            setEditingSceneId(null);
+                            setAssetError(null);
+                          }}
+                        />
+
+                        {!selectedScene && (
+                          <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
+                            Select a scene to direct edits.
+                          </div>
+                        )}
+
+                        {selectedScene && (
+                          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-white/90">
+                                  Director
+                                </p>
+                                <p className="text-xs text-white/60">
+                                  Tell the editor what to change for this scene.
+                                </p>
+                              </div>
+                              <Button
+                                variant="glass"
+                                className="rounded-full px-3 text-white/80"
+                                onClick={() => setEditingSceneId(selectedScene.id)}
+                              >
+                                Manual edit
+                              </Button>
+                            </div>
+
+                            <div className="mt-4 space-y-2">
+                              <Label
+                                htmlFor="sceneInstruction"
+                                className="text-white/70"
+                              >
+                                Director prompt
+                              </Label>
+                              <Input
+                                id="sceneInstruction"
+                                value={sceneInstruction}
+                                onChange={(e) => setSceneInstruction(e.target.value)}
+                                placeholder='e.g. "Make it more cinematic, tighter pacing"'
+                                className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
+                              />
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                {[
+                                  "Make a 60-second cut",
+                                  "Music doesn't hit, warm it up",
+                                  "Punchier opening hook",
+                                ].map((chip) => (
+                                  <button
+                                    key={chip}
+                                    type="button"
+                                    onClick={() => setSceneInstruction(chip)}
+                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/20 hover:text-white"
+                                  >
+                                    {chip}
+                                  </button>
+                                ))}
+                              </div>
+                              <Button
+                                variant="accent"
+                                className="w-full rounded-full"
+                                onClick={() => void handleRegenerateScene()}
+                                disabled={!sceneInstruction.trim()}
+                              >
+                                Update scene
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {editingSceneId && selectedScene && (
+                          <div className="rounded-2xl border border-white/10 bg-black/20 p-1">
+                            <SceneEditor
+                              scene={selectedScene}
+                              onSave={(updates) =>
+                                void handleManualSceneSave(updates)
+                              }
+                              onCancel={() => setEditingSceneId(null)}
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
+                        Scenes appear after generation.
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                    Scenes appear after generation.
+                  <div className="flex-1 rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
+                      Activity
+                    </p>
+                    <div className="mt-3 max-h-[560px] space-y-3 overflow-y-auto pr-1">
+                      {parsedMessages.length > 0 ? (
+                        parsedMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className="rounded-2xl border border-white/10 bg-white/5 p-3"
+                          >
+                            <MessageRenderer content={msg.content} />
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-white/60">
+                          No activity yet.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </>
-            ) : (
-              <div className="flex-1 rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
-                  Activity
-                </p>
-                <div className="mt-3 max-h-[560px] space-y-3 overflow-y-auto pr-1">
-                  {parsedMessages.length > 0 ? (
-                    parsedMessages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-3"
-                      >
-                        <MessageRenderer content={msg.content} />
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-white/60">
-                      No activity yet.
-                    </div>
-                  )}
+              </aside>
+            </div>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-[56px_minmax(0,1fr)_420px]">
+              <div className="hidden lg:flex">
+                <div className="glassPanel flex h-[640px] w-14 flex-col items-center gap-2 p-2 shadow-[var(--shadow-strong)]">
+                  <RailButton icon={LayoutGrid} label="Assets" active />
+                  <RailButton icon={Film} label="Clips" />
+                  <RailButton icon={Palette} label="Style" />
+                  <RailButton icon={Music} label="Audio" />
+                  <div className="my-2 h-px w-full bg-white/10" />
+                  <RailButton icon={SlidersHorizontal} label="Tuning" />
                 </div>
               </div>
-            )}
-          </aside>
+
+              <section className="glassPanel flex flex-col gap-4 p-4 shadow-[var(--shadow-strong)] sm:p-5">
+                <AssetsPanel
+                  search={assetSearch}
+                  onSearchChange={setAssetSearch}
+                  filter={assetFilter}
+                  onFilterChange={setAssetFilter}
+                  assets={filteredAssets}
+                  renders={filteredRenders}
+                  selectedSceneId={selectedSceneId}
+                />
+              </section>
+
+              <aside className="glassPanel flex flex-col gap-4 p-4 shadow-[var(--shadow-strong)] sm:p-5">
+                <AssetsChat
+                  prompt={assetPrompt}
+                  onPromptChange={setAssetPrompt}
+                  isSubmitting={isAssetGenerating}
+                  error={assetError}
+                  sceneOptions={sceneOptions}
+                  selectedSceneId={selectedSceneId}
+                  onSceneChange={(id) => {
+                    setSelectedSceneId(id);
+                    setEditingSceneId(null);
+                    setAssetError(null);
+                  }}
+                  onSubmit={() => void handleGenerateAssets()}
+                />
+              </aside>
+            </div>
+          )}
         </div>
       </div>
     </div>
