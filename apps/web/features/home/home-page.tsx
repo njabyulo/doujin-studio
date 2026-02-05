@@ -175,6 +175,8 @@ export function HomePage() {
                   }}
                 >
                   <textarea
+                    id="prompt"
+                    name="prompt"
                     value={prompt}
                     onChange={(event) => setPrompt(event.target.value)}
                     placeholder="Prompt or URL (e.g. https://example.com | 2 short launch videos + 3 social images | ... )"
