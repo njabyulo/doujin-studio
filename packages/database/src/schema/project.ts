@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const project = pgTable(
   "project",
@@ -6,6 +6,7 @@ export const project = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id").notNull(),
     title: text("title").notNull(),
+    mediaPlanJson: jsonb("media_plan_json"),
     activeCheckpointId: uuid("active_checkpoint_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
