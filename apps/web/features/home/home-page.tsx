@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowUpRight, Sparkles, Timer } from "lucide-react";
-import { AiChatInput } from "~/features/storyboards/components/ai-chat-input";
-import { useStoryboardGeneration } from "~/features/storyboards/hooks/use-storyboard-generation";
+import { useRouter } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 
@@ -70,8 +70,56 @@ const MOSAIC_CARDS = [
 ];
 
 export function HomePage() {
-  const { handleGenerate, isGenerating, isTransitioning, error, clearError } =
-    useStoryboardGeneration();
+  const router = useRouter();
+  const [prompt, setPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = useMemo(() => prompt.trim().length > 0, [prompt]);
+  const clearError = useCallback(() => setError(null), []);
+
+  const handleGenerate = useCallback(
+    async (nextPrompt?: string) => {
+      const value = (nextPrompt ?? prompt).trim();
+      if (!value || isGenerating) return;
+
+      setIsGenerating(true);
+      setIsTransitioning(true);
+      setError(null);
+
+      try {
+        const projectResponse = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: value }),
+        });
+
+        if (!projectResponse.ok) {
+          const message = await projectResponse.text();
+          throw new Error(message || "Failed to create project");
+        }
+
+        const created = (await projectResponse.json()) as {
+          project: { id: string };
+        };
+
+        setPrompt("");
+        router.push(`/projects/${created.project.id}`);
+      } catch (generationError) {
+        console.error("Media generation failed", generationError);
+        setIsTransitioning(false);
+        setError(
+          generationError instanceof Error
+            ? generationError.message
+            : "An unexpected error occurred",
+        );
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [isGenerating, prompt, router],
+  );
 
   return (
     <div className="ds-light ds-landing min-h-screen">
@@ -93,11 +141,13 @@ export function HomePage() {
 
             <div className="space-y-4">
               <h1 className="display-font text-4xl font-semibold leading-tight text-[color:var(--ds-text)] sm:text-5xl">
-                Doujin Studio turns personal ideas into business‑ready media kits.
+                Doujin Studio turns personal ideas into business‑ready media
+                kits.
               </h1>
               <p className="max-w-xl text-base text-[color:var(--ds-muted)] sm:text-lg">
-                Drop a prompt or URL. We capture your intent, generate video + image
-                prompts, and deliver a kit ready for social or paid distribution.
+                Drop a prompt or URL. We capture your intent, generate video +
+                image prompts, and deliver a kit ready for social or paid
+                distribution.
               </p>
             </div>
 
@@ -117,11 +167,36 @@ export function HomePage() {
                 </Button>
               </div>
               <div className="mt-4">
-                <AiChatInput
-                  onSubmit={handleGenerate}
-                  disabled={isGenerating}
-                  variant="main"
-                />
+                <form
+                  className="relative overflow-hidden rounded-[32px] border border-[color:var(--ds-border)] bg-[color:var(--ds-glass)] p-5 shadow-[var(--ds-shadow-soft)] backdrop-blur-2xl"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleGenerate();
+                  }}
+                >
+                  <textarea
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder="Prompt or URL (e.g. https://example.com | 2 short launch videos + 3 social images | ... )"
+                    disabled={isGenerating}
+                    rows={5}
+                    className="w-full resize-none bg-transparent text-base text-[color:var(--ds-text)] placeholder:text-[color:var(--ds-muted)] outline-none"
+                  />
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ds-border)] pt-4">
+                    <p className="text-xs text-[color:var(--ds-muted)]">
+                      Tip: include an aspect ratio like `9:16` if you care.
+                    </p>
+                    <Button
+                      type="submit"
+                      variant="accent"
+                      className="rounded-full px-6"
+                      disabled={!canSubmit || isGenerating}
+                    >
+                      {isGenerating ? "Generating…" : "Generate Media"}
+                    </Button>
+                  </div>
+                </form>
               </div>
               {error && (
                 <div className="mt-4 rounded-2xl border border-[#f58d39]/40 bg-[#f58d39]/15 p-4 text-sm text-[color:var(--ds-text)]">
@@ -146,9 +221,7 @@ export function HomePage() {
                   key={prompt.label}
                   className="rounded-full border border-[color:var(--ds-border)] bg-white/60 px-4 py-2 text-sm text-[color:var(--ds-text)] transition hover:-translate-y-0.5 hover:shadow-[var(--ds-shadow-soft)]"
                   disabled={isGenerating}
-                  onClick={() =>
-                    handleGenerate({ prompt: prompt.prompt, model: "google-veo" })
-                  }
+                  onClick={() => void handleGenerate(prompt.prompt)}
                   type="button"
                 >
                   {prompt.label}
@@ -232,13 +305,22 @@ function Header() {
         </div>
       </div>
       <nav className="hidden items-center gap-6 text-sm text-[color:var(--ds-muted)] md:flex">
-        <button className="transition hover:text-[color:var(--ds-text)]" type="button">
+        <button
+          className="transition hover:text-[color:var(--ds-text)]"
+          type="button"
+        >
           Templates
         </button>
-        <button className="transition hover:text-[color:var(--ds-text)]" type="button">
+        <button
+          className="transition hover:text-[color:var(--ds-text)]"
+          type="button"
+        >
           Workflows
         </button>
-        <button className="transition hover:text-[color:var(--ds-text)]" type="button">
+        <button
+          className="transition hover:text-[color:var(--ds-text)]"
+          type="button"
+        >
           Pricing
         </button>
       </nav>
