@@ -6,19 +6,17 @@ import { FORMAT_SPECS, SMessageContent } from "@doujin/shared";
 import { Player } from "@remotion/player";
 import {
   ArrowLeft,
-  Bot,
   Film,
   LayoutGrid,
   Music,
   Palette,
   SlidersHorizontal,
-  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageRenderer } from "~/components/domain/message-renderers";
 import { RenderProgress } from "~/components/domain/render-progress";
 import { SceneEditor } from "~/components/domain/scene-editor";
-import { SceneList } from "~/components/domain/scene-list";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -32,6 +30,12 @@ import {
 import { consumeGenerationStream } from "~/lib/stream-consumer";
 import { AssetsChat } from "./assets-chat";
 import { AssetsPanel, type AssetFilter, type AssetItem } from "./assets-panel";
+import { CollageTile, ProjectCollage } from "./project-collage";
+
+const VideoEditorModal = dynamic(
+  () => import("./video-editor-modal").then((mod) => mod.VideoEditorModal),
+  { ssr: false },
+);
 
 type Format = "1:1" | "9:16" | "16:9";
 
@@ -99,23 +103,13 @@ const defaultBrandKit: TBrandKit = {
   tone: "professional",
 };
 
-type InspectorTab = "scenes" | "activity";
 type EditorView = "editor" | "assets";
-
-function hashToHue(input: string): number {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
-  }
-  return hash % 360;
-}
 
 export function Editor({ projectId, initialGenerate }: EditorProps) {
   const [payload, setPayload] = useState<ProjectPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("scenes");
-  const [editorView, setEditorView] = useState<EditorView>("editor");
+  const [editorView] = useState<EditorView>("editor");
 
   const [generateUrl, setGenerateUrl] = useState(initialGenerate?.url ?? "");
   const [generateTone, setGenerateTone] = useState(initialGenerate?.tone ?? "");
@@ -137,10 +131,13 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
   const [assetFilter, setAssetFilter] = useState<AssetFilter>("all");
   const [assetError, setAssetError] = useState<string | null>(null);
   const [isAssetGenerating, setIsAssetGenerating] = useState(false);
+  const [activeAsset, setActiveAsset] = useState<AssetItem | null>(null);
+  const [isVideoEditorOpen, setIsVideoEditorOpen] = useState(false);
 
   const [renderState, setRenderState] = useState<RenderState | null>(null);
 
   const didAutoGenerate = useRef(false);
+  const shouldRenderPlayer = process.env.NODE_ENV !== "test";
 
   const loadProject = useCallback(async () => {
     if (!projectId) return;
@@ -227,6 +224,12 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
     return storyboard.scenes.find((s) => s.id === selectedSceneId) ?? null;
   }, [selectedSceneId, storyboard]);
 
+  const selectedSceneIndex = useMemo(() => {
+    if (!storyboard || !selectedSceneId) return null;
+    const index = storyboard.scenes.findIndex((scene) => scene.id === selectedSceneId);
+    return index >= 0 ? index : null;
+  }, [selectedSceneId, storyboard]);
+
   const formatSpec = useMemo(() => {
     const f = storyboard?.format ?? generateFormat;
     return FORMAT_SPECS[f];
@@ -237,19 +240,73 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
     return Math.max(1, Math.round(total * 30));
   }, [storyboard?.totalDuration]);
 
-  const sceneCards = useMemo(() => {
+  const timelineSegments = useMemo(() => {
     if (!storyboard) return [];
+    return storyboard.scenes.map((scene, index) => ({
+      id: scene.id,
+      label: `Scene ${index + 1}`,
+      duration: scene.duration,
+    }));
+  }, [storyboard]);
+
+  const sceneTimeline = useMemo(() => {
+    if (!storyboard) return [];
+    let cursor = 0;
     return storyboard.scenes.map((scene, index) => {
-      const hue = hashToHue(scene.id);
+      const start = cursor;
+      const end = cursor + scene.duration;
+      cursor = end;
       return {
         id: scene.id,
         index,
+        label: `Scene ${index + 1}`,
+        title: scene.onScreenText,
+        start,
+        end,
         duration: scene.duration,
-        label: scene.onScreenText,
-        hue,
       };
     });
   }, [storyboard]);
+
+  const previewNode = useMemo(() => {
+    if (!storyboard) {
+      return (
+        <div className="flex h-full w-full items-center justify-center text-sm text-[#6d5f54]">
+          Generate media to see a live preview.
+        </div>
+      );
+    }
+
+    if (!shouldRenderPlayer) {
+      return (
+        <div
+          style={{ width: "100%", height: "100%" }}
+          aria-label="Remotion player placeholder"
+        />
+      );
+    }
+
+    return (
+      <Player
+        component={Master}
+        compositionWidth={formatSpec.width}
+        compositionHeight={formatSpec.height}
+        durationInFrames={durationInFrames}
+        fps={30}
+        style={{ width: "100%", height: "100%" }}
+        inputProps={{ storyboard, brandKit }}
+        acknowledgeRemotionLicense
+        controls
+      />
+    );
+  }, [
+    brandKit,
+    durationInFrames,
+    formatSpec.height,
+    formatSpec.width,
+    shouldRenderPlayer,
+    storyboard,
+  ]);
 
   const assetItems = useMemo<AssetItem[]>(() => {
     if (!storyboard) return [];
@@ -265,6 +322,32 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
       })),
     );
   }, [storyboard]);
+
+  const sceneTileSizes = useMemo(
+    () => ["tall", "medium", "short", "tall", "short", "medium"] as const,
+    [],
+  );
+
+  const sceneTiles = useMemo(() => {
+    if (!storyboard) return [];
+    return storyboard.scenes.map((scene, index) => {
+      const imageAsset = scene.assetSuggestions.find(
+        (item) => item.type === "image" && item.placeholderUrl,
+      );
+      const videoAsset = assetItems.find(
+        (asset) => asset.sceneId === scene.id && asset.type === "video",
+      );
+      return {
+        id: scene.id,
+        index,
+        title: scene.onScreenText,
+        subtitle: scene.voiceoverText,
+        imageUrl: imageAsset?.placeholderUrl ?? null,
+        size: sceneTileSizes[index % sceneTileSizes.length],
+        videoAsset,
+      };
+    });
+  }, [assetItems, sceneTileSizes, storyboard]);
 
   const renderItems = useMemo<AssetItem[]>(() => {
     const items: AssetItem[] = [];
@@ -582,6 +665,17 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
     window.open(renderState.outputUrl, "_blank", "noopener,noreferrer");
   }, [renderState?.outputUrl]);
 
+  const handleOpenAsset = useCallback((asset: AssetItem) => {
+    if (asset.type !== "video" && asset.type !== "render") return;
+    setActiveAsset(asset);
+    setIsVideoEditorOpen(true);
+  }, []);
+
+  const handleCloseVideoEditor = useCallback(() => {
+    setIsVideoEditorOpen(false);
+    setActiveAsset(null);
+  }, []);
+
   if (!projectId) {
     return (
       <div className="ds-dark ds-editor flex min-h-screen items-center justify-center text-[color:var(--muted)]">
@@ -627,40 +721,14 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
-              <button
-                type="button"
-                onClick={() => setEditorView("editor")}
-                className={[
-                  "rounded-full px-3 py-1 text-xs font-semibold transition",
-                  editorView === "editor"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white/80",
-                ].join(" ")}
-              >
-                Editor
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditorView("assets")}
-                className={[
-                  "rounded-full px-3 py-1 text-xs font-semibold transition",
-                  editorView === "assets"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white/80",
-                ].join(" ")}
-              >
-                Assets
-              </button>
-            </div>
             <Button
               type="button"
-              variant="glass"
-              className="rounded-full px-4 text-[color:var(--text)]"
-              disabled
+              variant="accent"
+              className="rounded-full px-5 text-sm font-semibold"
+              onClick={() => void startGeneration()}
+              disabled={isGenerating}
             >
-              <Bot className="mr-2 h-4 w-4" />
-              Ask AI
+              {isGenerating ? "Generating…" : "Generate Media"}
             </Button>
             <Button
               variant="accent"
@@ -681,192 +749,115 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
 
         <div className="mt-6 flex-1">
           {editorView === "editor" ? (
-            <div className="grid gap-6 lg:grid-cols-[56px_minmax(0,1fr)_420px]">
-              {/* Left tool rail */}
-              <div className="hidden lg:flex">
-                <div className="glassPanel flex h-[640px] w-14 flex-col items-center gap-2 p-2 shadow-[var(--shadow-strong)]">
-                  <RailButton icon={Sparkles} label="AI" active />
-                  <RailButton icon={Film} label="Clips" />
-                  <RailButton icon={Palette} label="Style" />
-                  <RailButton icon={Music} label="Audio" />
-                  <div className="my-2 h-px w-full bg-white/10" />
-                  <RailButton icon={SlidersHorizontal} label="Tuning" />
-                </div>
-              </div>
-
-              {/* Canvas */}
-              <section className="glassPanel flex flex-col gap-4 p-3 shadow-[var(--shadow-strong)] sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full border border-[color:var(--border)] bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
-                      {storyboard?.format ?? generateFormat}
-                    </span>
-                    {storyboard && (
-                      <span className="text-xs text-[color:var(--muted)]">
-                        {Math.round(storyboard.totalDuration)}s •{" "}
-                        {storyboard.scenes.length} scenes
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="glass"
-                      className="rounded-full px-4 text-[color:var(--text)]"
-                      onClick={() => setInspectorTab("activity")}
-                    >
-                      Activity
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="accent"
-                      className="rounded-full px-4 text-sm font-semibold"
-                      onClick={() => void startGeneration()}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? "Generating…" : "Generate"}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="relative overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/40 p-3">
-                  <div className="relative mx-auto w-full max-w-[980px]">
-                    {storyboard ? (
-                      <div className="relative overflow-hidden rounded-2xl bg-black/30 shadow-[var(--shadow-soft)]">
-                        <Player
-                          component={Master}
-                          compositionWidth={formatSpec.width}
-                          compositionHeight={formatSpec.height}
-                          durationInFrames={durationInFrames}
-                          fps={30}
-                          style={{ width: "100%", height: "100%" }}
-                          inputProps={{ storyboard, brandKit }}
-                          acknowledgeRemotionLicense
-                          controls
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex min-h-[460px] items-center justify-center rounded-2xl border border-dashed border-[color:var(--border)] bg-white/5 text-sm text-[color:var(--muted)]">
-                        Generate a storyboard to start editing.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {renderState && (
-                  <RenderProgress
-                    renderJobId={renderState.renderJobId}
-                    status={renderState.status}
-                    progress={renderState.progress}
-                    outputUrl={renderState.outputUrl}
-                    onCancel={cancelRender}
-                    onDownload={downloadRender}
-                  />
-                )}
-
-                {/* Filmstrip / timeline */}
-                {storyboard && sceneCards.length > 0 && (
-                  <div className="timelineDock mt-1 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--muted)]">
-                        Timeline
-                      </p>
-                      <span className="text-xs text-[color:var(--muted)]">
-                        Click a card to select.
+            <div className="space-y-6">
+              <ProjectCollage>
+                <CollageTile tone="dark" size="hero" className="p-5">
+                  <div className="flex h-full flex-col gap-4">
+                    <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.4em] text-white/60">
+                      <span>Preview</span>
+                      <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[9px] tracking-[0.3em] text-white/70">
+                        {storyboard?.format ?? generateFormat}
                       </span>
                     </div>
-                    <div className="relative mt-3 flex gap-3 overflow-x-auto pb-2">
-                      <div className="pointer-events-none absolute left-4 top-0 h-full w-0.5 bg-[color:var(--accent)] shadow-[0_0_12px_rgba(216,221,90,0.6)]" />
-                      {sceneCards.map((card) => {
-                        const isSelected = card.id === selectedSceneId;
-                        return (
-                          <button
-                            key={card.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedSceneId(card.id);
-                              setEditingSceneId(null);
-                              setInspectorTab("scenes");
-                              setAssetError(null);
-                            }}
-                            className={[
-                              "group relative h-20 min-w-[220px] overflow-hidden rounded-2xl border p-3 text-left transition",
-                              isSelected
-                                ? "border-white/30 bg-white/10"
-                                : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5",
-                            ].join(" ")}
-                          >
-                            <div
-                              className="absolute inset-0 opacity-80"
-                              style={{
-                                background: `radial-gradient(1200px circle at 10% 10%, hsla(${card.hue}, 85%, 65%, 0.25), transparent 45%), radial-gradient(1200px circle at 90% 80%, hsla(${
-                                  (card.hue + 60) % 360
-                                }, 85%, 65%, 0.18), transparent 55%)`,
-                              }}
+                    <div className="flex-1 overflow-hidden rounded-[22px] border border-white/10 bg-black/30">
+                      <div className="h-full w-full">{previewNode}</div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-white/55">
+                      <span>
+                        {storyboard
+                          ? `${storyboard.scenes.length} scenes`
+                          : "Awaiting scenes"}
+                      </span>
+                      <span>
+                        {storyboard
+                          ? `${Math.round(storyboard.totalDuration)}s total`
+                          : "Generate to begin"}
+                      </span>
+                    </div>
+                  </div>
+                </CollageTile>
+
+                {sceneTiles.length > 0 ? (
+                  sceneTiles.map((tile) => {
+                    const videoAsset = tile.videoAsset
+                    return (
+                      <CollageTile
+                        key={tile.id}
+                        size={tile.size}
+                        tone="dark"
+                        className="relative p-4"
+                        onClick={() => {
+                          setSelectedSceneId(tile.id)
+                          setEditingSceneId(null)
+                          setAssetError(null)
+                        }}
+                      >
+                        <div className="absolute inset-0">
+                          {tile.imageUrl ? (
+                            <img
+                              src={tile.imageUrl}
+                              alt={tile.title}
+                              className="h-full w-full object-cover"
                             />
-                            <div className="relative flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-white/80">
-                                  Scene {card.index + 1}
-                                </p>
-                                <p className="mt-1 line-clamp-2 text-sm text-white/70">
-                                  {card.label}
-                                </p>
-                              </div>
-                              <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-white/70">
-                                {Math.round(card.duration)}s
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                          ) : (
+                            <div className="h-full w-full bg-gradient-to-br from-[color:var(--ds-bg-dark)] via-[color:var(--ds-bg-dark-2)] to-[color:var(--ds-bg)]" />
+                          )}
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+                        <div className="relative flex h-full flex-col justify-between">
+                          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                            <span>Scene {tile.index + 1}</span>
+                            {videoAsset && (
+                              <button
+                                type="button"
+                                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.25em] text-white/85 transition hover:border-white/40"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleOpenAsset(videoAsset)
+                                }}
+                              >
+                                Preview
+                              </button>
+                            )}
+                          </div>
+                          <div>
+                            <p className="display-font text-lg text-white">
+                              {tile.title || "Untitled scene"}
+                            </p>
+                            {tile.subtitle && (
+                              <p className="mt-1 text-xs text-white/70">
+                                {tile.subtitle}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CollageTile>
+                    )
+                  })
+                ) : (
+                  <CollageTile size="short" className="p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--ds-muted-light)]">
+                      Start here
+                    </p>
+                    <p className="mt-3 text-sm text-[color:var(--ds-text-light)]">
+                      Add a product URL and tone to begin generating your first collage.
+                    </p>
+                  </CollageTile>
                 )}
-              </section>
 
-              {/* Inspector */}
-              <aside className="glassPanel flex flex-col gap-4 p-4 shadow-[var(--shadow-strong)] sm:p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setInspectorTab("scenes")}
-                      className={[
-                        "rounded-full px-3 py-1 text-xs font-semibold transition",
-                        inspectorTab === "scenes"
-                          ? "bg-white/10 text-white"
-                          : "text-white/60 hover:text-white/80",
-                      ].join(" ")}
-                    >
-                      Scenes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInspectorTab("activity")}
-                      className={[
-                        "rounded-full px-3 py-1 text-xs font-semibold transition",
-                        inspectorTab === "activity"
-                          ? "bg-white/10 text-white"
-                          : "text-white/60 hover:text-white/80",
-                      ].join(" ")}
-                    >
-                      Activity
-                    </button>
+                <CollageTile size="medium" className="p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--ds-muted-light)]">
+                      Brief
+                    </p>
+                    <span className="rounded-full border border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-[color:var(--ds-text-light)]">
+                      {generateFormat}
+                    </span>
                   </div>
-                  <span className="text-xs text-white/45">
-                    {storyboard ? "Live" : "Ready"}
-                  </span>
-                </div>
 
-                {/* Generation controls live in inspector too */}
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
-                    Brief
-                  </p>
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-4 space-y-3">
                     <div className="space-y-2">
-                      <Label htmlFor="generateUrl" className="text-white/70">
+                      <Label htmlFor="generateUrl" className="text-[color:var(--ds-muted-light)]">
                         Source URL
                       </Label>
                       <Input
@@ -875,12 +866,12 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                         onChange={(e) => setGenerateUrl(e.target.value)}
                         placeholder="https://example.com/product"
                         disabled={isGenerating}
-                        className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
+                        className="border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] text-[color:var(--ds-text-light)] placeholder:text-[color:var(--ds-muted-light)]"
                       />
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                        <Label htmlFor="generateFormat" className="text-white/70">
+                      <div className="space-y-2">
+                        <Label htmlFor="generateFormat" className="text-[color:var(--ds-muted-light)]">
                           Format
                         </Label>
                         <Select
@@ -890,7 +881,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                         >
                           <SelectTrigger
                             id="generateFormat"
-                            className="border-white/10 bg-white/5 text-white"
+                            className="border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] text-[color:var(--ds-text-light)]"
                           >
                             <SelectValue placeholder="Format" />
                           </SelectTrigger>
@@ -902,7 +893,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="generateTone" className="text-white/70">
+                        <Label htmlFor="generateTone" className="text-[color:var(--ds-muted-light)]">
                           Tone
                         </Label>
                         <Input
@@ -911,22 +902,21 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                           onChange={(e) => setGenerateTone(e.target.value)}
                           placeholder="cinematic, neon, fast hook"
                           disabled={isGenerating}
-                          className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
+                          className="border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] text-[color:var(--ds-text-light)] placeholder:text-[color:var(--ds-muted-light)]"
                         />
                       </div>
                     </div>
                   </div>
 
                   {isGenerating && generationProgress.length > 0 && (
-                    <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-xs text-white/70">
-                        {generationProgress[generationProgress.length - 1]?.progress}
-                        % —{" "}
+                    <div className="mt-4 rounded-xl border border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] p-3">
+                      <p className="text-xs text-[color:var(--ds-muted-light)]">
+                        {generationProgress[generationProgress.length - 1]?.progress}% — {" "}
                         {generationProgress[generationProgress.length - 1]?.message}
                       </p>
-                      <div className="mt-2 h-1.5 rounded-full bg-black/30">
+                      <div className="mt-2 h-1.5 rounded-full bg-[color:var(--ds-bg-light-2)]">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
+                          className="h-full rounded-full bg-[color:var(--ds-accent)] transition-all"
                           style={{
                             width: `${generationProgress[generationProgress.length - 1]?.progress ?? 0}%`,
                           }}
@@ -934,132 +924,164 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                       </div>
                     </div>
                   )}
-                </div>
+                </CollageTile>
 
-                {inspectorTab === "scenes" ? (
-                  <>
-                    {storyboard ? (
-                      <>
-                        <SceneList
-                          scenes={storyboard.scenes}
-                          selectedSceneId={selectedSceneId}
-                          onSceneSelect={(id) => {
-                            setSelectedSceneId(id);
-                            setEditingSceneId(null);
-                            setAssetError(null);
-                          }}
-                        />
-
-                        {!selectedScene && (
-                          <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                            Select a scene to direct edits.
-                          </div>
-                        )}
-
-                        {selectedScene && (
-                          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-semibold text-white/90">
-                                  Director
-                                </p>
-                                <p className="text-xs text-white/60">
-                                  Tell the editor what to change for this scene.
-                                </p>
-                              </div>
-                              <Button
-                                variant="glass"
-                                className="rounded-full px-3 text-white/80"
-                                onClick={() => setEditingSceneId(selectedScene.id)}
-                              >
-                                Manual edit
-                              </Button>
-                            </div>
-
-                            <div className="mt-4 space-y-2">
-                              <Label
-                                htmlFor="sceneInstruction"
-                                className="text-white/70"
-                              >
-                                Director prompt
-                              </Label>
-                              <Input
-                                id="sceneInstruction"
-                                value={sceneInstruction}
-                                onChange={(e) => setSceneInstruction(e.target.value)}
-                                placeholder='e.g. "Make it more cinematic, tighter pacing"'
-                                className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
-                              />
-                              <div className="flex flex-wrap gap-2 pt-1">
-                                {[
-                                  "Make a 60-second cut",
-                                  "Music doesn't hit, warm it up",
-                                  "Punchier opening hook",
-                                ].map((chip) => (
-                                  <button
-                                    key={chip}
-                                    type="button"
-                                    onClick={() => setSceneInstruction(chip)}
-                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/20 hover:text-white"
-                                  >
-                                    {chip}
-                                  </button>
-                                ))}
-                              </div>
-                              <Button
-                                variant="accent"
-                                className="w-full rounded-full"
-                                onClick={() => void handleRegenerateScene()}
-                                disabled={!sceneInstruction.trim()}
-                              >
-                                Update scene
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {editingSceneId && selectedScene && (
-                          <div className="rounded-2xl border border-white/10 bg-black/20 p-1">
-                            <SceneEditor
-                              scene={selectedScene}
-                              onSave={(updates) =>
-                                void handleManualSceneSave(updates)
-                              }
-                              onCancel={() => setEditingSceneId(null)}
-                            />
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                        Scenes appear after generation.
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex-1 rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
-                      Activity
-                    </p>
-                    <div className="mt-3 max-h-[560px] space-y-3 overflow-y-auto pr-1">
-                      {parsedMessages.length > 0 ? (
-                        parsedMessages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className="rounded-2xl border border-white/10 bg-white/5 p-3"
-                          >
-                            <MessageRenderer content={msg.content} />
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-sm text-white/60">
-                          No activity yet.
-                        </div>
-                      )}
+                <CollageTile tone="dark" size="tall" className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/55">
+                        Director
+                      </p>
+                      <p className="mt-2 text-sm text-white/70">
+                        {selectedScene
+                          ? selectedSceneIndex !== null
+                            ? `Direct edits for Scene ${selectedSceneIndex + 1}.`
+                            : "Direct edits for the selected scene."
+                          : "Select a scene to give direction."}
+                      </p>
                     </div>
+                    {selectedScene && (
+                      <Button
+                        variant="glass"
+                        className="rounded-full px-3 text-white/80"
+                        onClick={() => setEditingSceneId(selectedScene.id)}
+                      >
+                        Manual edit
+                      </Button>
+                    )}
                   </div>
+
+                  {selectedScene ? (
+                    <div className="mt-4 space-y-2">
+                      <Label htmlFor="sceneInstruction" className="text-white/70">
+                        Director prompt
+                      </Label>
+                      <Input
+                        id="sceneInstruction"
+                        value={sceneInstruction}
+                        onChange={(e) => setSceneInstruction(e.target.value)}
+                        placeholder='e.g. "Make it more cinematic, tighter pacing"'
+                        className="border-white/10 bg-white/5 text-white placeholder:text-white/35"
+                      />
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {[
+                          "Make a 60-second cut",
+                          "Music doesn't hit, warm it up",
+                          "Punchier opening hook",
+                        ].map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => setSceneInstruction(chip)}
+                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/20 hover:text-white"
+                          >
+                            {chip}
+                          </button>
+                        ))}
+                      </div>
+                      <Button
+                        variant="accent"
+                        className="w-full rounded-full"
+                        onClick={() => void handleRegenerateScene()}
+                        disabled={!sceneInstruction.trim()}
+                      >
+                        Update scene
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
+                      Scene notes appear once you select a tile in the collage.
+                    </div>
+                  )}
+
+                  {editingSceneId && selectedScene && (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-1">
+                      <SceneEditor
+                        scene={selectedScene}
+                        onSave={(updates) => void handleManualSceneSave(updates)}
+                        onCancel={() => setEditingSceneId(null)}
+                      />
+                    </div>
+                  )}
+                </CollageTile>
+
+                <CollageTile size="short" className="p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--ds-muted-light)]">
+                    Brand kit
+                  </p>
+                  <p className="mt-3 text-lg font-semibold text-[color:var(--ds-text-light)]">
+                    {brandKit.productName}
+                  </p>
+                  <p className="mt-1 text-sm text-[color:var(--ds-muted-light)]">
+                    {brandKit.tagline || "Add a tagline to guide the creative."}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {Object.values(brandKit.colors).map((color) => (
+                      <span
+                        key={color}
+                        className="h-6 w-6 rounded-full border border-[color:var(--ds-border-light)] shadow-sm"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </CollageTile>
+
+                <CollageTile size="short" className="p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[color:var(--ds-muted-light)]">
+                      Timeline
+                    </p>
+                    <span className="text-xs text-[color:var(--ds-muted-light)]">
+                      Tap to focus
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {sceneTimeline.map((segment) => {
+                      const isSelected = segment.id === selectedSceneId
+                      const label = `${Math.round(segment.start)}s — ${Math.round(segment.end)}s`
+                      return (
+                        <button
+                          key={segment.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSceneId(segment.id)
+                            setEditingSceneId(null)
+                            setAssetError(null)
+                          }}
+                          className={[
+                            "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition",
+                            isSelected
+                              ? "border-[color:var(--ds-accent-warm)] bg-[color:var(--ds-bg-light-2)] text-[color:var(--ds-text-light)]"
+                              : "border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] text-[color:var(--ds-muted-light)] hover:border-[color:var(--ds-accent-warm)]",
+                          ].join(" ")}
+                        >
+                          <span className="text-[10px] uppercase tracking-[0.25em]">
+                            {segment.label}
+                          </span>
+                          <span className="text-[11px]">{label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </CollageTile>
+
+                {renderState && (
+                  <CollageTile
+                    tone="dark"
+                    size="short"
+                    className="border-none bg-transparent p-0 shadow-none"
+                  >
+                    <RenderProgress
+                      renderJobId={renderState.renderJobId}
+                      status={renderState.status}
+                      progress={renderState.progress}
+                      outputUrl={renderState.outputUrl}
+                      onCancel={cancelRender}
+                      onDownload={downloadRender}
+                    />
+                  </CollageTile>
                 )}
-              </aside>
+              </ProjectCollage>
             </div>
           ) : (
             <div className="grid gap-6 lg:grid-cols-[56px_minmax(0,1fr)_420px]">
@@ -1083,6 +1105,7 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
                   assets={filteredAssets}
                   renders={filteredRenders}
                   selectedSceneId={selectedSceneId}
+                  onAssetClick={handleOpenAsset}
                 />
               </section>
 
@@ -1106,6 +1129,15 @@ export function Editor({ projectId, initialGenerate }: EditorProps) {
           )}
         </div>
       </div>
+
+      <VideoEditorModal
+        open={isVideoEditorOpen}
+        asset={activeAsset}
+        projectTitle={payload?.project.title}
+        segments={timelineSegments}
+        totalDuration={storyboard?.totalDuration ?? undefined}
+        onClose={handleCloseVideoEditor}
+      />
     </div>
   );
 }
@@ -1115,7 +1147,7 @@ function RailButton({
   label,
   active,
 }: {
-  icon: typeof Sparkles;
+  icon: LucideIcon;
   label: string;
   active?: boolean;
 }) {
