@@ -25,8 +25,8 @@ describe("Property 29: Correlation ID Propagation", () => {
             existingId: fc.uuid(),
             endpoint: fc.constantFrom(
               "/api/projects",
-              "/api/render-jobs/123/progress",
-              "/api/projects/456/generate",
+              "/api/projects/456/generate/images",
+              "/api/projects/456/generate/videos",
             ),
           }),
           { minLength: 1, maxLength: 20 },

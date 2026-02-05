@@ -12,8 +12,8 @@ describe("EmptyState", () => {
   it("should render with no projects", () => {
     render(<EmptyState recentProjects={[]} {...mockCallbacks} />);
 
-    expect(screen.getByText("Create Your Ad")).toBeInTheDocument();
-    expect(screen.getByLabelText("Product URL")).toBeInTheDocument();
+    expect(screen.getByText("Create Your Media")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prompt or URL")).toBeInTheDocument();
     expect(screen.getByText("Try one of these examples:")).toBeInTheDocument();
     expect(screen.getByText("Try Demo Project")).toBeInTheDocument();
     expect(screen.queryByText("Recent Projects")).not.toBeInTheDocument();
@@ -35,8 +35,8 @@ describe("EmptyState", () => {
 
     render(<EmptyState recentProjects={recentProjects} {...mockCallbacks} />);
 
-    expect(screen.getByText("Create Your Ad")).toBeInTheDocument();
-    expect(screen.getByLabelText("Product URL")).toBeInTheDocument();
+    expect(screen.getByText("Create Your Media")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prompt or URL")).toBeInTheDocument();
     expect(screen.getByText("Recent Projects")).toBeInTheDocument();
     expect(screen.getByText("Project 1")).toBeInTheDocument();
     expect(screen.getByText("Project 2")).toBeInTheDocument();
