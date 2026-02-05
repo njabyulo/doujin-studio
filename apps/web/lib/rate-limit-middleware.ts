@@ -1,6 +1,6 @@
 import { createRateLimitError } from "~/lib/error-helpers";
 
-type TOperation = "generate" | "regenerate_scene" | "render";
+type TOperation = "generate" | "regenerate_scene" | "generate_assets" | "render";
 
 interface RateLimitConfig {
   windowMs: number;
@@ -10,6 +10,7 @@ interface RateLimitConfig {
 const RATE_LIMITS: Record<TOperation, RateLimitConfig> = {
   generate: { windowMs: 60_000, maxRequests: 10 },
   regenerate_scene: { windowMs: 60_000, maxRequests: 20 },
+  generate_assets: { windowMs: 60_000, maxRequests: 30 },
   render: { windowMs: 60_000, maxRequests: 5 },
 };
 

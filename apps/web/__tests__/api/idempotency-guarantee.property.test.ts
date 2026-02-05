@@ -6,14 +6,14 @@ import { describe, expect, it } from "vitest";
 
 interface IdempotencyKey {
   userId: string;
-  operation: "generate" | "regenerate_scene" | "render";
+  operation: "generate" | "regenerate_scene" | "generate_assets" | "render";
   key: string;
   resultRef: string;
 }
 
 interface DuplicateRequest {
   userId: string;
-  operation: "generate" | "regenerate_scene" | "render";
+  operation: "generate" | "regenerate_scene" | "generate_assets" | "render";
   key: string;
   duplicateCount: number;
 }
@@ -28,6 +28,7 @@ describe("Property 26: Idempotency Guarantee", () => {
             operation: fc.constantFrom(
               "generate" as const,
               "regenerate_scene" as const,
+              "generate_assets" as const,
               "render" as const,
             ),
             key: fc.string({ minLength: 1, maxLength: 50 }),
@@ -84,7 +85,7 @@ async function processIdempotentRequests(
   storedKeys: IdempotencyKey[];
   processedRequests: Array<{
     userId: string;
-    operation: "generate" | "regenerate_scene" | "render";
+    operation: "generate" | "regenerate_scene" | "generate_assets" | "render";
     key: string;
     resultRef: string;
   }>;
@@ -92,7 +93,7 @@ async function processIdempotentRequests(
   const storedKeys: IdempotencyKey[] = [];
   const processedRequests: Array<{
     userId: string;
-    operation: "generate" | "regenerate_scene" | "render";
+    operation: "generate" | "regenerate_scene" | "generate_assets" | "render";
     key: string;
     resultRef: string;
   }> = [];

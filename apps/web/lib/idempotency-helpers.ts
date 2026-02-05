@@ -7,7 +7,7 @@ import {
   renderJob,
 } from "@doujin/database/schema";
 
-type TOperation = "generate" | "regenerate_scene" | "render";
+type TOperation = "generate" | "regenerate_scene" | "generate_assets" | "render";
 
 interface CheckIdempotencyResult {
   existing: unknown | null;
@@ -44,7 +44,7 @@ export async function checkIdempotency(
     return { existing: job ?? null };
   }
 
-  if (operation === "generate") {
+  if (operation === "generate" || operation === "generate_assets") {
     const [cp] = await db
       .select()
       .from(checkpoint)

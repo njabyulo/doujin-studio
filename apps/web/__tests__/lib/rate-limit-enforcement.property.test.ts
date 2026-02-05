@@ -4,7 +4,7 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-type TOperation = "generate" | "regenerate_scene" | "render";
+type TOperation = "generate" | "regenerate_scene" | "generate_assets" | "render";
 
 interface RateLimitConfig {
   windowMs: number;
@@ -14,6 +14,7 @@ interface RateLimitConfig {
 const RATE_LIMITS: Record<TOperation, RateLimitConfig> = {
   generate: { windowMs: 60_000, maxRequests: 10 },
   regenerate_scene: { windowMs: 60_000, maxRequests: 20 },
+  generate_assets: { windowMs: 60_000, maxRequests: 30 },
   render: { windowMs: 60_000, maxRequests: 5 },
 };
 
@@ -39,6 +40,7 @@ describe("Property 28: Rate Limit Enforcement", () => {
             operation: fc.constantFrom(
               "generate" as const,
               "regenerate_scene" as const,
+              "generate_assets" as const,
               "render" as const,
             ),
             requestCount: fc.integer({ min: 1, max: 30 }),
@@ -100,6 +102,7 @@ describe("Property 28: Rate Limit Enforcement", () => {
             operation: fc.constantFrom(
               "generate" as const,
               "regenerate_scene" as const,
+              "generate_assets" as const,
               "render" as const,
             ),
             requestCount: fc.integer({ min: 1, max: 30 }),
@@ -158,6 +161,7 @@ describe("Property 28: Rate Limit Enforcement", () => {
           operation: fc.constantFrom(
             "generate" as const,
             "regenerate_scene" as const,
+            "generate_assets" as const,
             "render" as const,
           ),
           firstBatchCount: fc.integer({ min: 1, max: 15 }),

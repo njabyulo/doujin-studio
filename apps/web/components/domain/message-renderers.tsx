@@ -85,6 +85,7 @@ function CheckpointCreatedRenderer({
     generation: "Generated",
     manual_edit: "Manual Edit",
     scene_regeneration: "Scene Regenerated",
+    asset_generation: "Assets Generated",
     brand_kit_update: "Brand Kit Updated",
   };
 

@@ -38,6 +38,7 @@ describe("Property 11: Message Content Validation", () => {
                 "generation",
                 "manual_edit",
                 "scene_regeneration",
+                "asset_generation",
                 "brand_kit_update",
               ),
               artifactRefs: fc.constant([]),

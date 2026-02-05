@@ -21,6 +21,7 @@ interface CreateCheckpointParams {
     | "generation"
     | "manual_edit"
     | "scene_regeneration"
+    | "asset_generation"
     | "brand_kit_update";
 }
 
