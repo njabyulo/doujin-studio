@@ -39,6 +39,83 @@ const SGenerationOutput = z.object({
   brandKit: SBrandKit,
 });
 
+const SGenerationDraft = z.object({
+  storyboard: z.object({
+    version: z.string(),
+    format: z.enum(["1:1", "9:16", "16:9"]),
+    totalDuration: z.number().positive(),
+    scenes: z.array(
+      z.object({
+        id: z.string(),
+        duration: z.number().positive(),
+        onScreenText: z.string(),
+        voiceoverText: z.string(),
+        assetSuggestions: z.array(
+          z.object({
+            type: z.enum(["image", "video"]),
+            description: z.string(),
+            placeholderUrl: z.string().url().optional(),
+          }),
+        ),
+      }),
+    ),
+  }),
+  script: z.object({
+    version: z.string(),
+    tone: z.string(),
+    scenes: z.array(
+      z.object({
+        sceneId: z.string(),
+        voiceover: z.string(),
+        timing: z.object({
+          start: z.number(),
+          end: z.number(),
+        }),
+      }),
+    ),
+  }),
+  brandKit: SBrandKit,
+});
+
+function normalizeGenerationOutput(draft: z.infer<typeof SGenerationDraft>) {
+  const sceneIdMap = new Map<string, string>();
+  const normalizedScenes = draft.storyboard.scenes.map((scene, index) => {
+    const newId = crypto.randomUUID();
+    sceneIdMap.set(scene.id, newId);
+    return {
+      ...scene,
+      id: newId,
+    };
+  });
+
+  const normalizedScriptScenes = draft.script.scenes.map((scene, index) => {
+    const mapped =
+      sceneIdMap.get(scene.sceneId) ?? normalizedScenes[index]?.id;
+    return {
+      ...scene,
+      sceneId: mapped ?? scene.sceneId,
+    };
+  });
+
+  const totalDuration = normalizedScenes.reduce(
+    (sum, scene) => sum + scene.duration,
+    0,
+  );
+
+  return {
+    storyboard: {
+      ...draft.storyboard,
+      totalDuration,
+      scenes: normalizedScenes,
+    },
+    script: {
+      ...draft.script,
+      scenes: normalizedScriptScenes,
+    },
+    brandKit: draft.brandKit,
+  };
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -128,7 +205,7 @@ export async function POST(
           const result = streamText({
             model: google("gemini-2.5-flash"),
             output: Output.object({
-              schema: SGenerationOutput,
+              schema: SGenerationDraft,
             }),
             prompt: buildPrompt(input.url, input.format, input.tone),
           });
@@ -144,7 +221,10 @@ export async function POST(
             );
           }
 
-          const finalObject = await result.output;
+          const draftObject = await result.output;
+          const finalObject = SGenerationOutput.parse(
+            normalizeGenerationOutput(draftObject),
+          );
 
           const newCheckpoint = await createCheckpoint({
             projectId,
@@ -250,7 +330,7 @@ STORYBOARD:
 - format: "${format}"
 - totalDuration: sum of all scene durations (target 15-30 seconds)
 - scenes: array of 3-6 scenes, each with:
-  * id: UUID
+  * id: UUID (v4). If you can't produce UUIDs, use SCENE_1, SCENE_2, etc.
   * duration: 3-8 seconds
   * onScreenText: compelling text overlay (max 100 chars)
   * voiceoverText: script for voiceover (max 200 chars)
@@ -260,7 +340,7 @@ SCRIPT:
 - version: "1"
 - tone: ${tone || "professional and engaging"}
 - scenes: array matching storyboard scenes with:
-  * sceneId: matching scene UUID
+  * sceneId: matching scene UUID (or SCENE_1, SCENE_2 if used above)
   * voiceover: full voiceover text
   * timing: { start: number, end: number } in seconds
 
