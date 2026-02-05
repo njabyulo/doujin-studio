@@ -4,11 +4,6 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-interface Checkpoint {
-  id: string;
-  storyboardJson: Record<string, unknown>;
-}
-
 interface RenderJob {
   id: string;
   checkpointId: string;

@@ -1,5 +1,5 @@
 
-export async function requireAuth(request: Request, correlationId: string) {
+export async function requireAuth(_request: Request, _correlationId: string) {
   // Temporarily bypass auth for testing
   return {
     error: null,

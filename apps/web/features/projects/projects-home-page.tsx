@@ -67,7 +67,6 @@ export function ProjectsHomePage() {
 
   useEffect(() => {
     let alive = true;
-    setIsLoading(true);
     fetchProjects()
       .then((items) => {
         if (!alive) return;
@@ -96,6 +95,22 @@ export function ProjectsHomePage() {
     if (!projects) return [];
     return projects.slice(2, 8);
   }, [projects]);
+
+  const featuredDisplay = useMemo(
+    () =>
+      isLoading
+        ? Array.from({ length: 2 }, () => null)
+        : featuredProjects,
+    [featuredProjects, isLoading],
+  );
+
+  const recentDisplay = useMemo(
+    () =>
+      isLoading
+        ? Array.from({ length: 6 }, () => null)
+        : recentProjects,
+    [isLoading, recentProjects],
+  );
 
   return (
     <div className="ds-light min-h-screen bg-[color:var(--ds-bg-light)]">
@@ -168,59 +183,57 @@ export function ProjectsHomePage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            {(isLoading ? Array.from({ length: 2 }) : featuredProjects).map(
-              (project, index) => {
-                const meta = project ? deriveMeta(project) : null;
-                return (
+            {featuredDisplay.map((project, index) => {
+              const meta = project ? deriveMeta(project) : null;
+              return (
+                <div
+                  key={project?.id ?? `featured-${index}`}
+                  className="group relative overflow-hidden rounded-[32px] border border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] p-5 shadow-[var(--ds-shadow-soft)] transition hover:-translate-y-1 hover:shadow-[var(--ds-shadow-strong)]"
+                >
                   <div
-                    key={project?.id ?? `featured-${index}`}
-                    className="group relative overflow-hidden rounded-[32px] border border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] p-5 shadow-[var(--ds-shadow-soft)] transition hover:-translate-y-1 hover:shadow-[var(--ds-shadow-strong)]"
-                  >
-                    <div
-                      className="absolute inset-0 opacity-90"
-                      style={{
-                        backgroundImage:
-                          PLACEHOLDER_GRADIENTS[index % PLACEHOLDER_GRADIENTS.length],
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.45),transparent_60%)]" />
-                    <div className="relative flex h-full flex-col justify-between gap-6">
-                      <div className="flex items-center justify-between text-xs font-semibold text-[color:var(--ds-text-light)]">
-                        <span className="rounded-full border border-white/60 bg-white/70 px-3 py-1 text-[10px] uppercase tracking-[0.3em]">
-                          {meta ? `${meta.progress}%` : "--"}
-                        </span>
-                        <button
-                          type="button"
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/60 bg-white/70 text-[color:var(--ds-text-light)]"
-                        >
-                          <ArrowUpRight className="h-4 w-4" />
-                        </button>
-                      </div>
+                    className="absolute inset-0 opacity-90"
+                    style={{
+                      backgroundImage:
+                        PLACEHOLDER_GRADIENTS[index % PLACEHOLDER_GRADIENTS.length],
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.45),transparent_60%)]" />
+                  <div className="relative flex h-full flex-col justify-between gap-6">
+                    <div className="flex items-center justify-between text-xs font-semibold text-[color:var(--ds-text-light)]">
+                      <span className="rounded-full border border-white/60 bg-white/70 px-3 py-1 text-[10px] uppercase tracking-[0.3em]">
+                        {meta ? `${meta.progress}%` : "--"}
+                      </span>
+                      <button
+                        type="button"
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-white/60 bg-white/70 text-[color:var(--ds-text-light)]"
+                      >
+                        <ArrowUpRight className="h-4 w-4" />
+                      </button>
+                    </div>
 
-                      <div className="rounded-[24px] border border-white/50 bg-white/60 p-4 text-[color:var(--ds-text-light)]">
-                        <p className="text-lg font-semibold">
-                          {project ? project.title : "Loading project"}
-                        </p>
-                        <p className="mt-1 text-xs text-[color:var(--ds-muted-light)]">
-                          {project ? formatShortDate(project.updatedAt) : "—"}
-                        </p>
-                        <div className="mt-3 flex items-center justify-between text-xs text-[color:var(--ds-muted-light)]">
-                          <span>{meta ? meta.shotCount : 0} shots</span>
-                          <span>{meta ? meta.sizeLabel : "--"}</span>
-                        </div>
+                    <div className="rounded-[24px] border border-white/50 bg-white/60 p-4 text-[color:var(--ds-text-light)]">
+                      <p className="text-lg font-semibold">
+                        {project ? project.title : "Loading project"}
+                      </p>
+                      <p className="mt-1 text-xs text-[color:var(--ds-muted-light)]">
+                        {project ? formatShortDate(project.updatedAt) : "—"}
+                      </p>
+                      <div className="mt-3 flex items-center justify-between text-xs text-[color:var(--ds-muted-light)]">
+                        <span>{meta ? meta.shotCount : 0} shots</span>
+                        <span>{meta ? meta.sizeLabel : "--"}</span>
                       </div>
                     </div>
-                    {project && (
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="absolute inset-0"
-                        aria-label={`Open project ${project.title}`}
-                      />
-                    )}
                   </div>
-                );
-              },
-            )}
+                  {project && (
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="absolute inset-0"
+                      aria-label={`Open project ${project.title}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -235,44 +248,42 @@ export function ProjectsHomePage() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {(isLoading ? Array.from({ length: 6 }) : recentProjects).map(
-              (project, index) => {
-                const meta = project ? deriveMeta(project) : null;
-                return (
+            {recentDisplay.map((project, index) => {
+              const meta = project ? deriveMeta(project) : null;
+              return (
+                <div
+                  key={project?.id ?? `recent-${index}`}
+                  className="group relative overflow-hidden rounded-[26px] border border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] p-4 shadow-[var(--ds-shadow-soft)] transition hover:-translate-y-1 hover:shadow-[var(--ds-shadow-strong)]"
+                >
                   <div
-                    key={project?.id ?? `recent-${index}`}
-                    className="group relative overflow-hidden rounded-[26px] border border-[color:var(--ds-border-light)] bg-[color:var(--ds-surface-light)] p-4 shadow-[var(--ds-shadow-soft)] transition hover:-translate-y-1 hover:shadow-[var(--ds-shadow-strong)]"
-                  >
-                    <div
-                      className="h-[160px] w-full rounded-[20px] border border-white/60 bg-white/70"
-                      style={{
-                        backgroundImage:
-                          PLACEHOLDER_GRADIENTS[(index + 1) % PLACEHOLDER_GRADIENTS.length],
-                      }}
-                    />
-                    <div className="mt-4 space-y-2">
-                      <p className="text-sm font-semibold text-[color:var(--ds-text-light)]">
-                        {project ? project.title : "Loading project"}
-                      </p>
-                      <p className="text-xs text-[color:var(--ds-muted-light)]">
-                        {project ? formatShortDate(project.createdAt) : "—"}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-[color:var(--ds-muted-light)]">
-                        <span>{meta ? meta.shotCount : 0} shots</span>
-                        <span>{meta ? meta.sizeLabel : "--"}</span>
-                      </div>
+                    className="h-[160px] w-full rounded-[20px] border border-white/60 bg-white/70"
+                    style={{
+                      backgroundImage:
+                        PLACEHOLDER_GRADIENTS[(index + 1) % PLACEHOLDER_GRADIENTS.length],
+                    }}
+                  />
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-semibold text-[color:var(--ds-text-light)]">
+                      {project ? project.title : "Loading project"}
+                    </p>
+                    <p className="text-xs text-[color:var(--ds-muted-light)]">
+                      {project ? formatShortDate(project.createdAt) : "—"}
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-[color:var(--ds-muted-light)]">
+                      <span>{meta ? meta.shotCount : 0} shots</span>
+                      <span>{meta ? meta.sizeLabel : "--"}</span>
                     </div>
-                    {project && (
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="absolute inset-0"
-                        aria-label={`Open project ${project.title}`}
-                      />
-                    )}
                   </div>
-                );
-              },
-            )}
+                  {project && (
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="absolute inset-0"
+                      aria-label={`Open project ${project.title}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>

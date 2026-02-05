@@ -18,7 +18,7 @@ import {
   Sparkles,
   Type,
 } from "lucide-react";
-import { useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import type { AssetItem } from "./assets-panel";
@@ -83,6 +83,23 @@ export function VideoEditorModal({
     ];
   }, [segments, totalDurationSeconds]);
 
+  useEffect(() => {
+    if (!isPlaying) return;
+    let rafId = 0;
+    const tick = () => {
+      const player = playerRef.current;
+      if (!player) return;
+      setCurrentFrame(player.getCurrentFrame());
+      if (player.isPlaying()) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isPlaying]);
+
   if (!open || !asset) return null;
 
   const assetUrl =
@@ -93,8 +110,10 @@ export function VideoEditorModal({
     if (!playerRef.current) return;
     if (isPlaying) {
       playerRef.current.pause();
+      setIsPlaying(false);
     } else {
       playerRef.current.play();
+      setIsPlaying(true);
     }
   };
 
@@ -207,9 +226,6 @@ export function VideoEditorModal({
                     style={{ width: "100%", height: "100%" }}
                     controls={false}
                     autoPlay={false}
-                    onFrameUpdate={(frame) => setCurrentFrame(frame)}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
                     acknowledgeRemotionLicense
                   />
                 </div>

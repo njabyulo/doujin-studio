@@ -45,11 +45,6 @@ export function RenderProgress({
   onCancel,
   onDownload,
 }: RenderProgressProps) {
-  const isTerminal =
-    status === "completed" ||
-    status === "failed" ||
-    status === "cancelled" ||
-    status === "cancel_requested";
   const canCancel =
     status === "pending" ||
     status === "rendering" ||

@@ -13,11 +13,6 @@ type EventType =
   | "render_request"
   | "render_completion";
 
-interface MessageCreationEvent {
-  eventType: EventType;
-  messageType: string;
-}
-
 describe("Property 6: Message Type Correctness", () => {
   it("should create messages with type field matching the event type (min 100 iterations)", async () => {
     await fc.assert(
