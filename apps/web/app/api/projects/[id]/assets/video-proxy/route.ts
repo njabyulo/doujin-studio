@@ -78,9 +78,12 @@ export async function GET(
     }
 
     const apiKey =
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY ??
+      process.env.GOOGLE_AI_API_KEY ??
+      process.env.GEMINI_API_KEY ??
+      process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+      throw new Error("Missing Google AI API key");
     }
 
     const response = await fetch(parsed.data.uri, {
@@ -98,8 +101,7 @@ export async function GET(
       throw new Error("Video stream unavailable");
     }
 
-    const contentType =
-      response.headers.get("content-type") ?? "video/mp4";
+    const contentType = response.headers.get("content-type") ?? "video/mp4";
 
     return withCorrelationId(
       new Response(response.body, {

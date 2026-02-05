@@ -11,6 +11,7 @@ import {
 } from "~/lib/correlation-middleware";
 import {
   createForbiddenError,
+  createErrorResponse,
   createNotFoundError,
   createServerError,
   createValidationError,
@@ -39,6 +40,12 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function clampDurationSeconds(value: number | undefined) {
+  if (!value || Number.isNaN(value)) return undefined;
+  const rounded = Math.round(value);
+  return Math.min(8, Math.max(4, rounded));
+}
+
 function buildVideoPrompt(input: {
   prompt: string;
   style?: string;
@@ -60,6 +67,10 @@ function buildVideoPrompt(input: {
 
 function extractVideoUri(operation: unknown): string | null {
   const op = operation as {
+    error?: {
+      message?: string;
+      status?: string;
+    };
     response?: {
       generatedVideos?: Array<{
         video?: {
@@ -72,6 +83,49 @@ function extractVideoUri(operation: unknown): string | null {
 
   const item = op.response?.generatedVideos?.[0]?.video;
   return item?.uri ?? item?.fileUri ?? null;
+}
+
+function getOperationError(operation: unknown): string | null {
+  const op = operation as {
+    error?:
+      | string
+      | {
+          message?: string;
+          status?: string;
+        }
+      | { error?: { message?: string; status?: string } };
+  };
+  if (!op.error) return null;
+  if (typeof op.error === "string") return op.error;
+  if ("message" in op.error || "status" in op.error) {
+    const e = op.error as { message?: string; status?: string };
+    return e.message ?? e.status ?? "Video generation failed";
+  }
+  const nested = (op.error as { error?: { message?: string; status?: string } })
+    .error;
+  return nested?.message ?? nested?.status ?? "Video generation failed";
+}
+
+function operationDebug(operation: unknown) {
+  const op = operation as {
+    name?: string;
+    done?: boolean;
+    metadata?: unknown;
+    response?: unknown;
+    error?: unknown;
+  };
+
+  return {
+    name: op.name,
+    done: op.done,
+    hasMetadata: Boolean(op.metadata),
+    hasResponse: Boolean(op.response),
+    hasError: Boolean(op.error),
+    responseKeys:
+      op.response && typeof op.response === "object"
+        ? Object.keys(op.response as Record<string, unknown>).slice(0, 25)
+        : [],
+  };
 }
 
 export async function POST(
@@ -144,21 +198,22 @@ export async function POST(
     }
 
     const ai = new GoogleGenAI({ apiKey });
+    const durationSeconds = clampDurationSeconds(prompt.durationSec);
     const generationPrompt = buildVideoPrompt({
       prompt: prompt.prompt,
       style: prompt.style,
       aspectRatio: prompt.aspectRatio,
-      durationSec: prompt.durationSec,
+      durationSec: durationSeconds,
     });
 
     // Video generation is a long-running operation.
     let operation = await ai.models.generateVideos({
-      model: "veo-3.1-generate-preview",
+      model: process.env.VEO_MODEL || "veo-3.0-fast-generate-001",
       prompt: generationPrompt,
       config: {
         numberOfVideos: 1,
         aspectRatio: prompt.aspectRatio ?? "9:16",
-        durationSeconds: prompt.durationSec,
+        durationSeconds,
       },
     });
 
@@ -171,12 +226,41 @@ export async function POST(
     }
 
     if (!operation.done) {
-      return createServerError(correlationId);
+      return createErrorResponse(
+        "Video generation timed out",
+        504,
+        correlationId,
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : { operation: operationDebug(operation) },
+      );
+    }
+
+    const operationError = getOperationError(operation);
+    if (operationError) {
+      return createErrorResponse(
+        "Video generation failed",
+        500,
+        correlationId,
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : { message: operationError },
+      );
     }
 
     const uri = extractVideoUri(operation);
     if (!uri) {
-      return createServerError(correlationId);
+      return createErrorResponse(
+        "Video generation failed",
+        500,
+        correlationId,
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : {
+              message: "No video uri in operation response",
+              operation: operationDebug(operation),
+            },
+      );
     }
 
     return withCorrelationId(
@@ -202,6 +286,16 @@ export async function POST(
     }
 
     console.error(`[${correlationId}] Video generation error:`, error);
+    if (process.env.NODE_ENV !== "production") {
+      return createErrorResponse(
+        "Video generation failed",
+        500,
+        correlationId,
+        {
+          message: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
     return createServerError(correlationId);
   }
 }

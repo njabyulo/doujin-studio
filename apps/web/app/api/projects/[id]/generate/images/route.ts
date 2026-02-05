@@ -135,7 +135,6 @@ export async function POST(
         responseModalities: ["TEXT", "IMAGE"],
         imageConfig: {
           aspectRatio: prompt.aspectRatio,
-          outputMimeType: "image/png",
         },
       },
     });
