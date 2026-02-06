@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@doujin/database": "workspace:*",
-    "@doujin/shared": "workspace:*",
     "@remotion/lambda": "4.0.417"
   },
   "devDependencies": {
