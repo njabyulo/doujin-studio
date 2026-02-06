@@ -23,6 +23,14 @@
   --ds-radius-xl: 28px;
   --ds-radius-lg: 22px;
   --ds-radius-md: 16px;
+  --editor-accent: #d8dd5a;
+  --editor-accent-deep: #c7d041;
+  --editor-ink: #1d1713;
+  --editor-panel: rgba(20, 18, 16, 0.75);
+  --editor-panel-strong: rgba(14, 12, 10, 0.92);
+  --editor-border: rgba(255, 255, 255, 0.18);
+  --editor-muted: rgba(247, 242, 238, 0.62);
+  --editor-shadow: 0 40px 90px rgba(14, 12, 10, 0.45);
 }
 
 body {
@@ -66,12 +74,17 @@ body {
 
 .ds-editor {
   position: relative;
-  background: radial-gradient(1200px 800px at 20% 10%, rgba(75, 190, 160, 0.18), transparent 55%),
-    radial-gradient(1200px 800px at 85% 20%, rgba(230, 110, 70, 0.2), transparent 55%),
-    linear-gradient(180deg, rgba(10, 11, 16, 0.9), rgba(10, 11, 16, 0.95)),
-    var(--ds-bg);
-  color: var(--ds-text);
+  background: radial-gradient(1200px 800px at 20% 10%, rgba(255, 255, 255, 0.22), transparent 55%),
+    radial-gradient(900px 700px at 85% 18%, rgba(255, 211, 168, 0.35), transparent 55%),
+    linear-gradient(135deg, #d4c1ad 0%, #bda58f 55%, #a98f78 100%);
+  color: #f7f2e8;
   overflow: hidden;
+  --ds-border: var(--editor-border);
+  --ds-glass: rgba(23, 20, 18, 0.55);
+  --ds-surface: rgba(20, 18, 16, 0.85);
+  --ds-text: #f7f2e8;
+  --ds-muted: var(--editor-muted);
+  --ds-accent-warm: var(--editor-accent);
 }
 
 .glassPanel {
@@ -97,11 +110,11 @@ body {
 }
 
 .timelineDock {
-  background: var(--ds-glass-dark);
-  border: 1px solid var(--ds-border-dark);
-  border-radius: var(--ds-radius-xl);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--ds-shadow-strong);
+  background: var(--editor-panel);
+  border: 1px solid var(--editor-border);
+  border-radius: 30px;
+  backdrop-filter: blur(22px);
+  box-shadow: var(--editor-shadow);
 }
 
 .glow-accent {
@@ -122,6 +135,139 @@ body {
 
 .page-enter {
   animation: pageEnter 0.8s ease both;
+}
+
+.editor-panel {
+  background: var(--editor-panel);
+  border: 1px solid var(--editor-border);
+  border-radius: 28px;
+  box-shadow: var(--editor-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.editor-panel-strong {
+  background: var(--editor-panel-strong);
+  border: 1px solid var(--editor-border);
+  border-radius: 28px;
+  box-shadow: var(--editor-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.editor-rail {
+  background: rgba(20, 18, 16, 0.6);
+  border: 1px solid var(--editor-border);
+  border-radius: 999px;
+  padding: 14px 10px;
+  box-shadow: var(--editor-shadow);
+  backdrop-filter: blur(20px);
+}
+
+.editor-tool {
+  height: 44px;
+  width: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--editor-muted);
+  transition: all 0.2s ease;
+}
+
+.editor-tool:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #f8f4ef;
+}
+
+.editor-tool-active {
+  background: var(--editor-accent);
+  color: #1a1a14;
+  border-color: rgba(216, 221, 90, 0.8);
+  box-shadow: 0 0 32px rgba(216, 221, 90, 0.5);
+}
+
+.editor-pill {
+  background: rgba(24, 20, 18, 0.65);
+  border: 1px solid var(--editor-border);
+  color: #f7f2e8;
+  border-radius: 999px;
+  padding: 8px 16px;
+  box-shadow: 0 16px 40px rgba(12, 10, 8, 0.35);
+}
+
+.editor-stage {
+  position: relative;
+  border-radius: 32px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(140deg, rgba(20, 16, 14, 0.95), rgba(10, 9, 8, 0.95));
+  box-shadow: 0 35px 90px rgba(13, 11, 10, 0.6);
+}
+
+.editor-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 140px 100%;
+  opacity: 0.35;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.timeline-clip {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+  min-width: 120px;
+  height: 56px;
+}
+
+.timeline-clip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.35), transparent 55%);
+  opacity: 0.5;
+}
+
+.timeline-playhead {
+  width: 2px;
+  background: var(--editor-accent);
+  box-shadow: 0 0 20px rgba(216, 221, 90, 0.7);
+}
+
+.time-chip {
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(247, 242, 238, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.time-chip-active {
+  background: var(--editor-accent);
+  color: #1a1a14;
+  border-color: rgba(216, 221, 90, 0.8);
+  box-shadow: 0 0 24px rgba(216, 221, 90, 0.55);
+}
+
+.pill-float {
+  animation: pillFloat 6s ease-in-out infinite;
+}
+
+@keyframes pillFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0);
+  }
 }
 
 @keyframes gradientDrift {
