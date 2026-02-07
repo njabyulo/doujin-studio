@@ -1,26 +1,19 @@
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { project } from "./project";
 
-export const message = pgTable(
+export const message = sqliteTable(
   "message",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    projectId: uuid("project_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
     role: text("role", { enum: ["user", "assistant", "system"] }).notNull(),
     type: text("type").notNull(),
-    contentJson: jsonb("content_json").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    contentJson: text("content_json", { mode: "json" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     index("message_project_id_idx").on(table.projectId),

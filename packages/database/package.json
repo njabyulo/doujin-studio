@@ -10,7 +10,7 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/migrate.ts",
+    "db:migrate": "wrangler d1 migrations apply doujin",
     "db:studio": "drizzle-kit studio",
     "lint": "pnpm lint:type && pnpm lint:code",
     "lint:type": "tsc --noEmit",
@@ -19,15 +19,16 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
-    "drizzle-orm": "^0.38.3",
-    "postgres": "^3.4.5"
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@doujin/config": "workspace:*",
-    "@types/node": "^20.19.30",
-    "drizzle-kit": "^0.30.1",
-    "eslint": "^9.18.0",
-    "tsx": "^4.19.2",
+    "@cloudflare/workers-types": "^4.20260207.0",
+    "@types/node": "^25.2.1",
+    "drizzle-kit": "^0.31.8",
+    "eslint": "^10.0.0",
+    "wrangler": "^4.63.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

@@ -1,27 +1,19 @@
-import {
-  boolean,
-  index,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { checkpoint } from "./checkpoint";
 import { message } from "./message";
 import { project } from "./project";
 
-export const renderJob = pgTable(
+export const renderJob = sqliteTable(
   "render_job",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    projectId: uuid("project_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
-    sourceCheckpointId: uuid("source_checkpoint_id")
+    sourceCheckpointId: text("source_checkpoint_id")
       .notNull()
       .references(() => checkpoint.id, { onDelete: "cascade" }),
-    sourceMessageId: uuid("source_message_id")
+    sourceMessageId: text("source_message_id")
       .notNull()
       .references(() => message.id, { onDelete: "cascade" }),
     format: text("format", { enum: ["1:1", "9:16", "16:9"] }).notNull(),
@@ -37,15 +29,17 @@ export const renderJob = pgTable(
     }).notNull(),
     progress: integer("progress").notNull().default(0),
     outputS3Key: text("output_s3_key"),
-    cancelRequested: boolean("cancel_requested").notNull().default(false),
+    cancelRequested: integer("cancel_requested", { mode: "boolean" })
+      .notNull()
+      .default(false),
     lastError: text("last_error"),
     correlationId: text("correlation_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     index("render_job_project_id_idx").on(table.projectId),

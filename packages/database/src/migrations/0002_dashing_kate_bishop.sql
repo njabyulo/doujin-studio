@@ -1,1 +1,0 @@
-ALTER TABLE "render_job" ADD COLUMN "correlation_id" text;

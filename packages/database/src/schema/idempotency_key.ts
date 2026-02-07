@@ -1,19 +1,18 @@
 import {
   index,
-  pgTable,
+  integer,
+  sqliteTable,
   text,
-  timestamp,
-  unique,
-  uuid,
-} from "drizzle-orm/pg-core";
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { project } from "./project";
 
-export const idempotencyKey = pgTable(
+export const idempotencyKey = sqliteTable(
   "idempotency_key",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id").notNull(),
-    projectId: uuid("project_id")
+    projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
     operation: text("operation", {
@@ -21,12 +20,16 @@ export const idempotencyKey = pgTable(
     }).notNull(),
     key: text("key").notNull(),
     resultRef: text("result_ref").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (table) => [
-    unique().on(table.userId, table.operation, table.key),
+    uniqueIndex("idempotency_key_unique").on(
+      table.userId,
+      table.operation,
+      table.key,
+    ),
     index("idempotency_key_user_id_idx").on(table.userId),
   ],
 );

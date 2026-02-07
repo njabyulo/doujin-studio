@@ -1,19 +1,24 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
-export const project = pgTable(
+export const project = sqliteTable(
   "project",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id").notNull(),
     title: text("title").notNull(),
-    mediaPlanJson: jsonb("media_plan_json"),
-    activeCheckpointId: uuid("active_checkpoint_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    mediaPlanJson: text("media_plan_json", { mode: "json" }),
+    activeCheckpointId: text("active_checkpoint_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     index("project_user_id_idx").on(table.userId),

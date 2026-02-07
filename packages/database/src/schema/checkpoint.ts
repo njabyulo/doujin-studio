@@ -1,32 +1,25 @@
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { message } from "./message";
 import { project } from "./project";
 
-export const checkpoint = pgTable(
+export const checkpoint = sqliteTable(
   "checkpoint",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    projectId: uuid("project_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    sourceMessageId: uuid("source_message_id")
+    sourceMessageId: text("source_message_id")
       .notNull()
       .references(() => message.id, { onDelete: "cascade" }),
-    parentCheckpointId: uuid("parent_checkpoint_id"),
-    storyboardJson: jsonb("storyboard_json").notNull(),
-    scriptJson: jsonb("script_json").notNull(),
-    brandKitJson: jsonb("brand_kit_json").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    parentCheckpointId: text("parent_checkpoint_id"),
+    storyboardJson: text("storyboard_json", { mode: "json" }).notNull(),
+    scriptJson: text("script_json", { mode: "json" }).notNull(),
+    brandKitJson: text("brand_kit_json", { mode: "json" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     index("checkpoint_project_id_idx").on(table.projectId),
