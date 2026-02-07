@@ -5,10 +5,9 @@
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "turbo run dev",
-    "dev:infra:up": "AWS_PROFILE=withlillian-creds sst unlock --stage dev && AWS_PROFILE=withlillian-creds sst dev --stage dev --mode mono",
-    "dev:infra:down": "AWS_PROFILE=withlillian-creds sst unlock --stage dev && AWS_PROFILE=withlillian-creds sst remove --stage dev",
     "test": "turbo run test",
     "build": "turbo run build",
+    "deploy": "turbo run deploy --filter=web",
     "lint": "turbo run lint",
     "lint:code": "turbo run lint:code",
     "lint:type": "turbo run lint:type",
@@ -18,15 +17,12 @@
     "db:migrate": "turbo run db:migrate --filter=@doujin/database",
     "db:studio": "turbo run db:studio --filter=@doujin/database",
     "clean": "turbo clean",
-    "clean:all": "turbo clean:all && rm -rf node_modules .turbo .sst"
+    "clean:all": "turbo clean:all && rm -rf node_modules .turbo"
   },
   "devDependencies": {
     "prettier": "^3.8.1",
-    "sst": "3.17.38",
-    "turbo": "^2.8.1",
+    "turbo": "^2.8.3",
     "typescript": "^5.9.3"
   },
-  "dependencies": {
-    "@google/genai": "^1.40.0"
-  }
+  "dependencies": {}
 }

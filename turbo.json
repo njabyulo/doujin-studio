@@ -48,6 +48,9 @@
     "clean": {
       "cache": false
     },
+    "deploy": {
+      "cache": false
+    },
     "clean:all": {
       "cache": false
     }
