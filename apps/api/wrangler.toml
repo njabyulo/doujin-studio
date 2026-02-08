@@ -1,0 +1,60 @@
+name = "doujin-api"
+main = "src/index.ts"
+compatibility_date = "2026-02-05"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+APP_ENV = "development"
+CORS_ORIGIN = "http://localhost:8787"
+GIT_SHA = "dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "doujin"
+database_id = "fa8c44a9-f976-4fa8-9fec-da22aad02d2b"
+migrations_dir = "../../packages/database/src/migrations"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "doujin-media"
+
+[[routes]]
+pattern = "doujin.njabulomajozi.com/api/*"
+zone_name = "njabulomajozi.com"
+
+[env.production.vars]
+APP_ENV = "production"
+CORS_ORIGIN = "https://doujin.njabulomajozi.com"
+GIT_SHA = "prod"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "doujin"
+database_id = "fa8c44a9-f976-4fa8-9fec-da22aad02d2b"
+migrations_dir = "../../packages/database/src/migrations"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "doujin-media"
+
+[[env.production.routes]]
+pattern = "doujin.njabulomajozi.com/api/*"
+zone_name = "njabulomajozi.com"
+
+[env.test.vars]
+APP_ENV = "test"
+CORS_ORIGIN = "http://localhost:8787"
+GIT_SHA = "test-sha"
+AUTH_SECRET = "test-auth-secret-for-vitest-1234567890"
+GEMINI_API_KEY = "test-gemini-key"
+
+[[env.test.d1_databases]]
+binding = "DB"
+database_name = "doujin"
+database_id = "fa8c44a9-f976-4fa8-9fec-da22aad02d2b"
+migrations_dir = "../../packages/database/src/migrations"
+
+[[env.test.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "doujin-media"

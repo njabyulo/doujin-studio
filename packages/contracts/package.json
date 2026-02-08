@@ -1,0 +1,26 @@
+{
+  "name": "@doujin/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "pnpm lint:type && pnpm lint:code",
+    "lint:type": "tsc --noEmit",
+    "lint:code": "eslint . --max-warnings 0",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo",
+    "clean:all": "pnpm clean && rm -rf node_modules"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@doujin/config": "workspace:*",
+    "eslint": "^10.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

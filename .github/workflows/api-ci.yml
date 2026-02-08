@@ -1,0 +1,52 @@
+name: API CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "packages/contracts/**"
+      - "packages/database/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/api-ci.yml"
+  push:
+    paths:
+      - "apps/api/**"
+      - "packages/contracts/**"
+      - "packages/database/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/api-ci.yml"
+
+jobs:
+  api-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (API scope)
+        run: pnpm turbo run lint:type --filter=api...
+
+      - name: Lint (API scope)
+        run: pnpm turbo run lint:code --filter=api...
+
+      - name: Test (API scope)
+        run: pnpm turbo run test --filter=api...
