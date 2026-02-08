@@ -12,7 +12,7 @@
 	},
 	"routes": [
 		{
-			"pattern": "doujin-studio.njabulomajozi.com/*",
+			"pattern": "doujin.njabulomajozi.com/*",
 			"zone_name": "njabulomajozi.com"
 		}
 	],
