@@ -41,6 +41,26 @@ export const meResponseSchema = z.object({
   tenant: meTenantSchema,
 });
 
+export const projectRoleSchema = z.enum(["owner"]);
+
+export const createProjectRequestSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+});
+
+export const projectSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  role: projectRoleSchema,
+});
+
+export const projectListResponseSchema = z.object({
+  projects: z.array(projectSchema),
+});
+
+export const projectResponseSchema = z.object({
+  project: projectSchema,
+});
+
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
 export type ApiErrorResponse = z.infer<typeof apiErrorSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
@@ -48,3 +68,8 @@ export type VersionResponse = z.infer<typeof versionResponseSchema>;
 export type MeUser = z.infer<typeof meUserSchema>;
 export type MeTenant = z.infer<typeof meTenantSchema>;
 export type MeResponse = z.infer<typeof meResponseSchema>;
+export type ProjectRole = z.infer<typeof projectRoleSchema>;
+export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+export type Project = z.infer<typeof projectSchema>;
+export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
+export type ProjectResponse = z.infer<typeof projectResponseSchema>;
