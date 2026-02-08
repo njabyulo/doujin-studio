@@ -8,6 +8,7 @@ import packageJson from "../../package.json";
 import { createAuth, toAuthRequest } from "../auth";
 import { ApiError } from "../errors";
 import { requireAuth } from "../middleware/require-auth";
+import { createProjectRoutes } from "./projects";
 import type { AppEnv } from "../types";
 
 function createVersionResponse(commitSha: string) {
@@ -55,6 +56,8 @@ export function createApiRoutes() {
       200,
     );
   });
+
+  app.route("/projects", createProjectRoutes());
 
   return app;
 }
