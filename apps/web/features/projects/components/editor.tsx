@@ -18,7 +18,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -205,7 +205,9 @@ function ChatPanel() {
 export function Editor({ projectId }: EditorProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [upload, setUpload] = useState<UploadSession | null>(null);
+  const [upload, setUpload] = useState<UploadSession | null>(() =>
+    projectId ? loadUpload(projectId) : null,
+  );
   const [videoError, setVideoError] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState("select");
 
@@ -266,15 +268,6 @@ export function Editor({ projectId }: EditorProps) {
     ],
     [],
   );
-
-  useEffect(() => {
-    if (!projectId) return;
-    const stored = loadUpload(projectId);
-    if (stored) {
-      setUpload(stored);
-      setVideoError(null);
-    }
-  }, [projectId]);
 
   const handleUpload = useCallback(
     (file?: File | null) => {

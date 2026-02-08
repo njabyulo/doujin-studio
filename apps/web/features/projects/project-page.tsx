@@ -30,5 +30,5 @@ export function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = params?.id;
 
-  return <Editor projectId={projectId} />;
+  return <Editor key={projectId ?? "new"} projectId={projectId} />;
 }
