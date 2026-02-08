@@ -10,7 +10,9 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply doujin",
+    "db:migrate": "wrangler d1 migrations apply doujin --local --persist-to ../../.wrangler/state --config ../../apps/api/wrangler.toml",
+    "db:migrate:local": "pnpm run db:migrate",
+    "db:migrate:remote": "wrangler d1 migrations apply doujin --remote --config ../../apps/api/wrangler.toml",
     "db:studio": "drizzle-kit studio",
     "lint": "pnpm lint:type && pnpm lint:code",
     "lint:type": "tsc --noEmit",

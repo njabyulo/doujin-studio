@@ -14,21 +14,26 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "remotion": "4.0.419",
-    "tailwindcss": "4.1.18"
+    "tailwindcss": "4.1.18",
+    "zod": "3.22.3"
   },
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.419",
     "@types/react": "19.2.13",
     "@types/web": "0.0.327",
-    "eslint": "10.0.0",
+    "eslint": "^9.39.0",
     "prettier": "3.8.1",
-    "typescript": "5.9.3"
+    "typescript": "5.7.3"
   },
   "scripts": {
     "dev": "remotion studio --port 3001",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "pnpm lint:type && pnpm lint:code",
+    "lint:code": "eslint src",
+    "lint:type": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo",
+    "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "sideEffects": [
     "*.css"

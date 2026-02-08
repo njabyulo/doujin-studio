@@ -7,7 +7,9 @@
       ],
       "outputs": [
         "dist/**",
+        "build/**",
         ".next/**",
+        ".open-next/**",
         "!.next/cache/**"
       ]
     },
@@ -17,28 +19,31 @@
     },
     "test": {
       "dependsOn": [
-        "^build"
+        "^test"
       ]
     },
     "lint": {
       "dependsOn": [
-        "^build"
+        "^lint"
       ]
     },
     "lint:code": {
       "dependsOn": [
-        "^build"
+        "^lint:code"
       ]
     },
     "lint:type": {
       "dependsOn": [
-        "^build"
+        "^lint:type"
       ]
     },
     "db:generate": {
       "cache": false
     },
     "db:migrate": {
+      "cache": false
+    },
+    "db:migrate:remote": {
       "cache": false
     },
     "db:studio": {

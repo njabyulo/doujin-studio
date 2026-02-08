@@ -4,10 +4,11 @@
   "private": true,
   "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=api --filter=web --continue=always",
+    "dev:all": "turbo run dev --continue=always",
     "test": "turbo run test",
     "build": "turbo run build",
-    "deploy": "turbo run deploy --filter=web",
+    "deploy": "turbo run deploy --filter=api --filter=web --continue=always",
     "lint": "turbo run lint",
     "lint:code": "turbo run lint:code",
     "lint:type": "turbo run lint:type",
@@ -15,9 +16,10 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "db:generate": "turbo run db:generate --filter=@doujin/database",
     "db:migrate": "turbo run db:migrate --filter=@doujin/database",
+    "db:migrate:remote": "turbo run db:migrate:remote --filter=@doujin/database",
     "db:studio": "turbo run db:studio --filter=@doujin/database",
-    "clean": "turbo clean",
-    "clean:all": "turbo clean:all && rm -rf node_modules .turbo"
+    "clean": "turbo run clean --continue=always",
+    "clean:all": "turbo run clean:all --continue=always && rm -rf .turbo"
   },
   "devDependencies": {
     "prettier": "^3.8.1",
