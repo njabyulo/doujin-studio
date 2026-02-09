@@ -20,6 +20,7 @@ import {
   Type,
   Wand2,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "~/components/ui/avatar";
@@ -52,6 +53,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
+import { buildAuthHref } from "~/lib/auth-navigation";
 import {
   ApiClientError,
   listProjectAssets,
@@ -1206,6 +1208,10 @@ export function Editor({ projectId }: EditorProps) {
   }, [timelineState?.saveStatus]);
 
   const title = deriveTitle(upload?.name);
+  const signInHref = buildAuthHref(
+    "/auth/sign-in",
+    projectId ? `/projects/${projectId}` : "/",
+  );
 
   return (
     <div className="ds-editor min-h-screen">
@@ -1333,9 +1339,16 @@ export function Editor({ projectId }: EditorProps) {
                     {isBackgroundUploading ? "Uploading..." : "Choose a video"}
                   </Button>
                   {videoError ? (
-                    <p className="text-sm text-[color:var(--editor-accent)]">
-                      {videoError}
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-[color:var(--editor-accent)]">
+                        {videoError}
+                      </p>
+                      {videoError.toLowerCase().includes("authentication") ? (
+                        <Button variant="glass" size="sm" className="rounded-full px-4" asChild>
+                          <Link href={signInHref}>Sign in to continue</Link>
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               )}
@@ -1521,9 +1534,16 @@ export function Editor({ projectId }: EditorProps) {
               ))}
             </div>
             {timelineError ? (
-              <p className="text-sm text-[color:var(--editor-accent)]">
-                {timelineError}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-[color:var(--editor-accent)]">
+                  {timelineError}
+                </p>
+                {timelineError.toLowerCase().includes("authentication") ? (
+                  <Button variant="glass" size="sm" className="rounded-full px-4" asChild>
+                    <Link href={signInHref}>Sign in</Link>
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </section>
 

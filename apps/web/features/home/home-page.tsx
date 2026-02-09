@@ -2,7 +2,8 @@
 
 import { ArrowRight, Film, Sparkles, UploadCloud, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import {
   Card,
@@ -16,9 +17,16 @@ import { Input } from "~/components/ui/input";
 import {
   ApiClientError,
   createProject,
-  getMe,
 } from "~/lib/assets-api";
+import { getSessionOrMe, signOut } from "~/lib/auth-api";
+import { buildAuthHref } from "~/lib/auth-navigation";
 import { setPendingUpload } from "~/lib/pending-upload";
+import {
+  claimPendingAuthUploadFile,
+  clearPendingAuthUpload,
+  getPendingAuthUploadMetadata,
+  savePendingAuthUpload,
+} from "~/lib/pending-auth-upload";
 import { cn } from "~/lib/utils";
 import { saveUpload } from "~/lib/upload-session";
 
@@ -55,11 +63,102 @@ function deriveProjectTitle(fileName: string) {
 export function HomePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const pendingResumeTriggeredRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [authState, setAuthState] = useState<"unknown" | "authed" | "guest">(
+    "unknown",
+  );
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
+  const [resumeMessage, setResumeMessage] = useState<string | null>(null);
 
   const featureBadges = useMemo(() => FILE_HINTS, []);
+
+  const bootstrapProjectFromFile = useCallback(
+    async (file: File) => {
+      const project = await createProject({
+        title: deriveProjectTitle(file.name),
+      });
+
+      const projectId = project.project.id;
+      const url = URL.createObjectURL(file);
+      saveUpload(projectId, {
+        url,
+        name: file.name,
+        size: file.size,
+        type: file.type || "video/mp4",
+        status: "local",
+      });
+      setPendingUpload(projectId, file);
+      clearPendingAuthUpload();
+      router.push(`/projects/${projectId}`);
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveAuth = async () => {
+      try {
+        const me = await getSessionOrMe();
+        if (cancelled) return;
+        setAuthState("authed");
+        setAuthEmail(me.user.email);
+      } catch (caughtError) {
+        if (cancelled) return;
+        if (caughtError instanceof ApiClientError && caughtError.status === 401) {
+          setAuthState("guest");
+          return;
+        }
+
+        setAuthState("guest");
+      }
+    };
+
+    void resolveAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authState !== "authed" || isStarting || pendingResumeTriggeredRef.current) {
+      return;
+    }
+
+    const metadata = getPendingAuthUploadMetadata();
+    if (!metadata) {
+      return;
+    }
+
+    const pendingFile = claimPendingAuthUploadFile();
+    if (!pendingFile) {
+      setResumeMessage(
+        `Signed in. Please reselect "${metadata.fileName}" to continue upload.`,
+      );
+      clearPendingAuthUpload();
+      return;
+    }
+
+    pendingResumeTriggeredRef.current = true;
+    setResumeMessage(`Resuming upload for "${pendingFile.name}"...`);
+    void (async () => {
+      setError(null);
+      setIsStarting(true);
+      try {
+        await bootstrapProjectFromFile(pendingFile);
+      } catch {
+        setResumeMessage("Signed in, but could not resume upload. Please reselect your file.");
+      } finally {
+        setIsStarting(false);
+        pendingResumeTriggeredRef.current = false;
+      }
+    })();
+  }, [authState, bootstrapProjectFromFile, isStarting]);
 
   const handleUpload = useCallback(
     async (file?: File | null) => {
@@ -70,32 +169,20 @@ export function HomePage() {
       }
 
       setError(null);
+      setResumeMessage(null);
       setIsStarting(true);
 
       try {
-        await getMe();
-        const project = await createProject({
-          title: deriveProjectTitle(file.name),
-        });
-
-        const projectId = project.project.id;
-        const url = URL.createObjectURL(file);
-        saveUpload(projectId, {
-          url,
-          name: file.name,
-          size: file.size,
-          type: file.type || "video/mp4",
-          status: "local",
-        });
-        setPendingUpload(projectId, file);
-
-        router.push(`/projects/${projectId}`);
+        await getSessionOrMe();
+        await bootstrapProjectFromFile(file);
       } catch (caughtError) {
         if (
           caughtError instanceof ApiClientError &&
           caughtError.status === 401
         ) {
-          setError("Authentication required. Sign in before uploading.");
+          savePendingAuthUpload(file);
+          const nextPath = "/";
+          router.push(buildAuthHref("/auth/sign-in", nextPath));
         } else {
           setError("Could not initialize upload. Please try again.");
         }
@@ -103,7 +190,7 @@ export function HomePage() {
         setIsStarting(false);
       }
     },
-    [router],
+    [bootstrapProjectFromFile, router],
   );
 
   const handleDrop = useCallback(
@@ -148,11 +235,47 @@ export function HomePage() {
               </h1>
             </div>
           </div>
-          <Button variant="glass" className="rounded-full px-5">
-            View demo
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <div className="rounded-full border border-[color:var(--ds-border)] bg-[color:var(--ds-glass)] px-5 py-2 text-sm text-[color:var(--ds-muted)] shadow-[var(--ds-shadow-soft)]">
+            {authState === "unknown"
+              ? "Checking session..."
+              : authState === "authed"
+                ? authEmail ?? "Signed in"
+                : "Guest"}
+          </div>
         </header>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          {authState === "guest" ? (
+            <>
+              <Button variant="glass" className="rounded-full px-5" asChild>
+                <Link href={buildAuthHref("/auth/sign-in", "/")}>Sign in</Link>
+              </Button>
+              <Button variant="accent" className="rounded-full px-5" asChild>
+                <Link href={buildAuthHref("/auth/sign-up", "/")}>Create account</Link>
+              </Button>
+            </>
+          ) : null}
+          {authState === "authed" ? (
+            <Button
+              variant="glass"
+              className="rounded-full px-5"
+              disabled={isSigningOut}
+              onClick={() => {
+                void (async () => {
+                  setIsSigningOut(true);
+                  try {
+                    await signOut();
+                    setAuthState("guest");
+                    setAuthEmail(null);
+                  } finally {
+                    setIsSigningOut(false);
+                  }
+                })();
+              }}
+            >
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </Button>
+          ) : null}
+        </div>
 
         <main className="page-enter mt-12 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <section className="space-y-6">
@@ -244,6 +367,9 @@ export function HomePage() {
 
               {error ? (
                 <p className="text-sm text-red-500">{error}</p>
+              ) : null}
+              {resumeMessage ? (
+                <p className="text-sm text-[color:var(--ds-muted)]">{resumeMessage}</p>
               ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3">
