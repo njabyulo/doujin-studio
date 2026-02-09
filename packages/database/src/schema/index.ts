@@ -6,3 +6,5 @@ export * from "./message";
 export * from "./project";
 export * from "./project_member";
 export * from "./render_job";
+export * from "./timeline";
+export * from "./timeline_version";
