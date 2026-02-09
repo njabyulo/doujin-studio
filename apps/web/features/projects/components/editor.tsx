@@ -1,10 +1,12 @@
 "use client";
 
+import { useChat } from "@ai-sdk/react";
 import {
   ArrowLeft,
   AudioLines,
   Camera,
   Clapperboard,
+  Loader2,
   Layers,
   Mic,
   MoreHorizontal,
@@ -14,6 +16,7 @@ import {
   Save,
   Scissors,
   Sparkles,
+  Square,
   Type,
   Wand2,
 } from "lucide-react";
@@ -70,6 +73,7 @@ import {
 import {
   createProjectTimeline,
   createTimelineVersion,
+  getTimeline,
   getProjectLatestTimeline,
   patchTimeline,
   type TimelineWithLatestResponse,
@@ -82,6 +86,13 @@ import {
   type EditorSaveStatus,
   type EditorTimelineState,
 } from "~/lib/timeline-state";
+import {
+  createAiChatContext,
+  createAiChatRequestBody,
+  flushTimelineBeforeAiSend,
+  refreshTimelineAfterAi as refreshTimelineAfterAiState,
+} from "~/lib/ai-chat";
+import { DefaultChatTransport, type UIMessage } from "ai";
 
 interface EditorProps {
   projectId?: string;
@@ -101,17 +112,40 @@ type ClipItem = {
   endMs: number;
 };
 
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  author: string;
-  text: string;
-  chips?: string[];
+type ChatPanelProps = {
+  messages: UIMessage[];
+  input: string;
+  disabled: boolean;
+  isStreaming: boolean;
+  error: string | null;
+  onInputChange: (value: string) => void;
+  onSend: () => void;
+  onStop: () => void;
 };
+
+type TimelineSnapshotForAi = Pick<
+  EditorTimelineState,
+  "timelineId" | "baseVersion" | "data"
+>;
+
+type AiChatRequestMessages = Parameters<
+  typeof createAiChatRequestBody
+>[0]["messages"];
 
 function deriveTitle(name?: string | null) {
   if (!name) return "Untitled Edit";
   return name.replace(/\.[^/.]+$/, "");
+}
+
+function getApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
+  return configured.endsWith("/") ? configured.slice(0, -1) : configured;
+}
+
+function createApiUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const base = getApiBaseUrl();
+  return base ? `${base}${normalizedPath}` : normalizedPath;
 }
 
 function deriveAssetFileName(r2Key: string) {
@@ -136,40 +170,98 @@ function formatTimestamp(durationMs: number) {
     .padStart(2, "0")}`;
 }
 
-function ChatPanel() {
-  const messages = useMemo<ChatMessage[]>(
-    () => [
-      {
-        id: "m1",
-        role: "user",
-        author: "You",
-        text: "Make this cinematic. Slow the pacing, add warm highlights, and tighten the first 12 seconds.",
-        chips: ["intent: cinematic", "pacing 80%"],
-      },
-      {
-        id: "m2",
-        role: "assistant",
-        author: "Studio",
-        text: "Drafting edit plan: 6 cuts, 2 speed ramps, warm grade, and a subtle film grain. Previewing the new intro sequence now.",
-        chips: ["EDL v3", "preview 0:00-0:14"],
-      },
-      {
-        id: "m3",
-        role: "user",
-        author: "You",
-        text: "The mid section feels too dark. Lift shadows around 0:42.",
-        chips: ["feedback", "0:42"],
-      },
-      {
-        id: "m4",
-        role: "assistant",
-        author: "Studio",
-        text: "Boosted mids +12, added localized exposure in the left half of frame. Keeping blacks intact for contrast.",
-        chips: ["grade tweak", "shadow +12"],
-      },
-    ],
-    [],
-  );
+function toAiTimelineSnapshot(
+  state: EditorTimelineState | null,
+): TimelineSnapshotForAi | null {
+  if (!state) {
+    return null;
+  }
+
+  return {
+    timelineId: state.timelineId,
+    baseVersion: state.baseVersion,
+    data: state.data,
+  };
+}
+
+function mapAiChatError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "AI chat failed. Please retry.";
+  }
+
+  try {
+    const parsed = JSON.parse(error.message) as {
+      error?: { code?: string; message?: string };
+    };
+    const code = parsed?.error?.code;
+    const message = parsed?.error?.message;
+    if (code === "UNAUTHORIZED") {
+      return "Authentication required before AI edits can run.";
+    }
+    if (code === "RATE_LIMITED") {
+      return "Rate limit reached for this project. Try again later.";
+    }
+    if (code === "BAD_REQUEST" && message?.toLowerCase().includes("conflict")) {
+      return "Timeline conflict detected. Refresh to sync latest edits before chatting.";
+    }
+    if (message) {
+      return message;
+    }
+  } catch {
+    // no-op: fall through to string matching
+  }
+
+  const message = error.message.toLowerCase();
+  if (message.includes("authentication") || message.includes("unauthorized")) {
+    return "Authentication required before AI edits can run.";
+  }
+  if (message.includes("rate limit")) {
+    return "Rate limit reached for this project. Try again later.";
+  }
+  if (message.includes("conflict")) {
+    return "Timeline conflict detected. Refresh to sync latest edits before chatting.";
+  }
+
+  return "AI chat failed. Please retry.";
+}
+
+function extractMessageText(message: UIMessage) {
+  return message.parts
+    .map((part) => {
+      if (part.type !== "text") {
+        return "";
+      }
+
+      return part.text;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function extractMessageChips(message: UIMessage) {
+  return message.parts
+    .filter((part) => part.type.startsWith("tool-"))
+    .map((part) => {
+      const name = part.type.replace("tool-", "");
+      if ("state" in part && typeof part.state === "string") {
+        return `${name}:${part.state}`;
+      }
+
+      return name;
+    });
+}
+
+function ChatPanel({
+  messages,
+  input,
+  disabled,
+  isStreaming,
+  error,
+  onInputChange,
+  onSend,
+  onStop,
+}: ChatPanelProps) {
+  const hasMessages = messages.length > 0;
 
   return (
     <Card className="editor-panel-strong text-white">
@@ -180,7 +272,7 @@ function ChatPanel() {
             Ask AI
           </div>
           <Badge variant="outline" className="normal-case tracking-[0.1em]">
-            Live edit
+            {isStreaming ? "Streaming" : "Live edit"}
           </Badge>
         </div>
         <CardTitle className="text-xl text-white">
@@ -194,51 +286,104 @@ function ChatPanel() {
       <Separator className="bg-white/10" />
       <CardContent className="flex h-[420px] flex-col gap-4">
         <ScrollArea className="h-full pr-3">
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback>
-                    {message.role === "user" ? "ME" : "AI"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white">
-                      {message.author}
-                    </p>
-                    <Badge variant="subtle" className="normal-case">
-                      {message.role === "user" ? "Command" : "Reasoning"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-white/80">{message.text}</p>
-                  {message.chips ? (
-                    <div className="flex flex-wrap gap-2">
-                      {message.chips.map((chip) => (
-                        <Badge key={chip} variant="outline" className="normal-case">
-                          {chip}
+          {hasMessages ? (
+            <div className="space-y-4">
+              {messages.map((message) => {
+                const chips = extractMessageChips(message);
+                const text = extractMessageText(message);
+
+                return (
+                  <div key={message.id} className="flex gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback>
+                        {message.role === "user" ? "ME" : "AI"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-white">
+                          {message.role === "user" ? "You" : "Studio"}
+                        </p>
+                        <Badge variant="subtle" className="normal-case">
+                          {message.role === "user" ? "Command" : "Reasoning"}
                         </Badge>
-                      ))}
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm text-white/80">
+                        {text || "…"}
+                      </p>
+                      {chips.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {chips.map((chip) => (
+                            <Badge key={chip} variant="outline" className="normal-case">
+                              {chip}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
+              <p>
+                Ask for pacing, trims, structure, and subtitles. The assistant will
+                apply structured timeline commands and save an AI version.
+              </p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                Example: trim clip 1 to 3s
+              </p>
+            </div>
+          )}
         </ScrollArea>
         <div className="space-y-3">
           <Textarea
             placeholder="Describe the next edit..."
             className="bg-white/10 text-white placeholder:text-white/40"
+            value={input}
+            disabled={disabled}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.shiftKey) {
+                return;
+              }
+
+              event.preventDefault();
+              onSend();
+            }}
           />
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-white/50">
-              Press enter to send, shift+enter for a new line.
+              Enter to send, Shift+Enter for newline.
             </p>
-            <Button variant="accent" className="rounded-full px-5">
-              Send
-            </Button>
+            <div className="flex items-center gap-2">
+              {isStreaming ? (
+                <Button
+                  variant="glass"
+                  className="rounded-full px-4"
+                  onClick={onStop}
+                >
+                  <Square className="h-4 w-4" />
+                  Stop
+                </Button>
+              ) : null}
+              <Button
+                variant="accent"
+                className="rounded-full px-5"
+                disabled={disabled || !input.trim()}
+                onClick={onSend}
+              >
+                {isStreaming ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : null}
+                Send
+              </Button>
+            </div>
           </div>
+          {error ? (
+            <p className="text-xs text-[color:var(--editor-accent)]">{error}</p>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -273,6 +418,35 @@ export function Editor({ projectId }: EditorProps) {
       error: null,
     };
   });
+  const aiRequestTimelineRef = useRef<TimelineSnapshotForAi | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatPanelError, setChatPanelError] = useState<string | null>(null);
+  const chatTransport = useMemo(
+    () =>
+      new DefaultChatTransport<UIMessage>({
+        api: createApiUrl("/api/ai/chat"),
+        credentials: "include",
+        prepareSendMessagesRequest: ({ messages }) => {
+          const snapshot =
+            aiRequestTimelineRef.current ??
+            toAiTimelineSnapshot(timelineStateRef.current);
+          if (!snapshot) {
+            throw new Error("Timeline is still loading. Try again in a moment.");
+          }
+
+          return {
+            body: createAiChatRequestBody({
+              timelineId: snapshot.timelineId,
+              messages: messages as AiChatRequestMessages,
+              context: createAiChatContext(snapshot.data, {
+                mode: "phase1",
+              }),
+            }),
+          };
+        },
+      }),
+    [],
+  );
 
   const toEditorTimelineState = useCallback(
     (
@@ -306,6 +480,139 @@ export function Editor({ projectId }: EditorProps) {
   useEffect(() => {
     timelineStateRef.current = timelineState;
   }, [timelineState]);
+
+  const syncTimelineAfterAi = useCallback(async () => {
+    const snapshot =
+      aiRequestTimelineRef.current ?? toAiTimelineSnapshot(timelineStateRef.current);
+    if (!snapshot) {
+      return;
+    }
+
+    try {
+      const nextState = await refreshTimelineAfterAiState({
+        timelineId: snapshot.timelineId,
+        getTimeline,
+        toEditorTimelineState,
+        persistTimelineCache,
+      });
+      setTimelineState(nextState);
+      setTimelineError(null);
+    } catch (caughtError) {
+      if (caughtError instanceof ApiClientError && caughtError.status === 401) {
+        setChatPanelError("Authentication expired while syncing AI edits.");
+        return;
+      }
+
+      if (caughtError instanceof ApiClientError && caughtError.status === 404) {
+        setChatPanelError("Timeline no longer exists. Reload the editor.");
+        return;
+      }
+
+      setChatPanelError("AI reply finished, but timeline refresh failed. Reload to sync.");
+    } finally {
+      aiRequestTimelineRef.current = null;
+    }
+  }, [persistTimelineCache, toEditorTimelineState]);
+
+  const {
+    messages: chatMessages,
+    sendMessage,
+    stop: stopChat,
+    status: chatStatus,
+    error: chatRuntimeError,
+    clearError: clearChatRuntimeError,
+  } = useChat<UIMessage>({
+    transport: chatTransport,
+    onError: (error) => {
+      setChatPanelError(mapAiChatError(error));
+    },
+    onFinish: ({ isError }) => {
+      if (isError) {
+        aiRequestTimelineRef.current = null;
+        return;
+      }
+
+      void syncTimelineAfterAi();
+    },
+  });
+
+  const isChatStreaming = chatStatus === "submitted" || chatStatus === "streaming";
+  const chatDisabled =
+    !projectId || !timelineState || timelineState.saveStatus === "saving" || isChatStreaming;
+  const chatErrorMessage =
+    chatPanelError ?? (chatRuntimeError ? mapAiChatError(chatRuntimeError) : null);
+
+  const handleChatInputChange = useCallback(
+    (value: string) => {
+      setChatInput(value);
+      if (chatPanelError) {
+        setChatPanelError(null);
+      }
+      if (chatRuntimeError) {
+        clearChatRuntimeError();
+      }
+    },
+    [chatPanelError, chatRuntimeError, clearChatRuntimeError],
+  );
+
+  const handleStopChat = useCallback(() => {
+    void stopChat();
+  }, [stopChat]);
+
+  const handleSendChatMessage = useCallback(async () => {
+    const prompt = chatInput.trim();
+    if (!prompt || isChatStreaming) {
+      return;
+    }
+
+    setChatPanelError(null);
+    clearChatRuntimeError();
+
+    const flushed = await flushTimelineBeforeAiSend({
+      timelineState: timelineStateRef.current,
+      patchTimeline,
+    });
+
+    if (!flushed.ok) {
+      setChatPanelError(flushed.error);
+      return;
+    }
+
+    aiRequestTimelineRef.current = flushed.state;
+    setTimelineState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextState: EditorTimelineState = {
+        ...current,
+        timelineId: flushed.state.timelineId,
+        baseVersion: flushed.state.baseVersion,
+        data: flushed.state.data,
+        saveStatus: "saved",
+        lastSavedAt: Date.now(),
+        source: "autosave",
+        error: null,
+      };
+      persistTimelineCache(nextState);
+      return nextState;
+    });
+    setTimelineError(null);
+    setChatInput("");
+
+    try {
+      await sendMessage({ text: prompt });
+    } catch (error) {
+      aiRequestTimelineRef.current = null;
+      setChatPanelError(mapAiChatError(error));
+    }
+  }, [
+    chatInput,
+    isChatStreaming,
+    clearChatRuntimeError,
+    persistTimelineCache,
+    sendMessage,
+  ]);
 
   const queueAutosave = useCallback(() => {
     if (autosaveTimerRef.current) {
@@ -1221,7 +1528,16 @@ export function Editor({ projectId }: EditorProps) {
           </section>
 
           <aside className="hidden xl:block">
-            <ChatPanel />
+            <ChatPanel
+              messages={chatMessages}
+              input={chatInput}
+              disabled={chatDisabled}
+              isStreaming={isChatStreaming}
+              error={chatErrorMessage}
+              onInputChange={handleChatInputChange}
+              onSend={() => void handleSendChatMessage()}
+              onStop={handleStopChat}
+            />
           </aside>
         </div>
 
@@ -1237,7 +1553,16 @@ export function Editor({ projectId }: EditorProps) {
             </SheetTrigger>
             <SheetContent side="right" className="p-0">
               <div className="p-6">
-                <ChatPanel />
+                <ChatPanel
+                  messages={chatMessages}
+                  input={chatInput}
+                  disabled={chatDisabled}
+                  isStreaming={isChatStreaming}
+                  error={chatErrorMessage}
+                  onInputChange={handleChatInputChange}
+                  onSend={() => void handleSendChatMessage()}
+                  onStop={handleStopChat}
+                />
               </div>
             </SheetContent>
           </Sheet>
