@@ -7,6 +7,7 @@ This guide validates the storage flow end-to-end:
 - Upload completion + metadata
 - Auth-protected media proxy with range support
 - Editor restore of uploaded video/poster on reload
+- Timeline version create/load/save with optimistic locking
 
 ## 1. Prerequisites
 
@@ -159,7 +160,43 @@ Expected:
 - unauthenticated: `401 UNAUTHORIZED`
 - outsider/non-member: `404 NOT_FOUND`
 
-## 7. Failure triage
+## 7. Timeline endpoint verification
+
+Use the same authenticated member cookie for the project.
+
+Create/get project timeline:
+
+```bash
+curl -i -X POST http://localhost:8787/api/projects/<projectId>/timelines \
+  -H 'Content-Type: application/json' \
+  -H 'Cookie: better-auth.session_token=<token>' \
+  -d '{"name":"Main Timeline"}'
+
+curl -i http://localhost:8787/api/projects/<projectId>/timelines/latest \
+  -H 'Cookie: better-auth.session_token=<token>'
+```
+
+Autosave/manual version writes:
+
+```bash
+curl -i -X PATCH http://localhost:8787/api/timelines/<timelineId> \
+  -H 'Content-Type: application/json' \
+  -H 'Cookie: better-auth.session_token=<token>' \
+  -d '{"baseVersion":1,"source":"autosave","data":{"schemaVersion":1,"fps":30,"durationMs":10000,"tracks":[{"id":"video-track","kind":"video","name":"Video","clips":[]},{"id":"subtitle-track","kind":"subtitle","name":"Subtitles","clips":[]}]}}'
+
+curl -i -X POST http://localhost:8787/api/timelines/<timelineId>/versions \
+  -H 'Content-Type: application/json' \
+  -H 'Cookie: better-auth.session_token=<token>' \
+  -d '{"baseVersion":2,"source":"manual","data":{"schemaVersion":1,"fps":30,"durationMs":10000,"tracks":[{"id":"video-track","kind":"video","name":"Video","clips":[]},{"id":"subtitle-track","kind":"subtitle","name":"Subtitles","clips":[]}]}}'
+```
+
+Expected:
+
+- valid save increments version
+- stale `baseVersion` returns `400 BAD_REQUEST`
+- non-member timeline access returns `404 NOT_FOUND`
+
+## 8. Failure triage
 
 - `401` on authenticated calls:
   - session cookie missing or expired.
@@ -172,8 +209,10 @@ Expected:
   - object missing in bucket or `size` mismatch.
 - Browser can upload but video won’t play:
   - inspect `GET /api/assets/:id/file` status/headers and range responses.
+- Timeline save fails with conflict:
+  - client `baseVersion` is stale; reload timeline and retry.
 
-## 8. Verification record template
+## 9. Verification record template
 
 Use this for each local validation run.
 
@@ -197,6 +236,9 @@ E2E evidence:
 - Range request status:
 - Unauthorized status:
 - Outsider status:
+- Timeline ID:
+- Timeline latest version:
+- Timeline autosave status:
 
 Notes / blockers:
 ```

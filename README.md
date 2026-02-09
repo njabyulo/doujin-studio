@@ -82,6 +82,22 @@ pnpm --filter web run deploy
 6. Editor playback uses secured proxy URL (`GET /api/assets/:id/file`) with auth and range support.
 7. Poster uses same asset flow (`type: "poster"`) and is linked via `posterAssetId`.
 
+## Timeline persistence flow (Epic D)
+
+1. Create or reuse project timeline (`POST /api/projects/:id/timelines`).
+2. Load latest timeline state (`GET /api/projects/:id/timelines/latest` or `GET /api/timelines/:id`).
+3. Apply local editor commands (`addClip`, `trimClip`, `splitClip`, `moveClip`, `setVolume`, `addSubtitle`, `removeClip`).
+4. Debounced autosave writes new timeline versions (`PATCH /api/timelines/:id`).
+5. Manual save creates an explicit version (`POST /api/timelines/:id/versions`).
+6. Reload restores the latest server version exactly.
+
+Timeline rules:
+
+- one timeline per project (current milestone)
+- optimistic locking by `baseVersion`
+- timeline JSON uses milliseconds as source-of-truth
+- unauthorized is `401`; non-member/missing resources are `404`
+
 ## Guides
 
 - [Testing guide](docs/guides/testing.md)

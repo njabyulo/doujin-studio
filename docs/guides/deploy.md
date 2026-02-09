@@ -63,6 +63,8 @@ From repo root:
 pnpm db:migrate:remote
 ```
 
+Includes timeline migration (`0004_timelines.sql`) for Epic D.
+
 2. Deploy API:
 
 ```bash
@@ -89,6 +91,7 @@ pnpm --filter web run deploy
 ```bash
 curl -i https://doujin.njabulomajozi.com/
 curl -i https://doujin.njabulomajozi.com/api/health
+curl -i https://doujin.njabulomajozi.com/api/projects/<projectId>/timelines/latest -H 'Cookie: better-auth.session_token=<token>'
 ```
 
 ## 5. R2 CORS management
@@ -161,6 +164,13 @@ curl -i https://doujin.njabulomajozi.com/api/health
   - list asset
   - secured file stream/range
 - Confirm `assets.status` transitions to `uploaded` only after object existence + size match.
+
+### Timeline save/load regressions
+
+- Verify `POST /api/projects/:id/timelines` creates initial version `1`.
+- Verify `PATCH /api/timelines/:id` and `POST /api/timelines/:id/versions` increment versions.
+- Verify stale `baseVersion` returns `400 BAD_REQUEST`.
+- Verify non-member timeline read/write returns `404 NOT_FOUND`.
 
 ## 8. Release evidence checklist
 
