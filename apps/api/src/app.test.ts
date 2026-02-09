@@ -893,8 +893,15 @@ describe("api worker", () => {
       await createResponse.json(),
     );
 
+    const firstPatch = await patchTimeline(cookie, created.timeline.id, {
+      baseVersion: created.timeline.latestVersion,
+      source: "autosave",
+      data: created.latestVersion.data,
+    });
+    expect(firstPatch.status).toBe(200);
+
     const conflictResponse = await patchTimeline(cookie, created.timeline.id, {
-      baseVersion: 0,
+      baseVersion: created.timeline.latestVersion,
       source: "autosave",
       data: created.latestVersion.data,
     });
