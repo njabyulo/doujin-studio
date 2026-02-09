@@ -1,20 +1,21 @@
 ---
-title: 'Devlog 001 — Cinematic Editor: Shipping the Shell, Planning the Engine'
-date: '2026-02-06'
-stage: 'v0-ui'
+title: 'Devlog 001 — Cinematic Editor: Shipping the Loop, Not Just the Shell'
+date: '2026-02-09'
+stage: 'v0-loop'
 owner: 'N. Jabulo'
 ---
 
 # TL;DR
 
-- Shipped a cinematic editor **UI shell** with upload-first flow and a responsive AI chat panel.
-- Implemented **local blob preview** via `upload-session` to make the editor feel instant.
+- Shipped a working upload-to-edit loop: auth, upload, timeline persistence, and AI chat edits.
+- Implemented fast local preview + Cloudflare R2-backed uploads with poster generation.
+- Wired Gemini chat to real tool-calling so prompts can persist timeline edits.
 
 # Introduction
 
-I started this project after reading [Rohit’s roadmap tweet](https://x.com/rohit4verse/status/2009663737469542875). The line that stuck with me was the gap between “prompt engineer” and “systems architect.” I want to build the latter. The project I chose: a Cursor‑like editor for video, driven by multimodal AI.
+I started this project after reading [Rohit’s roadmap tweet](https://x.com/rohit4verse/status/2009663737469542875). What stuck with me was the gap between being a “prompt engineer” and being a “systems architect.” I want to build the latter. The project I chose is a Cursor‑like editor for video, driven by multimodal AI.
 
-I’m taking a **Lego approach**: build small, shippable components early, then connect them later. The goal is to ship something real now (Ownership + Bias for Action) while building toward a full system (Think Big).
+I’m taking a **Lego approach**: build small, shippable components early, then connect them over time. The goal is to ship something real now (Ownership + Bias for Action) while still building toward a full system (Think Big).
 
 # Discovery (from the Remotion editor talk)
 
@@ -24,10 +25,10 @@ I used [Jonny Burger’s Remotion talk](https://www.youtube.com/watch?v=gYf_FWZG
 - Remotion adds **time** as a first‑class dimension in React.
 - Professional editors should hide default player controls and use custom UI.
 - Use **local blob URLs** for instant preview while uploads continue.
-- Uploads should go **direct to S3 via presigned URLs**.
-- Render/export uses Remotion Lambda; progress via polling.
+- Uploads should go **direct to object storage via presigned URLs**.
+- Render/export uses Remotion Lambda, with progress tracked via polling.
 
-Those notes became my first concrete decision: **ship the shell + blob preview now**, and make the S3 + Gemini pipeline the next milestone.
+Those notes became my first concrete decision: **ship the end-to-end interaction loop first**, then evolve the orchestration and rendering pipeline.
 
 # Design
 
@@ -36,21 +37,23 @@ Those notes became my first concrete decision: **ship the shell + blob preview n
 **Current**
 
 ```
-Upload (client) → Blob URL → Editor UI (local preview)
+Auth → Upload (client) → Blob URL preview + R2 upload session
+→ Timeline versioning → AI chat (Gemini tool-calls) → persisted timeline edits
 ```
 
 **Target**
 
 ```
-Upload → Blob URL preview → S3 presigned upload → Gemini 3 multimodal analysis
-→ EDL generation → incremental preview → render pipeline
+Upload complete → background artifact jobs (poster/waveform)
+→ richer multimodal analysis → EDL export workflow → incremental preview/render
 ```
 
 ## Flow (What the user can do today)
 
-1. Upload the clip on `/`.
-2. Immediate playback in `/projects/[id]` using a blob URL.
-3. Cinematic editor layout with tool rail, timeline dock, and AI chat (stubbed).
+1. Create an account or sign in.
+2. Upload from `/` and get immediate local preview while cloud upload completes.
+3. Land in `/projects/[id]` with a created/loaded timeline and autosave/manual versioning.
+4. Use AI chat; prompt-driven edits are streamed and applied as structured timeline commands.
 
 ## UI
 
@@ -62,7 +65,7 @@ That’s a **Thinking Big** move disguised as a small UI task. If the UI doesn�
 
 #### Editor
 
-The Remotion talk shifted me from “player with buttons” to **editor with a timeline**. Instead of default controls, I built the layout around the timeline dock and custom UI. I also started leaning on [Remotion's Best Practices Agent Skills](/Users/njabulo/.agents/skills/remotion-best-practices/SKILL.md) for how assets and compositions should eventually be organized, even if the render system isn’t wired yet.
+The Remotion talk shifted me from “player with buttons” to an **editor with timeline semantics**. Instead of default controls, I built around timeline state, versioned saves, and command-based edits. I also leaned on Remotion best-practices guidelines for timing discipline and future rendering constraints.
 
 ### Decisions
 
@@ -74,20 +77,31 @@ The Remotion talk shifted me from “player with buttons” to **editor with a t
 I **Insist on Highest Standards** by:
 
 - Keeping UI modules isolated and reusable with consistent primitives.
-- Implementing React performance patterns such as **memoization + stable props**, aligned with [Vercel React Best Practices Agent Skills](https://vercel.com/blog/introducing-react-best-practices).
-- Using a clean upload session boundary so future S3 upload logic can be swapped in without refactoring the UI.
+- Implementing React performance patterns such as **memoization + stable props**, aligned with [Vercel’s React best practices](https://vercel.com/blog/introducing-react-best-practices).
+- Keeping the API contract-first, with shared Zod schemas in `packages/contracts`.
+- Using bounded AI tool-calling and versioned timeline writes to prevent unbounded mutations.
 
 # Problem‑Solving & Data Structures
 
-Right now the system is simple, but the road ahead isn’t. I’m explicitly designing for the next algorithmic steps:
+The core data model now exists: assets, timelines, timeline versions, and command application. The road ahead is orchestration and intelligence depth.
+
+Key system choices now:
+
+- Timeline is the source of truth, versioned with optimistic locking.
+- AI edits are command-based and validated, not free-form text mutations.
+- Timebase remains milliseconds in editing contracts.
+
+Next algorithmic steps:
 
 - **Scene segmentation** using frame‑diff thresholds + embedding similarity.
-- **EDL scheduling** as an interval list or DAG to support non‑linear edits.
+- **EDL scheduling/export** as stable machine-readable artifacts.
 
 # Roadmap
 
-- Add background S3 uploads (presigned URLs) while keeping local preview.
-- Introduce EDL schema and validation layer.
-- Implement scene detection + story beats pipeline.
-- Add Gemini 3 multimodal analysis + EDL generation.
-- Build incremental preview renderer for edits.
+- **EDL schema**: strengthen edit contract for planning, preview, and export.
+- **Scene detection**: detect cut points and story beats.
+- **Multimodal analysis**: fuse visual/audio understanding for better suggestions.
+- **Incremental preview**: render only changed segments for faster iteration.
+- **Explainable undo**: rationale + reversible edit history for trust.
+- **Preference learning**: adapt suggestions to user style over time.
+- **Background processing Lego**: queue/workflow foundation for poster + waveform jobs and the future `POST /timelines/:id/export` flow.
