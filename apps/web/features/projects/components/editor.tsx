@@ -76,7 +76,6 @@ import {
   createProjectTimeline,
   createTimelineVersion,
   getTimeline,
-  getProjectLatestTimeline,
   patchTimeline,
   type TimelineWithLatestResponse,
 } from "~/lib/timelines-api";
@@ -811,23 +810,11 @@ export function Editor({ projectId }: EditorProps) {
 
     const hydrateProjectState = async () => {
       try {
-        const [assetsResponse, timelineResponse] = await Promise.all([
-          listProjectAssets(projectId, {
-            type: "video",
-            status: "uploaded",
-            limit: 1,
-          }),
-          getProjectLatestTimeline(projectId).catch((caughtError) => {
-            if (
-              caughtError instanceof ApiClientError &&
-              caughtError.status === 404
-            ) {
-              return null;
-            }
-
-            throw caughtError;
-          }),
-        ]);
+        const assetsResponse = await listProjectAssets(projectId, {
+          type: "video",
+          status: "uploaded",
+          limit: 1,
+        });
 
         if (cancelled) return;
 
@@ -837,12 +824,10 @@ export function Editor({ projectId }: EditorProps) {
           applyUploadedAsset(latestAsset, local?.name);
         }
 
-        const hydratedTimeline =
-          timelineResponse ??
-          (await createProjectTimeline(projectId, {
-            name: "Main Timeline",
-            seedAssetId: latestAsset?.id,
-          }));
+        const hydratedTimeline = await createProjectTimeline(projectId, {
+          name: "Main Timeline",
+          seedAssetId: latestAsset?.id,
+        });
 
         if (cancelled) return;
 
