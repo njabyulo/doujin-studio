@@ -4,6 +4,14 @@ export type UploadSession = {
   size: number;
   type: string;
   createdAt: number;
+  assetId?: string;
+  posterAssetId?: string | null;
+  cloudUrl?: string | null;
+  posterUrl?: string | null;
+  status?: "local" | "uploading" | "uploaded" | "error";
+  durationMs?: number | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 const STORAGE_PREFIX = "doujin:upload:";

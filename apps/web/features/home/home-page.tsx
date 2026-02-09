@@ -13,6 +13,12 @@ import {
 } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import {
+  ApiClientError,
+  createProject,
+  getMe,
+} from "~/lib/assets-api";
+import { setPendingUpload } from "~/lib/pending-upload";
 import { cn } from "~/lib/utils";
 import { saveUpload } from "~/lib/upload-session";
 
@@ -37,15 +43,13 @@ const EXPERIENCE_STEPS = [
   },
 ];
 
-function safeProjectId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `proj_${Date.now().toString(36)}`;
-}
-
 function isVideoFile(file: File) {
   return file.type.startsWith("video/") || /\.(mp4|mov|webm)$/i.test(file.name);
+}
+
+function deriveProjectTitle(fileName: string) {
+  const raw = fileName.replace(/\.[^/.]+$/, "").trim();
+  return raw || "Untitled Project";
 }
 
 export function HomePage() {
@@ -53,11 +57,12 @@ export function HomePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
 
   const featureBadges = useMemo(() => FILE_HINTS, []);
 
   const handleUpload = useCallback(
-    (file?: File | null) => {
+    async (file?: File | null) => {
       if (!file) return;
       if (!isVideoFile(file)) {
         setError("Please upload a valid video file.");
@@ -65,17 +70,38 @@ export function HomePage() {
       }
 
       setError(null);
-      const projectId = safeProjectId();
-      const url = URL.createObjectURL(file);
+      setIsStarting(true);
 
-      saveUpload(projectId, {
-        url,
-        name: file.name,
-        size: file.size,
-        type: file.type || "video/mp4",
-      });
+      try {
+        await getMe();
+        const project = await createProject({
+          title: deriveProjectTitle(file.name),
+        });
 
-      router.push(`/projects/${projectId}`);
+        const projectId = project.project.id;
+        const url = URL.createObjectURL(file);
+        saveUpload(projectId, {
+          url,
+          name: file.name,
+          size: file.size,
+          type: file.type || "video/mp4",
+          status: "local",
+        });
+        setPendingUpload(projectId, file);
+
+        router.push(`/projects/${projectId}`);
+      } catch (caughtError) {
+        if (
+          caughtError instanceof ApiClientError &&
+          caughtError.status === 401
+        ) {
+          setError("Authentication required. Sign in before uploading.");
+        } else {
+          setError("Could not initialize upload. Please try again.");
+        }
+      } finally {
+        setIsStarting(false);
+      }
     },
     [router],
   );
@@ -85,7 +111,7 @@ export function HomePage() {
       event.preventDefault();
       setIsDragging(false);
       const file = event.dataTransfer.files?.[0];
-      handleUpload(file);
+      void handleUpload(file);
     },
     [handleUpload],
   );
@@ -93,7 +119,7 @@ export function HomePage() {
   const handleSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      handleUpload(file);
+      void handleUpload(file);
       event.target.value = "";
     },
     [handleUpload],
@@ -222,14 +248,15 @@ export function HomePage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-[color:var(--ds-muted)]">
-                  Files stay local during this demo. No upload required.
+                  Starts local for instant preview, then uploads securely.
                 </p>
                 <Button
                   variant="accent"
                   className="rounded-full px-6"
+                  disabled={isStarting}
                   onClick={() => inputRef.current?.click()}
                 >
-                  Choose file
+                  {isStarting ? "Preparing..." : "Choose file"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>

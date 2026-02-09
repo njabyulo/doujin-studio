@@ -18,7 +18,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -49,6 +49,18 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
+import {
+  ApiClientError,
+  listProjectAssets,
+  resolveApiAssetUrl,
+  type AssetRecord,
+} from "~/lib/assets-api";
+import { uploadVideoWithPoster } from "~/lib/asset-upload";
+import {
+  claimPendingUpload,
+  clearPendingUpload,
+  setPendingUpload,
+} from "~/lib/pending-upload";
 import {
   clearUpload,
   loadUpload,
@@ -85,12 +97,17 @@ function deriveTitle(name?: string | null) {
   return name.replace(/\.[^/.]+$/, "");
 }
 
-function safeProjectId(projectId?: string) {
-  if (projectId) return projectId;
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `proj_${Date.now().toString(36)}`;
+function deriveAssetFileName(r2Key: string) {
+  const parts = r2Key.split("/");
+  return parts.at(-1) ?? "upload.mp4";
+}
+
+function formatDuration(durationMs: number | null | undefined) {
+  if (!durationMs || durationMs <= 0) return null;
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function ChatPanel() {
@@ -210,6 +227,112 @@ export function Editor({ projectId }: EditorProps) {
   );
   const [videoError, setVideoError] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState("select");
+  const [isBackgroundUploading, setIsBackgroundUploading] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+
+  const applyUploadedAsset = useCallback(
+    (asset: AssetRecord, fallbackName?: string) => {
+      if (!projectId) return;
+
+      const resolvedFileUrl = resolveApiAssetUrl(asset.fileUrl);
+      const resolvedPosterUrl = asset.posterUrl
+        ? resolveApiAssetUrl(asset.posterUrl)
+        : null;
+      const nextUpload: UploadSession = {
+        url: resolvedFileUrl,
+        cloudUrl: resolvedFileUrl,
+        posterUrl: resolvedPosterUrl,
+        name: fallbackName ?? deriveAssetFileName(asset.r2Key),
+        size: asset.size,
+        type: asset.mime,
+        assetId: asset.id,
+        posterAssetId: asset.posterAssetId,
+        createdAt: Date.now(),
+        status: "uploaded",
+        durationMs: asset.durationMs,
+        width: asset.width,
+        height: asset.height,
+      };
+
+      saveUpload(projectId, nextUpload);
+      setUpload(nextUpload);
+    },
+    [projectId],
+  );
+
+  const runBackgroundUpload = useCallback(
+    async (file: File) => {
+      if (!projectId) return;
+
+      setIsBackgroundUploading(true);
+      setUploadNotice("Uploading to cloud...");
+
+      try {
+        const result = await uploadVideoWithPoster(projectId, file);
+        applyUploadedAsset(result.videoAsset, file.name);
+        setVideoError(null);
+        setUploadNotice("Cloud upload complete");
+      } catch (caughtError) {
+        console.error(caughtError);
+        setVideoError(
+          "Cloud upload failed. Local preview is still available; upload again to retry.",
+        );
+        setUploadNotice(null);
+      } finally {
+        clearPendingUpload(projectId);
+        setIsBackgroundUploading(false);
+      }
+    },
+    [applyUploadedAsset, projectId],
+  );
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    let cancelled = false;
+
+    const hydrateUpload = async () => {
+      try {
+        const response = await listProjectAssets(projectId, {
+          type: "video",
+          status: "uploaded",
+          limit: 1,
+        });
+
+        if (cancelled) return;
+
+        const latestAsset = response.assets[0];
+        if (latestAsset) {
+          const local = loadUpload(projectId);
+          applyUploadedAsset(latestAsset, local?.name);
+          return;
+        }
+
+        const claimedUpload = claimPendingUpload(projectId);
+        if (claimedUpload) {
+          void runBackgroundUpload(claimedUpload);
+        }
+      } catch (caughtError) {
+        if (cancelled) return;
+
+        if (
+          caughtError instanceof ApiClientError &&
+          caughtError.status === 401
+        ) {
+          setVideoError("Authentication required to load project media.");
+          return;
+        }
+
+        setVideoError("Could not load uploaded media for this project.");
+      }
+    };
+
+    void hydrateUpload();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyUploadedAsset, projectId, runBackgroundUpload]);
 
   const tools = useMemo<ToolItem[]>(
     () => [
@@ -272,7 +395,11 @@ export function Editor({ projectId }: EditorProps) {
   const handleUpload = useCallback(
     (file?: File | null) => {
       if (!file) return;
-      const resolvedId = safeProjectId(projectId);
+      if (!projectId) {
+        setVideoError("Open a saved project before uploading footage.");
+        return;
+      }
+
       const url = URL.createObjectURL(file);
       const nextUpload: UploadSession = {
         url,
@@ -280,23 +407,38 @@ export function Editor({ projectId }: EditorProps) {
         size: file.size,
         type: file.type || "video/mp4",
         createdAt: Date.now(),
+        status: "local",
+        cloudUrl: null,
+        posterUrl: null,
+        durationMs: null,
+        width: null,
+        height: null,
       };
-      saveUpload(resolvedId, nextUpload);
+      saveUpload(projectId, nextUpload);
       setUpload(nextUpload);
       setVideoError(null);
-      if (!projectId) {
-        router.push(`/projects/${resolvedId}`);
+      setUploadNotice("Preparing upload...");
+      setPendingUpload(projectId, file);
+
+      const claimedUpload = claimPendingUpload(projectId);
+      if (claimedUpload) {
+        void runBackgroundUpload(claimedUpload);
       }
     },
-    [projectId, router],
+    [projectId, runBackgroundUpload],
   );
 
   const handleVideoError = useCallback(() => {
     if (!projectId) return;
+    if (upload?.cloudUrl) {
+      setVideoError("Video playback failed. Try refreshing the project.");
+      return;
+    }
+
     clearUpload(projectId);
     setUpload(null);
     setVideoError("Video preview expired. Upload again to continue.");
-  }, [projectId]);
+  }, [projectId, upload?.cloudUrl]);
 
   const title = deriveTitle(upload?.name);
 
@@ -385,6 +527,7 @@ export function Editor({ projectId }: EditorProps) {
                 <video
                   className="h-full w-full object-cover"
                   src={upload.url}
+                  poster={upload.posterUrl ?? undefined}
                   controls
                   onError={handleVideoError}
                 />
@@ -398,15 +541,16 @@ export function Editor({ projectId }: EditorProps) {
                       Upload a clip to begin
                     </p>
                     <p className="text-sm text-white/60">
-                      Your footage stays local for this cinematic demo.
+                      Local preview starts instantly while cloud upload runs.
                     </p>
                   </div>
                   <Button
                     variant="accent"
                     className="rounded-full px-6"
+                    disabled={isBackgroundUploading}
                     onClick={() => inputRef.current?.click()}
                   >
-                    Choose a video
+                    {isBackgroundUploading ? "Uploading..." : "Choose a video"}
                   </Button>
                   {videoError ? (
                     <p className="text-sm text-[color:var(--editor-accent)]">
@@ -419,10 +563,19 @@ export function Editor({ projectId }: EditorProps) {
               {upload ? (
                 <div className="absolute left-6 top-6 flex items-center gap-3 rounded-full bg-black/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70 backdrop-blur">
                   <span>Footage</span>
+                  {upload.durationMs ? (
+                    <span>{formatDuration(upload.durationMs)}</span>
+                  ) : null}
+                  {upload.width && upload.height ? (
+                    <span>
+                      {upload.width}x{upload.height}
+                    </span>
+                  ) : null}
                   <Button
                     variant="glass"
                     size="sm"
                     className="rounded-full px-4"
+                    disabled={isBackgroundUploading}
                     onClick={() => inputRef.current?.click()}
                   >
                     Replace
@@ -450,6 +603,12 @@ export function Editor({ projectId }: EditorProps) {
                   >
                     <AudioLines className="h-4 w-4" />
                   </button>
+                </div>
+              ) : null}
+
+              {uploadNotice ? (
+                <div className="absolute left-6 bottom-6 rounded-full bg-black/55 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/75 backdrop-blur">
+                  {uploadNotice}
                 </div>
               ) : null}
 
