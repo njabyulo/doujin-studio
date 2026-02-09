@@ -137,9 +137,27 @@ const AUTH_SCHEMA_STATEMENTS = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "timeline_versions_timeline_version_unique" ON "timeline_versions" ("timeline_id", "version")`,
   `CREATE INDEX IF NOT EXISTS "timeline_versions_timeline_created_at_idx" ON "timeline_versions" ("timeline_id", "created_at")`,
+  `CREATE TABLE IF NOT EXISTS "ai_chat_logs" (
+    "id" text PRIMARY KEY NOT NULL,
+    "user_id" text NOT NULL,
+    "project_id" text NOT NULL,
+    "timeline_id" text NOT NULL,
+    "model" text NOT NULL,
+    "status" text NOT NULL,
+    "prompt_excerpt" text NOT NULL,
+    "response_excerpt" text NOT NULL,
+    "tool_call_count" integer NOT NULL DEFAULT 0,
+    "created_at" integer NOT NULL,
+    FOREIGN KEY ("project_id") REFERENCES "project"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("timeline_id") REFERENCES "timelines"("id") ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ai_chat_logs_user_project_created_idx" ON "ai_chat_logs" ("user_id", "project_id", "created_at")`,
+  `CREATE INDEX IF NOT EXISTS "ai_chat_logs_timeline_created_idx" ON "ai_chat_logs" ("timeline_id", "created_at")`,
+  `CREATE INDEX IF NOT EXISTS "ai_chat_logs_status_created_idx" ON "ai_chat_logs" ("status", "created_at")`,
 ];
 
 const CLEAR_TABLE_STATEMENTS = [
+  `DELETE FROM "ai_chat_logs"`,
   `DELETE FROM "timeline_versions"`,
   `DELETE FROM "timelines"`,
   `DELETE FROM "assets"`,
@@ -309,6 +327,73 @@ async function patchTimeline(
   });
 
   return response;
+}
+
+function createAiChatPayload(
+  timelineId: string,
+  prompt: string,
+  context?: unknown,
+) {
+  return {
+    timelineId,
+    messages: [
+      {
+        id: "user-message-1",
+        role: "user" as const,
+        parts: [
+          {
+            type: "text",
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    ...(context ? { context } : {}),
+  };
+}
+
+async function postAiChat(
+  cookie: string | null,
+  payload: unknown,
+  path = "/api/ai/chat",
+) {
+  const response = await SELF.fetch(`https://example.com${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-ai-test-mode": "1",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return response;
+}
+
+async function createTimelineWithUploadedSeedAsset(cookie: string, projectId: string) {
+  const seedPayload = new TextEncoder().encode("seeded-video-blob");
+  const uploadSession = await createUploadSession(cookie, projectId, {
+    fileName: "seed.mp4",
+    mime: "video/mp4",
+    size: seedPayload.byteLength,
+    type: "video",
+  });
+  await env.MEDIA_BUCKET.put(uploadSession.r2Key, seedPayload);
+  const completeResponse = await completeAssetUpload(cookie, uploadSession.assetId, {
+    size: seedPayload.byteLength,
+    durationMs: 10_000,
+    width: 1280,
+    height: 720,
+  });
+  expect(completeResponse.status).toBe(200);
+
+  const createResponse = await createTimeline(cookie, projectId, {
+    seedAssetId: uploadSession.assetId,
+    name: "AI Test Timeline",
+  });
+  expect(createResponse.status).toBe(201);
+
+  return timelineWithLatestResponseSchema.parse(await createResponse.json());
 }
 
 describe("api worker", () => {
@@ -908,6 +993,221 @@ describe("api worker", () => {
     expect(conflictResponse.status).toBe(400);
     const conflictBody = apiErrorSchema.parse(await conflictResponse.json());
     expect(conflictBody.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("rejects unauthenticated AI chat requests", async () => {
+    const response = await postAiChat(
+      null,
+      createAiChatPayload("timeline-id", "trim clip 1 to 3s"),
+    );
+
+    expect(response.status).toBe(401);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("returns NOT_FOUND for AI chat timeline access by non-members", async () => {
+    const { cookie: ownerCookie } = await createAuthSession("ai-owner@example.com");
+    const { cookie: outsiderCookie } = await createAuthSession("ai-outsider@example.com");
+    const createdProject = await createProject(ownerCookie, "AI Membership");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      ownerCookie,
+      createdProject.id,
+    );
+
+    const response = await postAiChat(
+      outsiderCookie,
+      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
+    );
+
+    expect(response.status).toBe(404);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("streams AI chat responses for authenticated users", async () => {
+    const { cookie } = await createAuthSession("ai-stream@example.com");
+    const createdProject = await createProject(cookie, "AI Stream");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const response = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, "suggest pacing changes"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    const streamPayload = await response.text();
+    expect(streamPayload.length).toBeGreaterThan(0);
+    expect(streamPayload).toContain("Test mode response");
+  });
+
+  it("applies trim commands via AI tool calls and persists ai timeline versions", async () => {
+    const { cookie } = await createAuthSession("ai-trim@example.com");
+    const createdProject = await createProject(cookie, "AI Trim");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const chatResponse = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
+    );
+    expect(chatResponse.status).toBe(200);
+    await chatResponse.text();
+
+    const refreshedResponse = await getTimeline(cookie, seededTimeline.timeline.id);
+    expect(refreshedResponse.status).toBe(200);
+    const refreshedTimeline = timelineWithLatestResponseSchema.parse(
+      await refreshedResponse.json(),
+    );
+
+    expect(refreshedTimeline.latestVersion.version).toBe(
+      seededTimeline.latestVersion.version + 1,
+    );
+    expect(refreshedTimeline.latestVersion.source).toBe("ai");
+
+    const videoTrack = refreshedTimeline.latestVersion.data.tracks.find(
+      (track) => track.kind === "video",
+    );
+    const firstClip = videoTrack?.clips[0];
+    expect(firstClip).toBeTruthy();
+    expect((firstClip?.endMs ?? 0) - (firstClip?.startMs ?? 0)).toBe(3000);
+  });
+
+  it("enforces AI chat rate limits with RATE_LIMITED responses", async () => {
+    const { cookie } = await createAuthSession("ai-rate-limit@example.com");
+    const createdProject = await createProject(cookie, "AI Rate Limit");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const meResponse = await SELF.fetch("https://example.com/me", {
+      headers: { cookie },
+    });
+    expect(meResponse.status).toBe(200);
+    const me = meResponseSchema.parse(await meResponse.json());
+    const now = Date.now();
+    const limit = Number.parseInt(env.AI_CHAT_RATE_LIMIT_PER_HOUR, 10);
+
+    for (let index = 0; index < limit; index += 1) {
+      await env.DB.prepare(
+        `INSERT INTO ai_chat_logs (
+          id, user_id, project_id, timeline_id, model, status,
+          prompt_excerpt, response_excerpt, tool_call_count, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          `seed-log-${index}`,
+          me.user.id,
+          createdProject.id,
+          seededTimeline.timeline.id,
+          env.AI_CHAT_MODEL,
+          "ok",
+          "seed prompt",
+          "seed response",
+          0,
+          now,
+        )
+        .run();
+    }
+
+    const response = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
+    );
+
+    expect(response.status).toBe(429);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("RATE_LIMITED");
+  });
+
+  it("bounds tool spam and avoids unbounded timeline version writes", async () => {
+    const { cookie } = await createAuthSession("ai-tool-spam@example.com");
+    const createdProject = await createProject(cookie, "AI Tool Spam");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const response = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, "tool spam"),
+    );
+    expect(response.status).toBe(200);
+    await response.text();
+
+    const refreshedResponse = await getTimeline(cookie, seededTimeline.timeline.id);
+    expect(refreshedResponse.status).toBe(200);
+    const refreshedTimeline = timelineWithLatestResponseSchema.parse(
+      await refreshedResponse.json(),
+    );
+    const maxToolCalls = Number.parseInt(env.AI_CHAT_MAX_TOOL_CALLS, 10);
+    const appliedVersionsDelta =
+      refreshedTimeline.latestVersion.version - seededTimeline.latestVersion.version;
+
+    expect(appliedVersionsDelta).toBeGreaterThanOrEqual(0);
+    expect(appliedVersionsDelta).toBeLessThanOrEqual(maxToolCalls);
+
+    const latestLog = await env.DB.prepare(
+      `SELECT tool_call_count
+       FROM ai_chat_logs
+       WHERE timeline_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    )
+      .bind(seededTimeline.timeline.id)
+      .first<{ tool_call_count: number | string }>();
+    expect(Number(latestLog?.tool_call_count ?? 0)).toBeLessThanOrEqual(
+      maxToolCalls,
+    );
+  });
+
+  it("records truncated prompt and response excerpts in AI chat logs", async () => {
+    const { cookie } = await createAuthSession("ai-debug-log@example.com");
+    const createdProject = await createProject(cookie, "AI Debug Logs");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const longPrompt = "trim clip 1 to 3s ".repeat(80);
+    const response = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, longPrompt),
+    );
+    expect(response.status).toBe(200);
+    await response.text();
+
+    const maxChars = Number.parseInt(env.AI_CHAT_LOG_SNIPPET_CHARS, 10);
+    const logRow = await env.DB.prepare(
+      `SELECT model, status, prompt_excerpt, response_excerpt, tool_call_count
+       FROM ai_chat_logs
+       WHERE timeline_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    )
+      .bind(seededTimeline.timeline.id)
+      .first<{
+        model: string;
+        status: string;
+        prompt_excerpt: string;
+        response_excerpt: string;
+        tool_call_count: number | string;
+      }>();
+
+    expect(logRow).toBeTruthy();
+    expect(logRow?.model).toBe(env.AI_CHAT_MODEL);
+    expect(logRow?.status).toBe("ok");
+    expect(logRow?.prompt_excerpt.length ?? 0).toBeLessThanOrEqual(maxChars);
+    expect(logRow?.response_excerpt.length ?? 0).toBeGreaterThan(0);
+    expect(logRow?.response_excerpt.length ?? 0).toBeLessThanOrEqual(maxChars);
+    expect(Number(logRow?.tool_call_count ?? 0)).toBeGreaterThanOrEqual(0);
   });
 
   it("returns NOT_FOUND for timeline access by non-members", async () => {

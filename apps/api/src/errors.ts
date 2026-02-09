@@ -4,7 +4,7 @@ import {
   type ApiErrorResponse,
 } from "@doujin/contracts";
 
-export type ApiErrorStatus = 400 | 401 | 404 | 500;
+export type ApiErrorStatus = 400 | 401 | 404 | 429 | 500;
 
 export class ApiError extends Error {
   public readonly status: ApiErrorStatus;
