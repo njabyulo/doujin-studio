@@ -2,8 +2,12 @@
 # Sensitive values must be injected via .dev.vars locally and `wrangler secret put` in Cloudflare.
 AUTH_SECRET=
 GEMINI_API_KEY=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
 
 # Optional local overrides for [vars]
 APP_ENV=development
 CORS_ORIGIN=http://localhost:8787
 GIT_SHA=dev-local
+R2_ACCOUNT_ID=
+R2_PRESIGN_TTL_SECONDS=900

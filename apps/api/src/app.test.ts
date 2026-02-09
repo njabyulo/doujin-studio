@@ -1,7 +1,10 @@
 import {
+  assetResponseSchema,
+  assetUploadSessionResponseSchema,
   apiErrorSchema,
   healthResponseSchema,
   meResponseSchema,
+  projectAssetListResponseSchema,
   projectListResponseSchema,
   projectResponseSchema,
   versionResponseSchema,
@@ -88,9 +91,32 @@ const AUTH_SCHEMA_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "project_member_project_user_unique" ON "project_member" ("project_id", "user_id")`,
   `CREATE INDEX IF NOT EXISTS "project_member_project_id_idx" ON "project_member" ("project_id")`,
   `CREATE INDEX IF NOT EXISTS "project_member_user_id_idx" ON "project_member" ("user_id")`,
+  `CREATE TABLE IF NOT EXISTS "assets" (
+    "id" text PRIMARY KEY NOT NULL,
+    "project_id" text NOT NULL,
+    "type" text NOT NULL,
+    "status" text NOT NULL DEFAULT 'pending_upload',
+    "r2_key" text NOT NULL,
+    "size" integer NOT NULL,
+    "mime" text NOT NULL,
+    "checksum_sha256" text,
+    "duration_ms" integer,
+    "width" integer,
+    "height" integer,
+    "poster_asset_id" text,
+    "created_at" integer NOT NULL,
+    FOREIGN KEY ("project_id") REFERENCES "project"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("poster_asset_id") REFERENCES "assets"("id") ON DELETE SET NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "assets_r2_key_unique" ON "assets" ("r2_key")`,
+  `CREATE INDEX IF NOT EXISTS "assets_project_id_idx" ON "assets" ("project_id")`,
+  `CREATE INDEX IF NOT EXISTS "assets_status_idx" ON "assets" ("status")`,
+  `CREATE INDEX IF NOT EXISTS "assets_created_at_idx" ON "assets" ("created_at")`,
+  `CREATE INDEX IF NOT EXISTS "assets_project_type_status_idx" ON "assets" ("project_id", "type", "status")`,
 ];
 
 const CLEAR_TABLE_STATEMENTS = [
+  `DELETE FROM "assets"`,
   `DELETE FROM "project_member"`,
   `DELETE FROM "project"`,
   `DELETE FROM "session"`,
@@ -135,6 +161,61 @@ async function createProject(cookie: string, title: string) {
   expect(response.status).toBe(201);
   const body = projectResponseSchema.parse(await response.json());
   return body.project;
+}
+
+async function createUploadSession(
+  cookie: string,
+  projectId: string,
+  overrides: Partial<{
+    fileName: string;
+    mime: string;
+    size: number;
+    type: "video" | "poster";
+  }> = {},
+) {
+  const response = await SELF.fetch(
+    `https://example.com/projects/${projectId}/assets/upload-session`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie,
+      },
+      body: JSON.stringify({
+        fileName: overrides.fileName ?? "clip.mp4",
+        mime: overrides.mime ?? "video/mp4",
+        size: overrides.size ?? 128,
+        type: overrides.type ?? "video",
+      }),
+    },
+  );
+
+  expect(response.status).toBe(201);
+  return assetUploadSessionResponseSchema.parse(await response.json());
+}
+
+async function completeAssetUpload(
+  cookie: string,
+  assetId: string,
+  payload: {
+    size: number;
+    checksumSha256?: string;
+    durationMs?: number;
+    width?: number;
+    height?: number;
+    posterAssetId?: string;
+  },
+) {
+  const response = await SELF.fetch(`https://example.com/assets/${assetId}/complete`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return response;
 }
 
 describe("api worker", () => {
@@ -375,5 +456,250 @@ describe("api worker", () => {
     expect(missingResponse.headers.get("x-request-id")).toBeTruthy();
     const missingBody = apiErrorSchema.parse(await missingResponse.json());
     expect(missingBody.error.code).toBe("NOT_FOUND");
+  });
+
+  it("creates an upload session and fetches the pending asset", async () => {
+    const { cookie } = await createAuthSession("asset-session@example.com");
+    const createdProject = await createProject(cookie, "Asset Session Project");
+    const uploadSession = await createUploadSession(cookie, createdProject.id, {
+      fileName: "trailer.mov",
+      mime: "video/quicktime",
+      size: 456,
+      type: "video",
+    });
+
+    expect(uploadSession.assetId).toBeTruthy();
+    expect(uploadSession.r2Key).toContain(`projects/${createdProject.id}/assets/`);
+    expect(uploadSession.putUrl).toContain("X-Amz-");
+
+    const assetResponse = await SELF.fetch(
+      `https://example.com/assets/${uploadSession.assetId}`,
+      {
+        headers: { cookie },
+      },
+    );
+
+    expect(assetResponse.status).toBe(200);
+    const body = assetResponseSchema.parse(await assetResponse.json());
+    expect(body.asset.id).toBe(uploadSession.assetId);
+    expect(body.asset.status).toBe("pending_upload");
+    expect(body.asset.mime).toBe("video/quicktime");
+  });
+
+  it("rejects unauthenticated upload session creation", async () => {
+    const { cookie } = await createAuthSession("asset-auth-owner@example.com");
+    const createdProject = await createProject(cookie, "Restricted Upload");
+    const response = await SELF.fetch(
+      `https://example.com/projects/${createdProject.id}/assets/upload-session`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: "clip.mp4",
+          mime: "video/mp4",
+          size: 64,
+          type: "video",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(401);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("rejects upload session creation for non-members", async () => {
+    const { cookie: ownerCookie } = await createAuthSession("asset-owner@example.com");
+    const { cookie: outsiderCookie } = await createAuthSession("asset-outsider@example.com");
+    const createdProject = await createProject(ownerCookie, "Owner Project");
+
+    const response = await SELF.fetch(
+      `https://example.com/projects/${createdProject.id}/assets/upload-session`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: outsiderCookie,
+        },
+        body: JSON.stringify({
+          fileName: "clip.mp4",
+          mime: "video/mp4",
+          size: 64,
+          type: "video",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("completes uploads when object exists in R2 and marks asset uploaded", async () => {
+    const { cookie } = await createAuthSession("asset-complete@example.com");
+    const createdProject = await createProject(cookie, "Upload Complete");
+    const uploadSession = await createUploadSession(cookie, createdProject.id, {
+      size: 10,
+      mime: "video/mp4",
+      type: "video",
+    });
+
+    await env.MEDIA_BUCKET.put(uploadSession.r2Key, new TextEncoder().encode("0123456789"));
+
+    const response = await completeAssetUpload(cookie, uploadSession.assetId, {
+      size: 10,
+      durationMs: 42000,
+      width: 1920,
+      height: 1080,
+      checksumSha256: "sha256-placeholder",
+    });
+
+    expect(response.status).toBe(200);
+    const body = assetResponseSchema.parse(await response.json());
+    expect(body.asset.status).toBe("uploaded");
+    expect(body.asset.durationMs).toBe(42000);
+    expect(body.asset.width).toBe(1920);
+    expect(body.asset.height).toBe(1080);
+    expect(body.asset.posterAssetId).toBeNull();
+  });
+
+  it("rejects completion when object is missing in R2", async () => {
+    const { cookie } = await createAuthSession("asset-missing-object@example.com");
+    const createdProject = await createProject(cookie, "Missing Object");
+    const uploadSession = await createUploadSession(cookie, createdProject.id, {
+      size: 99,
+      mime: "video/mp4",
+      type: "video",
+    });
+
+    const response = await completeAssetUpload(cookie, uploadSession.assetId, {
+      size: 99,
+    });
+
+    expect(response.status).toBe(400);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("streams asset bytes for authorized users", async () => {
+    const { cookie } = await createAuthSession("asset-file-stream@example.com");
+    const createdProject = await createProject(cookie, "File Stream");
+    const uploadSession = await createUploadSession(cookie, createdProject.id, {
+      size: 10,
+      mime: "video/mp4",
+      type: "video",
+    });
+    await env.MEDIA_BUCKET.put(uploadSession.r2Key, new TextEncoder().encode("abcdefghij"));
+    await completeAssetUpload(cookie, uploadSession.assetId, { size: 10 });
+
+    const response = await SELF.fetch(
+      `https://example.com/assets/${uploadSession.assetId}/file`,
+      {
+        headers: { cookie },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("video/mp4");
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+    const payload = await response.text();
+    expect(payload).toBe("abcdefghij");
+  });
+
+  it("returns ranged responses for partial file reads", async () => {
+    const { cookie } = await createAuthSession("asset-file-range@example.com");
+    const createdProject = await createProject(cookie, "Range Stream");
+    const uploadSession = await createUploadSession(cookie, createdProject.id, {
+      size: 10,
+      mime: "video/mp4",
+      type: "video",
+    });
+    await env.MEDIA_BUCKET.put(uploadSession.r2Key, new TextEncoder().encode("abcdefghij"));
+    await completeAssetUpload(cookie, uploadSession.assetId, { size: 10 });
+
+    const response = await SELF.fetch(
+      `https://example.com/assets/${uploadSession.assetId}/file`,
+      {
+        headers: {
+          cookie,
+          range: "bytes=2-5",
+        },
+      },
+    );
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe("bytes 2-5/10");
+    expect(response.headers.get("content-length")).toBe("4");
+    const payload = await response.text();
+    expect(payload).toBe("cdef");
+  });
+
+  it("rejects asset file reads for non-members", async () => {
+    const { cookie: ownerCookie } = await createAuthSession("asset-stream-owner@example.com");
+    const { cookie: outsiderCookie } = await createAuthSession("asset-stream-outsider@example.com");
+    const createdProject = await createProject(ownerCookie, "Private Asset");
+    const uploadSession = await createUploadSession(ownerCookie, createdProject.id, {
+      size: 6,
+      mime: "video/mp4",
+      type: "video",
+    });
+    await env.MEDIA_BUCKET.put(uploadSession.r2Key, new TextEncoder().encode("secret"));
+    await completeAssetUpload(ownerCookie, uploadSession.assetId, { size: 6 });
+
+    const response = await SELF.fetch(
+      `https://example.com/assets/${uploadSession.assetId}/file`,
+      {
+        headers: {
+          cookie: outsiderCookie,
+        },
+      },
+    );
+
+    expect(response.status).toBe(404);
+    const body = apiErrorSchema.parse(await response.json());
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("lists project assets with filters and ordering", async () => {
+    const { cookie } = await createAuthSession("asset-list@example.com");
+    const createdProject = await createProject(cookie, "Asset Listing");
+
+    const firstUpload = await createUploadSession(cookie, createdProject.id, {
+      fileName: "first.mp4",
+      mime: "video/mp4",
+      size: 5,
+      type: "video",
+    });
+    await env.MEDIA_BUCKET.put(firstUpload.r2Key, new TextEncoder().encode("first"));
+    await completeAssetUpload(cookie, firstUpload.assetId, { size: 5 });
+
+    await new Promise((resolve) => setTimeout(resolve, 3));
+
+    const secondUpload = await createUploadSession(cookie, createdProject.id, {
+      fileName: "second.mp4",
+      mime: "video/mp4",
+      size: 6,
+      type: "video",
+    });
+    await env.MEDIA_BUCKET.put(secondUpload.r2Key, new TextEncoder().encode("second"));
+    await completeAssetUpload(cookie, secondUpload.assetId, { size: 6 });
+
+    const response = await SELF.fetch(
+      `https://example.com/projects/${createdProject.id}/assets?type=video&status=uploaded&limit=1`,
+      {
+        headers: {
+          cookie,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = projectAssetListResponseSchema.parse(await response.json());
+    expect(body.assets).toHaveLength(1);
+    expect(body.assets[0]?.id).toBe(secondUpload.assetId);
+    expect(body.assets[0]?.status).toBe("uploaded");
+    expect(body.assets[0]?.type).toBe("video");
   });
 });
