@@ -1,3 +1,4 @@
+export * from "./ai_chat_log";
 export * from "./asset";
 export * from "./auth";
 export * from "./checkpoint";
