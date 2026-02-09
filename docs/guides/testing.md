@@ -1,61 +1,145 @@
-# Testing Guide (Local + Browser E2E)
+# Testing Guide (Flows + Env Setup)
 
-This guide validates the storage flow end-to-end:
+This runbook explains how to test the app end-to-end, including the new AI timeline edit flow.
 
-- Asset registry + upload sessions
-- Direct-to-R2 upload contract
-- Upload completion + metadata
-- Auth-protected media proxy with range support
-- Editor restore of uploaded video/poster on reload
-- Timeline version create/load/save with optimistic locking
+Scope covered:
 
-## 1. Prerequisites
+- asset upload + completion
+- timeline create/load/save + optimistic locking
+- AI chat streaming (`POST /api/ai/chat` / `POST /ai/chat`)
+- AI tool execution (`applyEditorCommands`) and persisted `source: "ai"` timeline versions
+- safety controls (rate limit, tool-call bounds, command bounds)
 
-- Node + pnpm installed.
-- `ffmpeg` and `ffprobe` installed (for disposable test clip generation and metadata checks).
-- Cloudflare credentials available for local R2 signing tests.
+## 1. Environment setup
 
-Required local env values:
+### Local topology this guide assumes
 
-- `apps/api/.dev.vars`
-  - `AUTH_SECRET`
-  - `GEMINI_API_KEY`
-  - `R2_ACCESS_KEY_ID`
-  - `R2_SECRET_ACCESS_KEY`
-  - `R2_ACCOUNT_ID`
-  - `R2_PRESIGN_TTL_SECONDS`
-  - `CORS_ORIGIN=http://localhost:3000`
-- `apps/web/.env.local`
-  - `NEXT_PUBLIC_API_BASE_URL=http://localhost:8787`
-  - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+This guide assumes you run `pnpm dev` from repo root:
 
-## 2. Generate a disposable upload file (do not use `apps/video`)
+- Web app: `http://localhost:3000`
+- API worker: `http://localhost:8787`
+
+If you choose different hosts/ports, update these together:
+
+- `apps/api/.dev.vars` -> `CORS_ORIGIN`
+- `apps/web/.env.local` -> `NEXT_PUBLIC_APP_URL`
+- `apps/web/.env.local` -> `NEXT_PUBLIC_API_BASE_URL`
+
+Use the same hostname across values (`localhost` vs `127.0.0.1`) to avoid auth cookie mismatch during browser testing.
+
+### API env (`apps/api/.dev.vars`)
+
+Bootstrap from the template:
 
 ```bash
-ffmpeg -y \
-  -f lavfi -i testsrc=size=1280x720:rate=30 \
-  -f lavfi -i sine=frequency=880:sample_rate=44100 \
-  -t 8 \
-  -c:v libx264 -pix_fmt yuv420p -c:a aac \
-  /tmp/media-test-upload.mp4
+cp apps/api/.dev.vars.example apps/api/.dev.vars
 ```
 
-## 3. Automated gates
+Required secrets:
 
-Run from repo root:
+- `AUTH_SECRET`
+- `GEMINI_API_KEY` (required for real Gemini calls)
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+
+Recommended local overrides:
+
+- `APP_ENV=development`
+- `CORS_ORIGIN=http://localhost:3000`
+- `GIT_SHA=dev-local`
+- `R2_ACCOUNT_ID=<your account id>`
+- `R2_PRESIGN_TTL_SECONDS=900`
+- `AI_CHAT_MODEL=gemini-2.5-flash`
+- `AI_CHAT_RATE_LIMIT_PER_HOUR=20`
+- `AI_CHAT_MAX_TOOL_CALLS=2`
+- `AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL=12`
+- `AI_CHAT_LOG_SNIPPET_CHARS=600`
+
+Real-model vs deterministic testing:
+
+- Real-model mode: keep `APP_ENV=development` and set a valid `GEMINI_API_KEY`.
+- Deterministic mode (no external Gemini call):
+  - API tests already use deterministic mode.
+  - Manual API calls can set header `x-ai-test-mode: 1` (non-production only).
+  - For browser UI deterministic behavior, temporarily set `APP_ENV=test` locally.
+
+### Web env (`apps/web/.env.local`)
+
+Bootstrap from the template:
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+- `NEXT_PUBLIC_API_BASE_URL=http://localhost:8787`
+- `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+
+### Remote env notes (staging/production)
+
+For deployed flow testing, ensure API secrets are configured in Cloudflare:
+
+- `AUTH_SECRET`
+- `GEMINI_API_KEY`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+
+Use:
+
+```bash
+pnpm --filter api exec wrangler secret put AUTH_SECRET --env production
+pnpm --filter api exec wrangler secret put GEMINI_API_KEY --env production
+pnpm --filter api exec wrangler secret put R2_ACCESS_KEY_ID --env production
+pnpm --filter api exec wrangler secret put R2_SECRET_ACCESS_KEY --env production
+```
+
+## 2. One-time setup
+
+From repo root:
 
 ```bash
 pnpm install
 pnpm db:migrate
+```
+
+## 3. Recommended test sequence
+
+Run testing in this order to catch setup issues early:
+
+1. Focused deterministic AI tests (fast signal).
+2. Upload + timeline baseline in browser.
+3. AI chat deterministic call (`x-ai-test-mode: 1`) to validate route + tool flow without provider variability.
+4. AI chat real Gemini flow to validate streaming quality and prompt behavior.
+5. Safety controls (rate limit + tool bounds).
+
+## 4. Automated test flows
+
+### Full gate (recommended before PR)
+
+```bash
 pnpm lint:type
 pnpm lint:code
 pnpm test
 pnpm --filter web run build
 ```
 
-Expected: all commands exit 0.
+### Focused AI checks
 
-## 4. Start local dev stack
+```bash
+pnpm --filter api test -- src/app.test.ts
+pnpm --filter web exec vitest run lib/ai-chat.test.ts lib/timeline-state.test.ts
+```
+
+What these verify:
+
+- auth + membership checks for `/api/ai/chat`
+- streaming responses
+- `trim clip 1 to 3s` creates a new `source: "ai"` timeline version
+- rate limit returns `429 RATE_LIMITED`
+- tool-call bounding for spam-like requests
+- prompt/response excerpt logging
+- web request payload/context + flush-before-send behavior
+
+## 5. Start local stack
 
 ```bash
 pnpm dev > /tmp/media-dev.log 2>&1 &
@@ -70,13 +154,13 @@ curl -i http://localhost:3000
 
 Expected:
 
-- API health: `200` with `{ "ok": true }`
-- Web root: `200` HTML
+- API: `200` with `{ "ok": true }`
+- Web: `200` HTML
 
-## 5. Browser E2E (Chrome DevTools)
+## 6. Manual flow A: Upload + baseline timeline
 
 1. Open `http://localhost:3000`.
-2. Create auth session (DevTools console):
+2. Create an auth session (DevTools console):
 
 ```js
 await fetch("http://localhost:8787/api/auth/sign-up/email", {
@@ -92,134 +176,134 @@ await fetch("http://localhost:8787/api/auth/sign-up/email", {
 await fetch("http://localhost:8787/api/me", { credentials: "include" });
 ```
 
-3. Upload `/tmp/media-test-upload.mp4` from landing page.
-4. Verify expected network sequence:
+3. Upload a video from the landing page.
+4. Confirm timeline loads in editor and save state transitions (`Unsaved edits` → `Saving...` → `Saved`) work as expected when making a manual edit.
 
-- `POST /api/projects`
-- `POST /api/projects/:id/assets/upload-session` (video)
-- R2 `PUT` to presigned URL
-- `POST /api/projects/:id/assets/upload-session` (poster)
-- poster R2 `PUT`
-- `POST /api/assets/:posterId/complete`
-- `POST /api/assets/:videoId/complete`
-- `GET /api/projects/:id/assets?type=video&status=uploaded&limit=1`
+## 7. Manual flow B: AI chat happy path
 
-5. Confirm editor shows:
+1. In the editor chat panel, send:
 
-- video playable
-- metadata (`duration`, `width x height`)
-- poster-backed preview path restored on reload
+- `trim clip 1 to 3s`
 
-6. Reload page and verify persisted load comes from backend endpoints, not blob-only URLs.
+2. Expect UI behavior:
 
-## 6. API verification snippets
+- streaming response indicator
+- tool chips shown in chat response
+- after stream finish, timeline refreshes and reflects AI edit
 
-Use a valid member session cookie (`better-auth.session_token=...`).
+3. Verify version persistence:
 
-Asset read:
+- `GET /api/timelines/:id` should show latest version incremented
+- latest version `source` should be `ai`
+
+## 8. API flow for AI chat (curl)
+
+Use a valid member cookie (`better-auth.session_token=<token>`).
 
 ```bash
-curl -i http://localhost:8787/api/assets/<assetId> -H 'Cookie: better-auth.session_token=<token>'
+curl -N -X POST http://localhost:8787/api/ai/chat \
+  -H 'Content-Type: application/json' \
+  -H 'Cookie: better-auth.session_token=<token>' \
+  -d '{
+    "timelineId": "<timelineId>",
+    "messages": [
+      {
+        "id": "m1",
+        "role": "user",
+        "parts": [{ "type": "text", "text": "trim clip 1 to 3s" }]
+      }
+    ],
+    "context": {
+      "mode": "phase1",
+      "notes": "Keep the pacing tight"
+    }
+  }'
 ```
 
-Project latest uploaded asset:
+Notes:
+
+- `POST /ai/chat` also works (dual route mount).
+- phase support:
+  - `phase1`: metadata + notes + transcript
+  - `phase2`: keyframes/thumbnails + timestamps (caller-supplied)
+  - `phase3`: adapter seam for future direct video reference path
+
+Deterministic local API call without Gemini:
 
 ```bash
-curl -i 'http://localhost:8787/api/projects/<projectId>/assets?type=video&status=uploaded&limit=1' \
-  -H 'Cookie: better-auth.session_token=<token>'
+curl -N -X POST http://localhost:8787/api/ai/chat \
+  -H 'Content-Type: application/json' \
+  -H 'x-ai-test-mode: 1' \
+  -H 'Cookie: better-auth.session_token=<token>' \
+  -d '{
+    "timelineId": "<timelineId>",
+    "messages": [
+      {
+        "id": "m1",
+        "role": "user",
+        "parts": [{ "type": "text", "text": "trim clip 1 to 3s" }]
+      }
+    ]
+  }'
 ```
 
-Authorized media stream:
+## 9. Safety-control test flows
 
-```bash
-curl -i http://localhost:8787/api/assets/<assetId>/file -H 'Cookie: better-auth.session_token=<token>'
-```
+### Rate limit
 
-Range read:
+To force quickly in local testing, temporarily set a low value:
 
-```bash
-curl -i -H 'Range: bytes=0-1023' \
-  http://localhost:8787/api/assets/<assetId>/file \
-  -H 'Cookie: better-auth.session_token=<token>'
-```
+- `AI_CHAT_RATE_LIMIT_PER_HOUR=1`
 
-Expected: `206` + `Content-Range` + `Accept-Ranges: bytes`.
+Then call `/api/ai/chat` twice in the same hour for the same user/project.
 
-Unauthorized and outsider checks:
+Expected second call:
 
-```bash
-# unauthenticated
-curl -i http://localhost:8787/api/assets/<assetId>/file
+- `429`
+- error code `RATE_LIMITED`
 
-# authenticated outsider (not a project member)
-curl -i -b /tmp/outsider.cookies.txt http://localhost:8787/api/assets/<assetId>/file
-```
+### Tool-call bound
+
+Use deterministic mode and prompt:
+
+- `tool spam`
 
 Expected:
 
-- unauthenticated: `401 UNAUTHORIZED`
-- outsider/non-member: `404 NOT_FOUND`
+- timeline versions created by one request are bounded by `AI_CHAT_MAX_TOOL_CALLS`
+- no unbounded write loop
 
-## 7. Timeline endpoint verification
+### Max commands per tool call
 
-Use the same authenticated member cookie for the project.
-
-Create/get project timeline:
-
-```bash
-curl -i -X POST http://localhost:8787/api/projects/<projectId>/timelines \
-  -H 'Content-Type: application/json' \
-  -H 'Cookie: better-auth.session_token=<token>' \
-  -d '{"name":"Main Timeline"}'
-
-curl -i http://localhost:8787/api/projects/<projectId>/timelines/latest \
-  -H 'Cookie: better-auth.session_token=<token>'
-```
-
-Autosave/manual version writes:
-
-```bash
-curl -i -X PATCH http://localhost:8787/api/timelines/<timelineId> \
-  -H 'Content-Type: application/json' \
-  -H 'Cookie: better-auth.session_token=<token>' \
-  -d '{"baseVersion":1,"source":"autosave","data":{"schemaVersion":1,"fps":30,"durationMs":10000,"tracks":[{"id":"video-track","kind":"video","name":"Video","clips":[]},{"id":"subtitle-track","kind":"subtitle","name":"Subtitles","clips":[]}]}}'
-
-curl -i -X POST http://localhost:8787/api/timelines/<timelineId>/versions \
-  -H 'Content-Type: application/json' \
-  -H 'Cookie: better-auth.session_token=<token>' \
-  -d '{"baseVersion":2,"source":"manual","data":{"schemaVersion":1,"fps":30,"durationMs":10000,"tracks":[{"id":"video-track","kind":"video","name":"Video","clips":[]},{"id":"subtitle-track","kind":"subtitle","name":"Subtitles","clips":[]}]}}'
-```
+Attempt a payload that exceeds `AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL` via tool input.
 
 Expected:
 
-- valid save increments version
-- stale `baseVersion` returns `400 BAD_REQUEST`
-- non-member timeline access returns `404 NOT_FOUND`
+- tool returns an error result
+- no timeline mutation for that invalid tool call
 
-## 8. Failure triage
+## 10. Failure triage
 
-- `401` on authenticated calls:
-  - session cookie missing or expired.
-- `404` for member asset:
-  - wrong project/asset ID or membership mismatch.
-- R2 `PUT` fails (CORS/signature/SSL):
-  - verify `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, and bucket CORS.
-  - ensure `docs/guides/deploy/r2-cors.json` is applied.
-- Upload session succeeds but complete fails:
-  - object missing in bucket or `size` mismatch.
-- Browser can upload but video won’t play:
-  - inspect `GET /api/assets/:id/file` status/headers and range responses.
-- Timeline save fails with conflict:
-  - client `baseVersion` is stale; reload timeline and retry.
+- `401 UNAUTHORIZED`: missing/expired session cookie.
+- `404 NOT_FOUND`: user is not a member of the project/timeline.
+- `400 BAD_REQUEST` on timeline save/chat flush: stale `baseVersion` conflict.
+- `429 RATE_LIMITED`: per user+project hourly limit hit.
+- stream returns generic failure copy: inspect API logs for upstream provider error (invalid key, quota, etc.).
+- upload complete fails: R2 object missing or size mismatch.
 
-## 9. Verification record template
-
-Use this for each local validation run.
+## 11. Verification record template
 
 ```md
 Date/Time (UTC):
 Operator:
 Branch/Commit:
+
+Env mode:
+- APP_ENV:
+- AI_CHAT_MODEL:
+- AI_CHAT_RATE_LIMIT_PER_HOUR:
+- AI_CHAT_MAX_TOOL_CALLS:
+- AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL:
 
 Automated checks:
 - pnpm lint:type:
@@ -227,18 +311,18 @@ Automated checks:
 - pnpm test:
 - pnpm --filter web run build:
 
-E2E evidence:
+Manual flows:
+- Upload flow: pass/fail
+- Timeline save flow: pass/fail
+- AI stream in chat panel: pass/fail
+- "trim clip 1 to 3s" created ai version: pass/fail
+- Rate limit behavior: pass/fail
+
+Artifacts:
 - Project ID:
-- Video Asset ID:
-- Poster Asset ID:
-- Upload session status:
-- Complete status:
-- Range request status:
-- Unauthorized status:
-- Outsider status:
 - Timeline ID:
-- Timeline latest version:
-- Timeline autosave status:
+- Latest version + source:
+- Example AI request ID(s):
 
 Notes / blockers:
 ```
