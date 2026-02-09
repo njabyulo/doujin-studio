@@ -1,3 +1,4 @@
+export * from "./asset";
 export * from "./auth";
 export * from "./checkpoint";
 export * from "./idempotency_key";

@@ -61,6 +61,62 @@ export const projectResponseSchema = z.object({
   project: projectSchema,
 });
 
+export const assetTypeSchema = z.enum(["video", "poster"]);
+
+export const assetStatusSchema = z.enum([
+  "pending_upload",
+  "uploaded",
+  "upload_failed",
+]);
+
+export const createAssetUploadSessionRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  mime: z.string().trim().min(1).max(255),
+  size: z.number().int().nonnegative(),
+  type: assetTypeSchema,
+});
+
+export const assetUploadSessionResponseSchema = z.object({
+  assetId: z.string().min(1),
+  putUrl: z.string().url(),
+  r2Key: z.string().min(1),
+});
+
+export const completeAssetUploadRequestSchema = z.object({
+  size: z.number().int().nonnegative(),
+  checksumSha256: z.string().trim().min(1).max(255).optional(),
+  durationMs: z.number().int().nonnegative().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  posterAssetId: z.string().min(1).optional(),
+});
+
+export const assetSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  type: assetTypeSchema,
+  status: assetStatusSchema,
+  r2Key: z.string().min(1),
+  size: z.number().int().nonnegative(),
+  mime: z.string().min(1),
+  checksumSha256: z.string().nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  posterAssetId: z.string().nullable(),
+  createdAt: z.number().int().nonnegative(),
+  fileUrl: z.string().min(1),
+  posterUrl: z.string().nullable(),
+});
+
+export const assetResponseSchema = z.object({
+  asset: assetSchema,
+});
+
+export const projectAssetListResponseSchema = z.object({
+  assets: z.array(assetSchema),
+});
+
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
 export type ApiErrorResponse = z.infer<typeof apiErrorSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
@@ -73,3 +129,17 @@ export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
 export type ProjectResponse = z.infer<typeof projectResponseSchema>;
+export type AssetType = z.infer<typeof assetTypeSchema>;
+export type AssetStatus = z.infer<typeof assetStatusSchema>;
+export type CreateAssetUploadSessionRequest = z.infer<
+  typeof createAssetUploadSessionRequestSchema
+>;
+export type AssetUploadSessionResponse = z.infer<
+  typeof assetUploadSessionResponseSchema
+>;
+export type CompleteAssetUploadRequest = z.infer<
+  typeof completeAssetUploadRequestSchema
+>;
+export type Asset = z.infer<typeof assetSchema>;
+export type AssetResponse = z.infer<typeof assetResponseSchema>;
+export type ProjectAssetListResponse = z.infer<typeof projectAssetListResponseSchema>;
