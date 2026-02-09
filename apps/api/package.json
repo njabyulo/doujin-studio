@@ -15,8 +15,10 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.22",
     "@doujin/contracts": "workspace:*",
     "@doujin/database": "workspace:*",
+    "ai": "^6.0.77",
     "aws4fetch": "^1.0.20",
     "better-auth": "^1.4.18",
     "drizzle-orm": "^0.45.1",
