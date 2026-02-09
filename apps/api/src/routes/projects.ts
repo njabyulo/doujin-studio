@@ -8,24 +8,33 @@ import {
   asset,
   project,
   projectMember,
+  timeline,
+  timelineVersion,
 } from "@doujin/database/schema";
 import {
   assetStatusSchema,
   assetTypeSchema,
   assetUploadSessionResponseSchema,
+  createTimelineRequestSchema,
   createAssetUploadSessionRequestSchema,
   createProjectRequestSchema,
   projectAssetListResponseSchema,
   projectListResponseSchema,
   projectResponseSchema,
+  timelineDataSchema,
 } from "@doujin/contracts";
 import { Hono } from "hono";
 import { ApiError } from "../errors";
 import { toAssetResponse } from "../lib/asset-response";
 import { requireProjectMembership } from "../lib/project-access";
 import { createR2PresignedPutUrl } from "../lib/r2-presign";
+import { requireLatestTimelineVersion } from "../lib/timeline-access";
+import { toTimelineWithLatestResponse } from "../lib/timeline-response";
 import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
+
+const DEFAULT_TIMELINE_NAME = "Main Timeline";
+const DEFAULT_TIMELINE_DURATION_MS = 10_000;
 
 async function parseCreateProjectInput(rawBody: unknown) {
   const parsed = createProjectRequestSchema.safeParse(rawBody);
@@ -40,6 +49,15 @@ async function parseUploadSessionInput(rawBody: unknown) {
   const parsed = createAssetUploadSessionRequestSchema.safeParse(rawBody);
   if (!parsed.success) {
     throw new ApiError(400, "BAD_REQUEST", "Invalid asset upload payload");
+  }
+
+  return parsed.data;
+}
+
+async function parseCreateTimelineInput(rawBody: unknown) {
+  const parsed = createTimelineRequestSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    throw new ApiError(400, "BAD_REQUEST", "Invalid timeline payload");
   }
 
   return parsed.data;
@@ -60,6 +78,10 @@ function parsePositiveInt(raw: string | undefined, fallback: number) {
   }
 
   return value;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Error && error.message.includes("UNIQUE constraint failed");
 }
 
 export function createProjectRoutes() {
@@ -157,6 +179,190 @@ export function createProjectRoutes() {
           role: membership.role,
         },
       }),
+      200,
+    );
+  });
+
+  app.post("/:id/timelines", requireAuth, async (c) => {
+    const user = c.get("user");
+    if (!user) {
+      throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
+    }
+
+    let body: unknown = {};
+    try {
+      body = await c.req.json();
+    } catch {
+      body = {};
+    }
+
+    const input = await parseCreateTimelineInput(body);
+    const projectId = c.req.param("id");
+    const db = createDb(c.env.DB);
+    await requireProjectMembership(db, projectId, user.id);
+
+    const [existingTimeline] = await db
+      .select({
+        id: timeline.id,
+        projectId: timeline.projectId,
+        name: timeline.name,
+        latestVersion: timeline.latestVersion,
+        createdAt: timeline.createdAt,
+        updatedAt: timeline.updatedAt,
+      })
+      .from(timeline)
+      .where(eq(timeline.projectId, projectId))
+      .limit(1);
+
+    if (existingTimeline) {
+      const latestVersion = await requireLatestTimelineVersion(db, existingTimeline.id);
+      return c.json(
+        toTimelineWithLatestResponse(existingTimeline, latestVersion),
+        200,
+      );
+    }
+
+    let seedDurationMs: number | null = null;
+    let seedAssetId: string | null = null;
+    if (input.seedAssetId) {
+      const [seedAsset] = await db
+        .select({
+          id: asset.id,
+          durationMs: asset.durationMs,
+          status: asset.status,
+        })
+        .from(asset)
+        .where(and(eq(asset.id, input.seedAssetId), eq(asset.projectId, projectId)))
+        .limit(1);
+
+      if (!seedAsset || seedAsset.status !== "uploaded") {
+        throw new ApiError(400, "BAD_REQUEST", "Invalid seed asset");
+      }
+
+      seedAssetId = seedAsset.id;
+      seedDurationMs =
+        seedAsset.durationMs && seedAsset.durationMs > 0
+          ? seedAsset.durationMs
+          : DEFAULT_TIMELINE_DURATION_MS;
+    }
+
+    const timelineId = crypto.randomUUID();
+    const videoTrackId = crypto.randomUUID();
+    const subtitleTrackId = crypto.randomUUID();
+    const initialDurationMs = seedDurationMs ?? DEFAULT_TIMELINE_DURATION_MS;
+    const initialData = timelineDataSchema.parse({
+      schemaVersion: 1,
+      fps: 30,
+      durationMs: initialDurationMs,
+      tracks: [
+        {
+          id: videoTrackId,
+          kind: "video",
+          name: "Video",
+          clips: seedAssetId
+            ? [
+                {
+                  id: crypto.randomUUID(),
+                  type: "video",
+                  trackId: videoTrackId,
+                  assetId: seedAssetId,
+                  startMs: 0,
+                  endMs: initialDurationMs,
+                  sourceStartMs: 0,
+                  volume: 1,
+                  text: null,
+                },
+              ]
+            : [],
+        },
+        {
+          id: subtitleTrackId,
+          kind: "subtitle",
+          name: "Subtitles",
+          clips: [],
+        },
+      ],
+    });
+
+    try {
+      await db.batch([
+        db.insert(timeline).values({
+          id: timelineId,
+          projectId,
+          name: input.name ?? DEFAULT_TIMELINE_NAME,
+          latestVersion: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        db.insert(timelineVersion).values({
+          id: crypto.randomUUID(),
+          timelineId,
+          version: 1,
+          source: "system",
+          createdByUserId: user.id,
+          data: initialData,
+        }),
+      ]);
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+    }
+
+    const [createdTimeline] = await db
+      .select({
+        id: timeline.id,
+        projectId: timeline.projectId,
+        name: timeline.name,
+        latestVersion: timeline.latestVersion,
+        createdAt: timeline.createdAt,
+        updatedAt: timeline.updatedAt,
+      })
+      .from(timeline)
+      .where(eq(timeline.projectId, projectId))
+      .limit(1);
+
+    if (!createdTimeline) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Failed to create timeline");
+    }
+
+    const latestVersion = await requireLatestTimelineVersion(db, createdTimeline.id);
+    return c.json(
+      toTimelineWithLatestResponse(createdTimeline, latestVersion),
+      201,
+    );
+  });
+
+  app.get("/:id/timelines/latest", requireAuth, async (c) => {
+    const user = c.get("user");
+    if (!user) {
+      throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
+    }
+
+    const projectId = c.req.param("id");
+    const db = createDb(c.env.DB);
+    await requireProjectMembership(db, projectId, user.id);
+
+    const [foundTimeline] = await db
+      .select({
+        id: timeline.id,
+        projectId: timeline.projectId,
+        name: timeline.name,
+        latestVersion: timeline.latestVersion,
+        createdAt: timeline.createdAt,
+        updatedAt: timeline.updatedAt,
+      })
+      .from(timeline)
+      .where(eq(timeline.projectId, projectId))
+      .limit(1);
+
+    if (!foundTimeline) {
+      throw new ApiError(404, "NOT_FOUND", "Timeline not found");
+    }
+
+    const latestVersion = await requireLatestTimelineVersion(db, foundTimeline.id);
+    return c.json(
+      toTimelineWithLatestResponse(foundTimeline, latestVersion),
       200,
     );
   });

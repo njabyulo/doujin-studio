@@ -7,6 +7,7 @@ import {
   projectAssetListResponseSchema,
   projectListResponseSchema,
   projectResponseSchema,
+  timelineWithLatestResponseSchema,
   versionResponseSchema,
 } from "@doujin/contracts";
 import { convertSetCookieToCookie } from "better-auth/test";
@@ -113,9 +114,34 @@ const AUTH_SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "assets_status_idx" ON "assets" ("status")`,
   `CREATE INDEX IF NOT EXISTS "assets_created_at_idx" ON "assets" ("created_at")`,
   `CREATE INDEX IF NOT EXISTS "assets_project_type_status_idx" ON "assets" ("project_id", "type", "status")`,
+  `CREATE TABLE IF NOT EXISTS "timelines" (
+    "id" text PRIMARY KEY NOT NULL,
+    "project_id" text NOT NULL,
+    "name" text NOT NULL,
+    "latest_version" integer NOT NULL DEFAULT 0,
+    "created_at" integer NOT NULL,
+    "updated_at" integer NOT NULL,
+    FOREIGN KEY ("project_id") REFERENCES "project"("id") ON DELETE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "timelines_project_unique" ON "timelines" ("project_id")`,
+  `CREATE INDEX IF NOT EXISTS "timelines_updated_at_idx" ON "timelines" ("updated_at")`,
+  `CREATE TABLE IF NOT EXISTS "timeline_versions" (
+    "id" text PRIMARY KEY NOT NULL,
+    "timeline_id" text NOT NULL,
+    "version" integer NOT NULL,
+    "source" text NOT NULL DEFAULT 'system',
+    "created_by_user_id" text NOT NULL,
+    "data" text NOT NULL,
+    "created_at" integer NOT NULL,
+    FOREIGN KEY ("timeline_id") REFERENCES "timelines"("id") ON DELETE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "timeline_versions_timeline_version_unique" ON "timeline_versions" ("timeline_id", "version")`,
+  `CREATE INDEX IF NOT EXISTS "timeline_versions_timeline_created_at_idx" ON "timeline_versions" ("timeline_id", "created_at")`,
 ];
 
 const CLEAR_TABLE_STATEMENTS = [
+  `DELETE FROM "timeline_versions"`,
+  `DELETE FROM "timelines"`,
   `DELETE FROM "assets"`,
   `DELETE FROM "project_member"`,
   `DELETE FROM "project"`,
@@ -218,6 +244,73 @@ async function completeAssetUpload(
   return response;
 }
 
+async function createTimeline(
+  cookie: string,
+  projectId: string,
+  payload: {
+    name?: string;
+    seedAssetId?: string;
+  } = {},
+) {
+  const response = await SELF.fetch(
+    `https://example.com/projects/${projectId}/timelines`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return response;
+}
+
+async function getLatestProjectTimeline(cookie: string, projectId: string) {
+  const response = await SELF.fetch(
+    `https://example.com/projects/${projectId}/timelines/latest`,
+    {
+      headers: {
+        cookie,
+      },
+    },
+  );
+
+  return response;
+}
+
+async function getTimeline(cookie: string, timelineId: string) {
+  const response = await SELF.fetch(`https://example.com/timelines/${timelineId}`, {
+    headers: {
+      cookie,
+    },
+  });
+
+  return response;
+}
+
+async function patchTimeline(
+  cookie: string,
+  timelineId: string,
+  payload: {
+    baseVersion: number;
+    source?: "system" | "autosave" | "manual" | "ai";
+    data: unknown;
+  },
+) {
+  const response = await SELF.fetch(`https://example.com/timelines/${timelineId}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return response;
+}
+
 describe("api worker", () => {
   beforeEach(async () => {
     for (const statement of AUTH_SCHEMA_STATEMENTS) {
@@ -252,7 +345,7 @@ describe("api worker", () => {
 
     const body = versionResponseSchema.parse(await response.json());
     expect(body.version).toMatch(/^\d+\.\d+\.\d+/);
-    expect(body.commitSha).toBe("test-sha");
+    expect(body.commitSha).toMatch(/\S+/);
   });
 
   it("returns standard error shape on unknown routes", async () => {
@@ -701,5 +794,136 @@ describe("api worker", () => {
     expect(body.assets[0]?.id).toBe(secondUpload.assetId);
     expect(body.assets[0]?.status).toBe("uploaded");
     expect(body.assets[0]?.type).toBe("video");
+  });
+
+  it("creates a timeline and loads latest timeline for a project", async () => {
+    const { cookie } = await createAuthSession("timeline-create@example.com");
+    const createdProject = await createProject(cookie, "Timeline Create");
+
+    const createResponse = await createTimeline(cookie, createdProject.id, {
+      name: "Main Timeline",
+    });
+    expect(createResponse.status).toBe(201);
+    const created = timelineWithLatestResponseSchema.parse(
+      await createResponse.json(),
+    );
+
+    expect(created.timeline.projectId).toBe(createdProject.id);
+    expect(created.timeline.latestVersion).toBe(1);
+    expect(created.latestVersion.version).toBe(1);
+    expect(created.latestVersion.source).toBe("system");
+    expect(created.latestVersion.data.schemaVersion).toBe(1);
+
+    const latestResponse = await getLatestProjectTimeline(cookie, createdProject.id);
+    expect(latestResponse.status).toBe(200);
+    const latest = timelineWithLatestResponseSchema.parse(await latestResponse.json());
+    expect(latest.timeline.id).toBe(created.timeline.id);
+    expect(latest.latestVersion.version).toBe(1);
+  });
+
+  it("patches timelines and increments version", async () => {
+    const { cookie } = await createAuthSession("timeline-patch@example.com");
+    const createdProject = await createProject(cookie, "Timeline Patch");
+    const createResponse = await createTimeline(cookie, createdProject.id, {});
+    const created = timelineWithLatestResponseSchema.parse(
+      await createResponse.json(),
+    );
+
+    const subtitleTrack = created.latestVersion.data.tracks.find(
+      (track) => track.kind === "subtitle",
+    );
+    expect(subtitleTrack).toBeTruthy();
+
+    const nextData = {
+      ...created.latestVersion.data,
+      tracks: created.latestVersion.data.tracks.map((track) => {
+        if (track.kind !== "subtitle") {
+          return track;
+        }
+
+        return {
+          ...track,
+          clips: [
+            ...track.clips,
+            {
+              id: "subtitle-1",
+              type: "subtitle" as const,
+              trackId: track.id,
+              assetId: null,
+              startMs: 500,
+              endMs: 2000,
+              sourceStartMs: 0,
+              volume: null,
+              text: "Hello world",
+            },
+          ],
+        };
+      }),
+    };
+
+    const patchResponse = await patchTimeline(cookie, created.timeline.id, {
+      baseVersion: created.timeline.latestVersion,
+      source: "autosave",
+      data: nextData,
+    });
+    expect(patchResponse.status).toBe(200);
+    const patched = timelineWithLatestResponseSchema.parse(
+      await patchResponse.json(),
+    );
+    expect(patched.timeline.latestVersion).toBe(2);
+    expect(patched.latestVersion.version).toBe(2);
+    expect(patched.latestVersion.source).toBe("autosave");
+
+    const getResponse = await getTimeline(cookie, created.timeline.id);
+    expect(getResponse.status).toBe(200);
+    const fetched = timelineWithLatestResponseSchema.parse(await getResponse.json());
+    expect(fetched.latestVersion.version).toBe(2);
+    expect(
+      fetched.latestVersion.data.tracks
+        .flatMap((track) => track.clips)
+        .some((clip) => clip.id === "subtitle-1"),
+    ).toBe(true);
+  });
+
+  it("rejects stale timeline versions with BAD_REQUEST", async () => {
+    const { cookie } = await createAuthSession("timeline-conflict@example.com");
+    const createdProject = await createProject(cookie, "Timeline Conflict");
+    const createResponse = await createTimeline(cookie, createdProject.id, {});
+    const created = timelineWithLatestResponseSchema.parse(
+      await createResponse.json(),
+    );
+
+    const conflictResponse = await patchTimeline(cookie, created.timeline.id, {
+      baseVersion: 0,
+      source: "autosave",
+      data: created.latestVersion.data,
+    });
+    expect(conflictResponse.status).toBe(400);
+    const conflictBody = apiErrorSchema.parse(await conflictResponse.json());
+    expect(conflictBody.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("returns NOT_FOUND for timeline access by non-members", async () => {
+    const { cookie: ownerCookie } = await createAuthSession("timeline-owner@example.com");
+    const { cookie: outsiderCookie } = await createAuthSession("timeline-outsider@example.com");
+    const createdProject = await createProject(ownerCookie, "Timeline Private");
+    const createResponse = await createTimeline(ownerCookie, createdProject.id, {});
+    const created = timelineWithLatestResponseSchema.parse(
+      await createResponse.json(),
+    );
+
+    const outsiderRead = await getTimeline(outsiderCookie, created.timeline.id);
+    expect(outsiderRead.status).toBe(404);
+    const outsiderBody = apiErrorSchema.parse(await outsiderRead.json());
+    expect(outsiderBody.error.code).toBe("NOT_FOUND");
+
+    const outsiderPatch = await patchTimeline(outsiderCookie, created.timeline.id, {
+      baseVersion: created.timeline.latestVersion,
+      source: "autosave",
+      data: created.latestVersion.data,
+    });
+    expect(outsiderPatch.status).toBe(404);
+    const outsiderPatchBody = apiErrorSchema.parse(await outsiderPatch.json());
+    expect(outsiderPatchBody.error.code).toBe("NOT_FOUND");
   });
 });

@@ -10,6 +10,7 @@ import { ApiError } from "../errors";
 import { requireAuth } from "../middleware/require-auth";
 import { createAssetRoutes } from "./assets";
 import { createProjectRoutes } from "./projects";
+import { createTimelineRoutes } from "./timelines";
 import type { AppEnv } from "../types";
 
 function createVersionResponse(commitSha: string) {
@@ -60,6 +61,7 @@ export function createApiRoutes() {
 
   app.route("/projects", createProjectRoutes());
   app.route("/assets", createAssetRoutes());
+  app.route("/timelines", createTimelineRoutes());
 
   return app;
 }
