@@ -1,8 +1,8 @@
 import type {
-  EditorCommand,
-  TimelineClip,
-  TimelineData,
-  TimelineTrack,
+  TEditorCommand,
+  TTimelineClip,
+  TTimelineData,
+  TTimelineTrack,
 } from "./index";
 
 const MIN_CLIP_DURATION_MS = 100;
@@ -15,7 +15,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function getMaxEndMs(data: TimelineData) {
+function getMaxEndMs(data: TTimelineData) {
   let maxEnd = 0;
   for (const track of data.tracks) {
     for (const clip of track.clips) {
@@ -26,7 +26,7 @@ function getMaxEndMs(data: TimelineData) {
   return maxEnd;
 }
 
-function sortClips(clips: TimelineClip[]) {
+function sortClips(clips: TTimelineClip[]) {
   return [...clips].sort((left, right) => {
     if (left.startMs !== right.startMs) {
       return left.startMs - right.startMs;
@@ -36,7 +36,7 @@ function sortClips(clips: TimelineClip[]) {
   });
 }
 
-function normalizeTimelineData(data: TimelineData): TimelineData {
+function normalizeTimelineData(data: TTimelineData): TTimelineData {
   const tracks = data.tracks.map((track) => ({
     ...track,
     clips: sortClips(track.clips),
@@ -51,9 +51,9 @@ function normalizeTimelineData(data: TimelineData): TimelineData {
 }
 
 function findClip(
-  data: TimelineData,
+  data: TTimelineData,
   clipId: string,
-): { track: TimelineTrack; clip: TimelineClip } | null {
+): { track: TTimelineTrack; clip: TTimelineClip } | null {
   for (const track of data.tracks) {
     const clip = track.clips.find((candidate) => candidate.id === clipId);
     if (clip) {
@@ -64,7 +64,7 @@ function findClip(
   return null;
 }
 
-export function createDefaultTimelineData() {
+export function createDefaultTimelineData(): TTimelineData {
   const videoTrackId = createId();
   const subtitleTrackId = createId();
 
@@ -90,9 +90,9 @@ export function createDefaultTimelineData() {
 }
 
 export function applyEditorCommand(
-  data: TimelineData,
-  command: EditorCommand,
-): TimelineData {
+  data: TTimelineData,
+  command: TEditorCommand,
+): TTimelineData {
   if (command.type === "addClip") {
     const targetTrack = data.tracks.find((track) => track.id === command.trackId);
     if (!targetTrack || targetTrack.kind === "subtitle") {
@@ -104,7 +104,7 @@ export function applyEditorCommand(
       targetTrack.clips.reduce((max, clip) => Math.max(max, clip.endMs), 0);
     const durationMs = Math.max(MIN_CLIP_DURATION_MS, command.clip.durationMs);
     const endMs = startMs + durationMs;
-    const nextClip: TimelineClip = {
+    const nextClip: TTimelineClip = {
       id: command.clip.id ?? createId(),
       type: targetTrack.kind,
       trackId: targetTrack.id,
@@ -155,7 +155,7 @@ export function applyEditorCommand(
     }
 
     const sourceDelta = Math.max(0, startMs - clip.startMs);
-    const nextClip: TimelineClip = {
+    const nextClip: TTimelineClip = {
       ...clip,
       startMs,
       endMs,
@@ -170,11 +170,11 @@ export function applyEditorCommand(
       tracks: data.tracks.map((candidate) =>
         candidate.id === track.id
           ? {
-              ...candidate,
-              clips: candidate.clips.map((item) =>
-                item.id === clip.id ? nextClip : item,
-              ),
-            }
+            ...candidate,
+            clips: candidate.clips.map((item) =>
+              item.id === clip.id ? nextClip : item,
+            ),
+          }
           : candidate,
       ),
     });
@@ -196,11 +196,11 @@ export function applyEditorCommand(
       return data;
     }
 
-    const firstPart: TimelineClip = {
+    const firstPart: TTimelineClip = {
       ...clip,
       endMs: splitPoint,
     };
-    const secondPart: TimelineClip = {
+    const secondPart: TTimelineClip = {
       ...clip,
       id: createId(),
       startMs: splitPoint,
@@ -215,11 +215,11 @@ export function applyEditorCommand(
       tracks: data.tracks.map((candidate) =>
         candidate.id === track.id
           ? {
-              ...candidate,
-              clips: candidate.clips.flatMap((item) =>
-                item.id === clip.id ? [firstPart, secondPart] : [item],
-              ),
-            }
+            ...candidate,
+            clips: candidate.clips.flatMap((item) =>
+              item.id === clip.id ? [firstPart, secondPart] : [item],
+            ),
+          }
           : candidate,
       ),
     });
@@ -239,7 +239,7 @@ export function applyEditorCommand(
 
     const clipDuration = clip.endMs - clip.startMs;
     const startMs = Math.max(0, command.startMs);
-    const movedClip: TimelineClip = {
+    const movedClip: TTimelineClip = {
       ...clip,
       trackId: targetTrack.id,
       startMs,
@@ -304,7 +304,7 @@ export function applyEditorCommand(
 
     const startMs = Math.max(0, command.startMs);
     const endMs = Math.max(startMs + MIN_CLIP_DURATION_MS, command.endMs);
-    const subtitleClip: TimelineClip = {
+    const subtitleClip: TTimelineClip = {
       id: createId(),
       type: "subtitle",
       trackId: subtitleTrack.id,
@@ -339,7 +339,10 @@ export function applyEditorCommand(
   return data;
 }
 
-export function applyEditorCommands(data: TimelineData, commands: EditorCommand[]) {
+export function applyEditorCommands(
+  data: TTimelineData,
+  commands: TEditorCommand[],
+): TTimelineData {
   let next = data;
   for (const command of commands) {
     next = applyEditorCommand(next, command);

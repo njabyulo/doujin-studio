@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 
-export const apiErrorCodeSchema = z.enum([
+export const SApiErrorCode = z.enum([
   "UNAUTHORIZED",
   "BAD_REQUEST",
   "NOT_FOUND",
@@ -9,82 +9,82 @@ export const apiErrorCodeSchema = z.enum([
   "INTERNAL_ERROR",
 ]);
 
-export const apiErrorSchema = z.object({
+export const SApiError = z.object({
   error: z.object({
-    code: apiErrorCodeSchema,
+    code: SApiErrorCode,
     message: z.string().min(1),
     requestId: z.string().min(1),
   }),
 });
 
-export const healthResponseSchema = z.object({
+export const SHealthResponse = z.object({
   ok: z.literal(true),
 });
 
-export const versionResponseSchema = z.object({
+export const SVersionResponse = z.object({
   version: z.string().min(1),
   commitSha: z.string().min(1),
 });
 
-export const meUserSchema = z.object({
+export const SMeUser = z.object({
   id: z.string().min(1),
   email: z.string().email(),
   name: z.string().nullable(),
   image: z.string().nullable(),
 });
 
-export const meTenantSchema = z.object({
+export const SMeTenant = z.object({
   type: z.literal("user"),
   id: z.string().min(1),
 });
 
-export const meResponseSchema = z.object({
-  user: meUserSchema,
-  tenant: meTenantSchema,
+export const SMeResponse = z.object({
+  user: SMeUser,
+  tenant: SMeTenant,
 });
 
-export const projectRoleSchema = z.enum(["owner"]);
+export const SProjectRole = z.enum(["owner"]);
 
-export const createProjectRequestSchema = z.object({
+export const SCreateProjectRequest = z.object({
   title: z.string().trim().min(1).max(120),
 });
 
-export const projectSchema = z.object({
+export const SProject = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  role: projectRoleSchema,
+  role: SProjectRole,
 });
 
-export const projectListResponseSchema = z.object({
-  projects: z.array(projectSchema),
+export const SProjectListResponse = z.object({
+  projects: z.array(SProject),
 });
 
-export const projectResponseSchema = z.object({
-  project: projectSchema,
+export const SProjectResponse = z.object({
+  project: SProject,
 });
 
-export const assetTypeSchema = z.enum(["video", "poster"]);
+export const SAssetType = z.enum(["video", "poster"]);
 
-export const assetStatusSchema = z.enum([
+export const SAssetStatus = z.enum([
   "pending_upload",
   "uploaded",
   "upload_failed",
 ]);
 
-export const createAssetUploadSessionRequestSchema = z.object({
+export const SCreateAssetUploadSessionRequest = z.object({
   fileName: z.string().trim().min(1).max(255),
   mime: z.string().trim().min(1).max(255),
   size: z.number().int().nonnegative(),
-  type: assetTypeSchema,
+  type: SAssetType,
 });
 
-export const assetUploadSessionResponseSchema = z.object({
+export const SAssetUploadSessionResponse = z.object({
   assetId: z.string().min(1),
   putUrl: z.string().url(),
   r2Key: z.string().min(1),
 });
 
-export const completeAssetUploadRequestSchema = z.object({
+export const SCompleteAssetUploadRequest = z.object({
   size: z.number().int().nonnegative(),
   checksumSha256: z.string().trim().min(1).max(255).optional(),
   durationMs: z.number().int().nonnegative().optional(),
@@ -93,11 +93,11 @@ export const completeAssetUploadRequestSchema = z.object({
   posterAssetId: z.string().min(1).optional(),
 });
 
-export const assetSchema = z.object({
+export const SAsset = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
-  type: assetTypeSchema,
-  status: assetStatusSchema,
+  type: SAssetType,
+  status: SAssetStatus,
   r2Key: z.string().min(1),
   size: z.number().int().nonnegative(),
   mime: z.string().min(1),
@@ -111,29 +111,29 @@ export const assetSchema = z.object({
   posterUrl: z.string().nullable(),
 });
 
-export const assetResponseSchema = z.object({
-  asset: assetSchema,
+export const SAssetResponse = z.object({
+  asset: SAsset,
 });
 
-export const projectAssetListResponseSchema = z.object({
-  assets: z.array(assetSchema),
+export const SProjectAssetListResponse = z.object({
+  assets: z.array(SAsset),
 });
 
-export const timelineTrackKindSchema = z.enum(["video", "audio", "subtitle"]);
+export const STimelineTrackKind = z.enum(["video", "audio", "subtitle"]);
 
-export const timelineClipTypeSchema = z.enum(["video", "audio", "subtitle"]);
+export const STimelineClipType = z.enum(["video", "audio", "subtitle"]);
 
-export const timelineVersionSourceSchema = z.enum([
+export const STimelineVersionSource = z.enum([
   "system",
   "autosave",
   "manual",
   "ai",
 ]);
 
-export const timelineClipSchema = z
+export const STimelineClip = z
   .object({
     id: z.string().min(1),
-    type: timelineClipTypeSchema,
+    type: STimelineClipType,
     trackId: z.string().min(1),
     assetId: z.string().min(1).nullable(),
     startMs: z.number().int().nonnegative(),
@@ -177,19 +177,19 @@ export const timelineClipSchema = z
     }
   });
 
-export const timelineTrackSchema = z.object({
+export const STimelineTrack = z.object({
   id: z.string().min(1),
-  kind: timelineTrackKindSchema,
+  kind: STimelineTrackKind,
   name: z.string().trim().min(1).max(120),
-  clips: z.array(timelineClipSchema),
+  clips: z.array(STimelineClip),
 });
 
-export const timelineDataSchema = z
+export const STimelineData = z
   .object({
     schemaVersion: z.literal(1),
     fps: z.number().int().positive(),
     durationMs: z.number().int().nonnegative(),
-    tracks: z.array(timelineTrackSchema).min(1),
+    tracks: z.array(STimelineTrack).min(1),
   })
   .superRefine((timeline, ctx) => {
     const seenTrackIds = new Set<string>();
@@ -236,7 +236,7 @@ export const timelineDataSchema = z
     }
   });
 
-export const timelineSchema = z.object({
+export const STimeline = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
   name: z.string().min(1),
@@ -245,33 +245,33 @@ export const timelineSchema = z.object({
   updatedAt: z.number().int().nonnegative(),
 });
 
-export const timelineVersionSchema = z.object({
+export const STimelineVersion = z.object({
   id: z.string().min(1),
   timelineId: z.string().min(1),
   version: z.number().int().positive(),
-  source: timelineVersionSourceSchema,
+  source: STimelineVersionSource,
   createdByUserId: z.string().min(1),
   createdAt: z.number().int().nonnegative(),
-  data: timelineDataSchema,
+  data: STimelineData,
 });
 
-export const timelineWithLatestResponseSchema = z.object({
-  timeline: timelineSchema,
-  latestVersion: timelineVersionSchema,
+export const STimelineWithLatestResponse = z.object({
+  timeline: STimeline,
+  latestVersion: STimelineVersion,
 });
 
-export const createTimelineRequestSchema = z.object({
+export const SCreateTimelineRequest = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   seedAssetId: z.string().min(1).optional(),
 });
 
-export const saveTimelineVersionRequestSchema = z.object({
+export const SSaveTimelineVersionRequest = z.object({
   baseVersion: z.number().int().positive(),
-  source: timelineVersionSourceSchema.optional(),
-  data: timelineDataSchema,
+  source: STimelineVersionSource.optional(),
+  data: STimelineData,
 });
 
-const editorAddClipInputSchema = z.object({
+const SEditorAddClipInput = z.object({
   id: z.string().min(1).optional(),
   assetId: z.string().min(1),
   startMs: z.number().int().nonnegative().optional(),
@@ -280,11 +280,11 @@ const editorAddClipInputSchema = z.object({
   volume: z.number().min(0).max(2).optional(),
 });
 
-export const editorCommandSchema = z.discriminatedUnion("type", [
+export const SEditorCommand = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("addClip"),
     trackId: z.string().min(1),
-    clip: editorAddClipInputSchema,
+    clip: SEditorAddClipInput,
   }),
   z
     .object({
@@ -326,7 +326,7 @@ export const editorCommandSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const playbackCommandSchema = z.discriminatedUnion("type", [
+export const SPlaybackCommand = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("play"),
   }),
@@ -343,23 +343,23 @@ export const playbackCommandSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const interpretPlaybackRequestSchema = z.object({
+export const SInterpretPlaybackRequest = z.object({
   prompt: z.string().min(1),
   currentMs: z.number().int().nonnegative().optional(),
   durationMs: z.number().int().nonnegative().optional(),
 });
 
-export const interpretPlaybackResponseSchema = z.object({
-  command: playbackCommandSchema,
+export const SInterpretPlaybackResponse = z.object({
+  command: SPlaybackCommand,
   reasoning: z.string().optional(),
 });
 
-export const applyEditorCommandsInputSchema = z.object({
+export const SApplyEditorCommandsInput = z.object({
   timelineId: z.string().min(1),
-  commands: z.array(editorCommandSchema).min(1),
+  commands: z.array(SEditorCommand).min(1),
 });
 
-export const applyEditorCommandsResultSchema = z.object({
+export const SApplyEditorCommandsResult = z.object({
   status: z.enum(["applied", "no_change", "error"]),
   timelineId: z.string().min(1),
   newVersion: z.number().int().positive().nullable(),
@@ -368,57 +368,56 @@ export const applyEditorCommandsResultSchema = z.object({
   message: z.string().min(1),
 });
 
-export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
-export type ApiErrorResponse = z.infer<typeof apiErrorSchema>;
-export type HealthResponse = z.infer<typeof healthResponseSchema>;
-export type VersionResponse = z.infer<typeof versionResponseSchema>;
-export type MeUser = z.infer<typeof meUserSchema>;
-export type MeTenant = z.infer<typeof meTenantSchema>;
-export type MeResponse = z.infer<typeof meResponseSchema>;
-export type ProjectRole = z.infer<typeof projectRoleSchema>;
-export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
-export type Project = z.infer<typeof projectSchema>;
-export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
-export type ProjectResponse = z.infer<typeof projectResponseSchema>;
-export type AssetType = z.infer<typeof assetTypeSchema>;
-export type AssetStatus = z.infer<typeof assetStatusSchema>;
-export type CreateAssetUploadSessionRequest = z.infer<
-  typeof createAssetUploadSessionRequestSchema
+export type TApiErrorCode = z.infer<typeof SApiErrorCode>;
+export type TApiErrorResponse = z.infer<typeof SApiError>;
+export type THealthResponse = z.infer<typeof SHealthResponse>;
+export type TVersionResponse = z.infer<typeof SVersionResponse>;
+export type TMeUser = z.infer<typeof SMeUser>;
+export type TMeTenant = z.infer<typeof SMeTenant>;
+export type TMeResponse = z.infer<typeof SMeResponse>;
+export type TProjectRole = z.infer<typeof SProjectRole>;
+export type TCreateProjectRequest = z.infer<typeof SCreateProjectRequest>;
+export type TProject = z.infer<typeof SProject>;
+export type TProjectListResponse = z.infer<typeof SProjectListResponse>;
+export type TProjectResponse = z.infer<typeof SProjectResponse>;
+export type TAssetType = z.infer<typeof SAssetType>;
+export type TAssetStatus = z.infer<typeof SAssetStatus>;
+export type TCreateAssetUploadSessionRequest = z.infer<
+  typeof SCreateAssetUploadSessionRequest
 >;
-export type AssetUploadSessionResponse = z.infer<
-  typeof assetUploadSessionResponseSchema
+export type TAssetUploadSessionResponse = z.infer<
+  typeof SAssetUploadSessionResponse
 >;
-export type CompleteAssetUploadRequest = z.infer<
-  typeof completeAssetUploadRequestSchema
+export type TCompleteAssetUploadRequest = z.infer<
+  typeof SCompleteAssetUploadRequest
 >;
-export type Asset = z.infer<typeof assetSchema>;
-export type AssetResponse = z.infer<typeof assetResponseSchema>;
-export type ProjectAssetListResponse = z.infer<typeof projectAssetListResponseSchema>;
-export type TimelineTrackKind = z.infer<typeof timelineTrackKindSchema>;
-export type TimelineClipType = z.infer<typeof timelineClipTypeSchema>;
-export type TimelineVersionSource = z.infer<typeof timelineVersionSourceSchema>;
-export type TimelineClip = z.infer<typeof timelineClipSchema>;
-export type TimelineTrack = z.infer<typeof timelineTrackSchema>;
-export type TimelineData = z.infer<typeof timelineDataSchema>;
-export type Timeline = z.infer<typeof timelineSchema>;
-export type TimelineVersion = z.infer<typeof timelineVersionSchema>;
-export type TimelineWithLatestResponse = z.infer<
-  typeof timelineWithLatestResponseSchema
+export type TAsset = z.infer<typeof SAsset>;
+export type TAssetResponse = z.infer<typeof SAssetResponse>;
+export type TProjectAssetListResponse = z.infer<typeof SProjectAssetListResponse>;
+export type TTimelineTrackKind = z.infer<typeof STimelineTrackKind>;
+export type TTimelineClipType = z.infer<typeof STimelineClipType>;
+export type TTimelineVersionSource = z.infer<typeof STimelineVersionSource>;
+export type TTimelineClip = z.infer<typeof STimelineClip>;
+export type TTimelineTrack = z.infer<typeof STimelineTrack>;
+export type TTimelineData = z.infer<typeof STimelineData>;
+export type TTimeline = z.infer<typeof STimeline>;
+export type TTimelineVersion = z.infer<typeof STimelineVersion>;
+export type TTimelineWithLatestResponse = z.infer<
+  typeof STimelineWithLatestResponse
 >;
-export type CreateTimelineRequest = z.infer<typeof createTimelineRequestSchema>;
-export type SaveTimelineVersionRequest = z.infer<
-  typeof saveTimelineVersionRequestSchema
+export type TCreateTimelineRequest = z.infer<typeof SCreateTimelineRequest>;
+export type TSaveTimelineVersionRequest = z.infer<
+  typeof SSaveTimelineVersionRequest
 >;
-export type EditorCommand = z.infer<typeof editorCommandSchema>;
-export type ApplyEditorCommandsInput = z.infer<typeof applyEditorCommandsInputSchema>;
-export type ApplyEditorCommandsResult = z.infer<typeof applyEditorCommandsResultSchema>;
-export type PlaybackCommand = z.infer<typeof playbackCommandSchema>;
-export type InterpretPlaybackRequest = z.infer<typeof interpretPlaybackRequestSchema>;
-export type InterpretPlaybackResponse = z.infer<typeof interpretPlaybackResponseSchema>;
+export type TEditorCommand = z.infer<typeof SEditorCommand>;
+export type TApplyEditorCommandsInput = z.infer<typeof SApplyEditorCommandsInput>;
+export type TApplyEditorCommandsResult = z.infer<typeof SApplyEditorCommandsResult>;
+export type TPlaybackCommand = z.infer<typeof SPlaybackCommand>;
+export type TInterpretPlaybackRequest = z.infer<typeof SInterpretPlaybackRequest>;
+export type TInterpretPlaybackResponse = z.infer<typeof SInterpretPlaybackResponse>;
 
 export {
   applyEditorCommand,
   applyEditorCommands,
   createDefaultTimelineData,
 } from "./editor-command-engine";
-

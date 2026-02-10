@@ -195,7 +195,7 @@ export const WebLaunchVideo: React.FC<WebLaunchVideoProps> = ({
         durationInFrames={lookup.editor.durationInFrames}
         premountFor={15}
       >
-        <EditorCommandScene durationInFrames={lookup.editor.durationInFrames} />
+        <TEditorCommandScene durationInFrames={lookup.editor.durationInFrames} />
       </Sequence>
 
       <CutFlash atFrame={lookup.versions.start} />
@@ -486,7 +486,7 @@ const UploadPipelineScene: React.FC<{ durationInFrames: number }> = ({
   );
 };
 
-const EditorCommandScene: React.FC<{ durationInFrames: number }> = ({
+const TEditorCommandScene: React.FC<{ durationInFrames: number }> = ({
   durationInFrames,
 }) => {
   const frame = useCurrentFrame();
