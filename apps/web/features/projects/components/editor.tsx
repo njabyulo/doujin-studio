@@ -31,10 +31,12 @@ import { deriveTitle, formatTimestamp } from "../utils";
 import {
   interpretTPlaybackCommand,
   executeTPlaybackCommand,
+  PlaybackCommandError,
 } from "~/lib/playback-commands";
 import { buildAuthHref } from "~/lib/auth-navigation";
 import { Scissors } from "lucide-react";
 import { PlaybackPanel } from "./PlaybackPanel";
+import { toast } from "sonner";
 
 const LOCAL_ASSET_ID = "local-video";
 
@@ -82,7 +84,28 @@ export function Editor({ projectId }: EditorProps) {
       executeTPlaybackCommand(videoRef.current, command);
       setCommandInput("");
     } catch (error) {
-      console.error("Playback command failed:", error);
+      if (error instanceof PlaybackCommandError) {
+        if (error.code === "RATE_LIMITED" || error.status === 429) {
+          const reset = error.creditsResetIso
+            ? new Date(error.creditsResetIso)
+            : null;
+          const resetLabel = reset
+            ? `Resets at ${reset.toUTCString()}`
+            : "Resets at 00:00 UTC";
+          const limitLabel =
+            typeof error.creditsLimit === "number"
+              ? `${error.creditsLimit} calls/day`
+              : "daily credits";
+
+          toast.error("Daily credits used up", {
+            description: `${limitLabel}. ${resetLabel}.`,
+          });
+          return;
+        }
+      }
+
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error("Playback assistant failed", { description: message });
     } finally {
       setIsInterpreting(false);
     }
