@@ -1,15 +1,15 @@
 import {
-  STAssetResponse,
-  STAssetUploadSessionResponse,
+  SAssetResponse as STAssetResponse,
+  SAssetUploadSessionResponse as STAssetUploadSessionResponse,
   SApiError,
-  STHealthResponse,
+  SHealthResponse as STHealthResponse,
   SMeResponse,
-  STProjectAssetListResponse,
-  STProjectListResponse,
-  STProjectResponse,
+  SProjectAssetListResponse as STProjectAssetListResponse,
+  SProjectListResponse as STProjectListResponse,
+  SProjectResponse as STProjectResponse,
   STTimelineWithLatestResponse,
-  STVersionResponse,
-} from "@doujin/contracts";
+  SVersionResponse as STVersionResponse,
+} from "@doujin/core";
 import { convertSetCookieToCookie } from "better-auth/test";
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
