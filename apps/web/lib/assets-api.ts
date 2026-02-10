@@ -40,6 +40,9 @@ export class ApiClientError extends Error {
 }
 
 function getApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    return "";
+  }
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
   return configured.endsWith("/") ? configured.slice(0, -1) : configured;
 }
