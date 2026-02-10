@@ -21,6 +21,7 @@ export interface AppBindings {
   GIT_SHA: string;
   AUTH_SECRET: string;
   GEMINI_API_KEY: string;
+  AI_INTERPRET_MODEL: string;
   AI_CHAT_MODEL: string;
   AI_CHAT_RATE_LIMIT_PER_HOUR: string;
   AI_CHAT_MAX_TOOL_CALLS: string;

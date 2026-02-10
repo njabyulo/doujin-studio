@@ -8,6 +8,7 @@ workers_dev = true
 APP_ENV = "development"
 CORS_ORIGIN = "http://localhost:8787"
 GIT_SHA = "dev"
+AI_INTERPRET_MODEL = "gemini-3-flash-preview"
 
 [[d1_databases]]
 binding = "DB"
@@ -23,6 +24,7 @@ zone_name = "njabulomajozi.com"
 APP_ENV = "production"
 CORS_ORIGIN = "https://doujin.njabulomajozi.com"
 GIT_SHA = "prod"
+AI_INTERPRET_MODEL = "gemini-3-flash-preview"
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -40,6 +42,7 @@ CORS_ORIGIN = "http://localhost:8787"
 GIT_SHA = "test-sha"
 AUTH_SECRET = "test-auth-secret-for-vitest-1234567890"
 GEMINI_API_KEY = "test-gemini-key"
+AI_INTERPRET_MODEL = "gemini-3-flash-preview"
 
 [[env.test.d1_databases]]
 binding = "DB"

@@ -117,14 +117,10 @@ function fallbackInterpret(args: {
   };
 }
 
-function shouldUseFallback(apiKey: string, appEnv: string | undefined) {
-  const trimmed = apiKey.trim();
-  if (!trimmed) return true;
-  // Avoid outbound calls in test mode.
-  if (appEnv === "test") return true;
-  // Common placeholder used in local/test configs.
-  if (trimmed === "test-gemini-key") return true;
-  return false;
+function isValidModelId(model: string) {
+  // We treat AI_INTERPRET_MODEL as a bare model id, e.g. "gemini-3-flash-preview".
+  // Keep it strict to avoid accidental URL/path injection.
+  return /^[a-z0-9][a-z0-9._-]{0,80}$/i.test(model);
 }
 
 export function createEditorRoutes() {
@@ -150,6 +146,7 @@ export function createEditorRoutes() {
 
     const { prompt, currentMs, durationMs } = parsed.data;
     const apiKey = c.env.GEMINI_API_KEY ?? "";
+    const model = c.env.AI_INTERPRET_MODEL ?? "gemini-3-flash-preview";
 
     const forceFallback = c.req.header("x-ai-test-mode") === "1";
 
@@ -299,11 +296,19 @@ export function createEditorRoutes() {
       c.header("x-ai-credits-reset", resetIso);
     }
 
-    if (forceFallback || shouldUseFallback(apiKey, c.env.APP_ENV)) {
+    if (forceFallback) {
       return c.json(
         SInterpretPlaybackResponse.parse(fallbackInterpret(parsed.data)),
         200,
       );
+    }
+
+    if (!apiKey.trim()) {
+      throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
+    }
+
+    if (!isValidModelId(model)) {
+      throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
     }
 
     const systemInstruction = `You are a video editor playback controller.
@@ -328,43 +333,49 @@ Rules:
     const requestText = `Prompt: "${prompt}"
 Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(
-        apiKey,
-      )}`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemInstruction }],
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+          apiKey,
+        )}`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
           },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: requestText }],
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemInstruction }],
             },
-          ],
-          generationConfig: {
-            temperature: 0.2,
-          },
-        }),
-      },
-    );
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: requestText }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.2,
+            },
+          }),
+        },
+      );
+    } catch (error) {
+      console.error("[editor/interpret] Gemini request threw", {
+        model,
+        error: error instanceof Error ? error.message : "unknown_error",
+      });
+      throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       console.error("[editor/interpret] Gemini request failed", {
+        model,
         status: response.status,
         body: text.slice(0, 500),
       });
-
-      return c.json(
-        SInterpretPlaybackResponse.parse(fallbackInterpret(parsed.data)),
-        200,
-      );
+      throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
     }
 
     const data = (await response.json().catch(() => null)) as any;
@@ -376,22 +387,14 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
 
     const jsonText = extractFirstJsonObject(text);
     if (!jsonText) {
-      throw new ApiError(
-        500,
-        "INTERNAL_ERROR",
-        "AI response was not valid JSON",
-      );
+      throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
     }
 
     let interpreted: unknown;
     try {
       interpreted = JSON.parse(jsonText);
     } catch {
-      throw new ApiError(
-        500,
-        "INTERNAL_ERROR",
-        "AI response was not valid JSON",
-      );
+      throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
     }
 
     const out = SInterpretPlaybackResponse.safeParse(interpreted);
@@ -410,7 +413,7 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
     }
 
     console.error("[editor/interpret] schema mismatch", out.error);
-    throw new ApiError(500, "INTERNAL_ERROR", "AI response schema mismatch");
+    throw new ApiError(503, "AI_UNAVAILABLE", "AI temporarily unavailable");
   });
 
   return app;
