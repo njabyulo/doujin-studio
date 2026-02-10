@@ -1,69 +1,57 @@
-# Deploy Guide (Canonical)
+# Deploy Guide
 
-This is the canonical deploy runbook for `apps/api` and `apps/web`.
+Deploy runbook for `apps/api` (Cloudflare Worker) and `apps/web` (OpenNext on Cloudflare).
 
-## 1. Topology and route ownership
+## Topology and route ownership
 
 - API worker: `doujin-api`
   - Route: `doujin.njabulomajozi.com/api/*`
-  - Bindings: `DB` (D1), `MEDIA_BUCKET` (R2)
+  - D1 binding: `DB`
 - Web worker: `doujin-web`
   - Route: `doujin.njabulomajozi.com/*`
 
-Goal: API route must always resolve to `doujin-api` after deploy.
+Goal: `/api/*` must always resolve to `doujin-api`.
 
-## 2. Config and secret matrix
+## Config and secrets
 
-### API (`apps/api/wrangler.toml` + secrets)
+### API (`apps/api/wrangler.toml`)
 
 Non-secret vars:
 
 - `APP_ENV`
 - `CORS_ORIGIN`
 - `GIT_SHA`
-- `MEDIA_BUCKET_NAME`
-- `R2_ACCOUNT_ID`
-- `R2_PRESIGN_TTL_SECONDS`
 
 Secrets:
 
 - `AUTH_SECRET`
-- `GEMINI_API_KEY`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
+- `GEMINI_API_KEY` (used by `POST /api/editor/interpret`)
 
 ### Web (`apps/web/wrangler.jsonc` + env)
 
 - Worker config in `apps/web/wrangler.jsonc`
-- local env (`apps/web/.env.local`) must include:
+- Runtime env must include:
   - `NEXT_PUBLIC_API_BASE_URL`
   - `NEXT_PUBLIC_APP_URL`
 
-## 3. Pre-deploy checks
+## Pre-deploy checks
 
 From repo root:
 
 ```bash
-pnpm --filter api exec wrangler whoami
-pnpm --filter api exec wrangler r2 bucket list
-pnpm --filter @doujin/database exec wrangler d1 info doujin --config ../../apps/api/wrangler.toml
 pnpm lint:type
 pnpm lint:code
 pnpm test
 pnpm --filter web run build
 ```
 
-## 4. Release sequence
+## Deploy sequence
 
-From repo root:
-
-1. Apply remote DB migrations:
+1. Apply remote DB migrations (if needed):
 
 ```bash
 pnpm db:migrate:remote
 ```
-
-Includes timeline migration (`0004_timelines.sql`) for Epic D.
 
 2. Deploy API:
 
@@ -71,14 +59,18 @@ Includes timeline migration (`0004_timelines.sql`) for Epic D.
 pnpm --filter api run deploy
 ```
 
-3. Verify API before web deploy:
+3. Verify API:
 
 ```bash
 curl -i https://doujin.njabulomajozi.com/api/health
 curl -i https://doujin.njabulomajozi.com/api/version
 ```
 
-4. Deploy web:
+Notes:
+
+- Root routes (for example `https://doujin.njabulomajozi.com/health`) are expected to be `404`.
+
+4. Deploy Web:
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=https://doujin.njabulomajozi.com \
@@ -88,33 +80,13 @@ pnpm --filter web run deploy
 
 5. Verify end-to-end:
 
-```bash
-curl -i https://doujin.njabulomajozi.com/
-curl -i https://doujin.njabulomajozi.com/api/health
-curl -i https://doujin.njabulomajozi.com/api/projects/<projectId>/timelines/latest -H 'Cookie: better-auth.session_token=<token>'
-```
+- Open `https://doujin.njabulomajozi.com/`
+- Create/sign-in
+- Create a project
+- Upload a clip and confirm local preview works
+- Use playback assistant to seek/pause/resume
 
-## 5. R2 CORS management
-
-Source policy file:
-
-- `docs/guides/deploy/r2-cors.json`
-
-Apply policy:
-
-```bash
-pnpm --filter api exec wrangler r2 bucket cors set doujin-media docs/guides/deploy/r2-cors.json
-```
-
-Read policy back:
-
-```bash
-pnpm --filter api exec wrangler r2 bucket cors get doujin-media
-```
-
-Policy must allow browser upload origins and methods (`PUT`, `GET`, `HEAD`) and expose `etag`.
-
-## 6. Rollback
+## Rollback
 
 ### API rollback
 
@@ -137,52 +109,18 @@ curl -i https://doujin.njabulomajozi.com/
 curl -i https://doujin.njabulomajozi.com/api/health
 ```
 
-## 7. Troubleshooting
+## Troubleshooting
 
-### R2 signing or upload failures
+### Route conflicts (`/api/*` serving web)
 
-- Check `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`.
-- Confirm presign TTL (`R2_PRESIGN_TTL_SECONDS`) and bucket name (`MEDIA_BUCKET_NAME`).
-- Confirm CORS policy is applied from `docs/guides/deploy/r2-cors.json`.
+- Re-deploy API and re-verify `/api/health` before touching web.
+- Confirm Cloudflare route configuration still points `/api/*` to `doujin-api`.
 
 ### Auth failures (`401`)
 
 - Verify `AUTH_SECRET` consistency and session cookie behavior.
-- Confirm `CORS_ORIGIN` matches web origin in each environment.
+- Confirm `CORS_ORIGIN` matches the web origin for that environment.
 
-### Route conflicts (`/api/*` serving web)
+### Playback assistant failures (`/api/editor/interpret`)
 
-- API worker deployment may be missing/failed.
-- Re-deploy API and re-verify `/api/health` before touching web.
-
-### Upload pipeline regressions
-
-- Validate sequence:
-  - upload-session
-  - R2 `PUT`
-  - complete
-  - list asset
-  - secured file stream/range
-- Confirm `assets.status` transitions to `uploaded` only after object existence + size match.
-
-### Timeline save/load regressions
-
-- Verify `POST /api/projects/:id/timelines` creates initial version `1`.
-- Verify `PATCH /api/timelines/:id` and `POST /api/timelines/:id/versions` increment versions.
-- Verify stale `baseVersion` returns `400 BAD_REQUEST`.
-- Verify non-member timeline read/write returns `404 NOT_FOUND`.
-
-## 8. Release evidence checklist
-
-Record for each deploy:
-
-- Date/time (UTC)
-- Operator
-- Commit SHA
-- `db:migrate:remote` result
-- API deploy ID
-- Web deploy ID
-- `/api/health` status
-- `/api/version` status
-- smoke E2E result (project upload + playback)
-- rollback needed? (yes/no + reason)
+- Verify `GEMINI_API_KEY` is configured for the API worker.

@@ -1,27 +1,42 @@
 # Doujin Media Monorepo
 
 AI-assisted video editing stack with:
+
 - web editor (`apps/web`)
 - API worker (`apps/api`)
-- shared contracts (`packages/contracts`)
+- shared types/schemas (`packages/core`)
 - database schema + migrations (`packages/database`)
 
 ## What Works Today
 
 - Email/password auth with Better Auth (`/auth/sign-in`, `/auth/sign-up`)
-- Upload flow with instant local preview + Cloudflare R2 upload sessions
-- Poster generation on upload path
-- Timeline CRUD + versioned autosave/manual saves
-- AI chat edits via `POST /api/ai/chat` (Gemini + structured tool calls)
+- Create and list projects
+- Local-first editor: upload a clip and edit a timeline stored in browser session state
+- AI playback assistant (Gemini) that interprets natural-language playback commands via `POST /api/editor/interpret` (served by `apps/api`)
+
+## API Surface (Consumed By `apps/web`)
+
+Only these API endpoints are expected/maintained:
+
+- `GET|POST|OPTIONS /api/auth/*`
+- `GET /api/me`
+- `GET /api/projects`
+- `POST /api/projects`
+- `GET /api/health`
+- `GET /api/version`
+- `POST /api/editor/interpret`
+
+The API worker intentionally does not serve a duplicate root surface (for example `/health` without `/api`).
 
 ## Repo Map
 
 - `apps/web`: Next.js app (home, auth, editor)
-- `apps/api`: Hono API on Cloudflare Workers
-- `packages/contracts`: Zod schemas + shared types
+- `apps/api`: Hono API on Cloudflare Workers (auth + projects)
+- `packages/core`: Zod schemas + shared types
 - `packages/database`: Drizzle schema + D1 migrations
-- `docs/guides/testing.md`: end-to-end validation runbook
+- `docs/guides/testing.md`: local + CI testing runbook
 - `docs/guides/deploy.md`: deploy/rollback runbook
+- `docs/guides/release.md`: release checklist
 
 ## Local Onboarding (New Dev)
 
@@ -29,7 +44,6 @@ AI-assisted video editing stack with:
 
 - Node.js 20+
 - `pnpm` 10+
-- Cloudflare access for R2/D1-backed local dev
 
 ### 2. Install
 
@@ -47,31 +61,30 @@ cp apps/web/.env.example apps/web/.env.local
 ### 4. Set required env values
 
 Use this local topology with `pnpm dev`:
+
 - Web: `http://localhost:3000`
 - API: `http://localhost:8787`
 
 `apps/api/.dev.vars` (minimum):
+
 - `AUTH_SECRET`
-- `GEMINI_API_KEY` (required for real AI responses)
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `R2_ACCOUNT_ID`
 - `CORS_ORIGIN=http://localhost:3000`
 
+Optional (enables real AI playback interpretation):
+
+- `GEMINI_API_KEY=...`
+
 Recommended API defaults:
+
 - `APP_ENV=development`
-- `R2_PRESIGN_TTL_SECONDS=900`
-- `AI_CHAT_MODEL=gemini-2.5-flash`
-- `AI_CHAT_RATE_LIMIT_PER_HOUR=20`
-- `AI_CHAT_MAX_TOOL_CALLS=2`
-- `AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL=12`
-- `AI_CHAT_LOG_SNIPPET_CHARS=600`
+- `GIT_SHA=dev-local`
 
 `apps/web/.env.local`:
+
 - `NEXT_PUBLIC_API_BASE_URL=http://localhost:8787`
 - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
 
-Important: Keep hostname style consistent (`localhost` everywhere) to avoid cookie/session issues.
+Important: keep hostname style consistent (`localhost` everywhere) to avoid cookie/session issues.
 
 ### 5. Apply DB migrations
 
@@ -92,47 +105,30 @@ curl -i http://localhost:8787/api/health
 curl -i http://localhost:3000
 ```
 
-Expected:
-- API health returns `200` + `{"ok":true}`
-- Web root returns `200`
-
 ## First Happy-Path Check (5 minutes)
 
 1. Open `http://localhost:3000`.
 2. Click `Create account` and sign up.
 3. Upload a video from `/`.
 4. Confirm redirect into `/projects/:id` and video preview appears.
-5. In chat panel, send: `trim clip 1 to 3s`.
-6. Confirm timeline updates and save status returns to `Saved`.
+5. In the playback assistant, send: `go to middle`.
+6. Confirm the video seeks and the command reasoning appears.
 
 ## Key Runtime Flows
 
-### Upload + Media
+### Projects
 
 1. `POST /api/projects`
-2. `POST /api/projects/:id/assets/upload-session`
-3. Browser `PUT` directly to R2 pre-signed URL
-4. `POST /api/assets/:id/complete`
-5. `GET /api/projects/:id/assets?...`
-6. `GET /api/assets/:id/file` (auth + range support)
+2. `GET /api/projects`
 
-### Timeline
+### Editor Timeline (Local)
 
-1. `POST /api/projects/:id/timelines` (create/reuse)
-2. `GET /api/projects/:id/timelines/latest` or `GET /api/timelines/:id`
-3. `PATCH /api/timelines/:id` (autosave)
-4. `POST /api/timelines/:id/versions` (manual save)
+- Timeline state is computed and persisted client-side (session storage). No timeline CRUD endpoints are used.
 
-Rules:
-- optimistic locking via `baseVersion`
-- timeline timebase is milliseconds
-- `401` unauthenticated, `404` non-member/missing resource
+### AI Playback Assistant
 
-### AI Chat
-
-- `POST /api/ai/chat` (also mounted at `/ai/chat`)
-- streams assistant responses
-- bounded tool-calls apply structured editor commands and persist `source: "ai"` timeline versions
+- `POST /api/editor/interpret` (API worker route in `apps/api`)
+- Returns a structured playback command (play/pause/seek/none) plus reasoning.
 
 ## Daily Commands
 
@@ -149,12 +145,11 @@ pnpm --filter web run deploy
 
 ## Troubleshooting
 
-- `401 UNAUTHORIZED` in UI/API: session missing/expired; re-auth and verify `CORS_ORIGIN` + app origin match.
-- Upload session works but complete fails: validate R2 credentials and object size consistency.
-- Editor save conflict (`400 BAD_REQUEST`): stale `baseVersion`; refresh timeline.
-- AI errors: check `GEMINI_API_KEY` and API logs.
+- `401 UNAUTHORIZED`: session missing/expired; verify `CORS_ORIGIN` + app origin match.
+- AI errors on `/api/editor/interpret`: confirm `GEMINI_API_KEY` is configured for `apps/api`.
 
 ## More Guides
 
 - [Testing guide](docs/guides/testing.md)
 - [Deploy guide](docs/guides/deploy.md)
+- [Release guide](docs/guides/release.md)
