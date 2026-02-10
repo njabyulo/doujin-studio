@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+
 export const apiErrorCodeSchema = z.enum([
   "UNAUTHORIZED",
   "BAD_REQUEST",
@@ -325,6 +326,34 @@ export const editorCommandSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+export const playbackCommandSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("play"),
+  }),
+  z.object({
+    type: z.literal("pause"),
+  }),
+  z.object({
+    type: z.literal("seek"),
+    toMs: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("none"),
+    message: z.string().optional(),
+  }),
+]);
+
+export const interpretPlaybackRequestSchema = z.object({
+  prompt: z.string().min(1),
+  currentMs: z.number().int().nonnegative().optional(),
+  durationMs: z.number().int().nonnegative().optional(),
+});
+
+export const interpretPlaybackResponseSchema = z.object({
+  command: playbackCommandSchema,
+  reasoning: z.string().optional(),
+});
+
 export const applyEditorCommandsInputSchema = z.object({
   timelineId: z.string().min(1),
   commands: z.array(editorCommandSchema).min(1),
@@ -337,63 +366,6 @@ export const applyEditorCommandsResultSchema = z.object({
   appliedCommandCount: z.number().int().nonnegative(),
   changedClipIds: z.array(z.string().min(1)),
   message: z.string().min(1),
-});
-
-export const aiChatContextModeSchema = z.enum(["phase1", "phase2", "phase3"]);
-
-export const aiChatTranscriptSegmentSchema = z
-  .object({
-    startMs: z.number().int().nonnegative(),
-    endMs: z.number().int().nonnegative(),
-    text: z.string().trim().min(1).max(1_000),
-    speaker: z.string().trim().min(1).max(120).optional(),
-  })
-  .refine((segment) => segment.endMs > segment.startMs, {
-    message: "Transcript segment endMs must be greater than startMs",
-    path: ["endMs"],
-  });
-
-export const aiChatKeyframeSchema = z.object({
-  timestampMs: z.number().int().nonnegative(),
-  imageUrl: z.string().url(),
-  description: z.string().trim().max(500).optional(),
-});
-
-export const aiChatVideoRefSchema = z.object({
-  url: z.string().url(),
-  mime: z.string().trim().min(1).max(120).optional(),
-  durationMs: z.number().int().positive().optional(),
-});
-
-export const aiChatTimelineMetadataSchema = z.object({
-  fps: z.number().int().positive(),
-  durationMs: z.number().int().nonnegative(),
-  trackCount: z.number().int().nonnegative(),
-  clipCount: z.number().int().nonnegative(),
-});
-
-export const aiChatContextSchema = z.object({
-  mode: aiChatContextModeSchema,
-  timelineMetadata: aiChatTimelineMetadataSchema.optional(),
-  notes: z.string().trim().max(4_000).optional(),
-  transcript: z.array(aiChatTranscriptSegmentSchema).max(400).optional(),
-  keyframes: z.array(aiChatKeyframeSchema).max(200).optional(),
-  videoRef: aiChatVideoRefSchema.optional(),
-});
-
-export const aiChatMessageSchema = z
-  .object({
-    id: z.string().min(1).optional(),
-    role: z.enum(["system", "user", "assistant", "tool"]),
-    parts: z.array(z.unknown()).optional(),
-    metadata: z.unknown().optional(),
-  })
-  .passthrough();
-
-export const aiChatRequestSchema = z.object({
-  timelineId: z.string().min(1),
-  messages: z.array(aiChatMessageSchema).min(1),
-  context: aiChatContextSchema.optional(),
 });
 
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
@@ -440,17 +412,13 @@ export type SaveTimelineVersionRequest = z.infer<
 export type EditorCommand = z.infer<typeof editorCommandSchema>;
 export type ApplyEditorCommandsInput = z.infer<typeof applyEditorCommandsInputSchema>;
 export type ApplyEditorCommandsResult = z.infer<typeof applyEditorCommandsResultSchema>;
-export type AiChatContextMode = z.infer<typeof aiChatContextModeSchema>;
-export type AiChatTranscriptSegment = z.infer<typeof aiChatTranscriptSegmentSchema>;
-export type AiChatKeyframe = z.infer<typeof aiChatKeyframeSchema>;
-export type AiChatVideoRef = z.infer<typeof aiChatVideoRefSchema>;
-export type AiChatTimelineMetadata = z.infer<typeof aiChatTimelineMetadataSchema>;
-export type AiChatContext = z.infer<typeof aiChatContextSchema>;
-export type AiChatMessage = z.infer<typeof aiChatMessageSchema>;
-export type AiChatRequest = z.infer<typeof aiChatRequestSchema>;
+export type PlaybackCommand = z.infer<typeof playbackCommandSchema>;
+export type InterpretPlaybackRequest = z.infer<typeof interpretPlaybackRequestSchema>;
+export type InterpretPlaybackResponse = z.infer<typeof interpretPlaybackResponseSchema>;
 
 export {
   applyEditorCommand,
   applyEditorCommands,
   createDefaultTimelineData,
 } from "./editor-command-engine";
+
