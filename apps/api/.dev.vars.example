@@ -1,22 +1,13 @@
 # Non-sensitive values can stay in wrangler.toml [vars].
 # Sensitive values must be injected via .dev.vars locally and `wrangler secret put` in Cloudflare.
+
 AUTH_SECRET=
 GEMINI_API_KEY=
 
-# Playback assistant model (Gemini)
+# Non-secret configuration
 AI_INTERPRET_MODEL=gemini-3-flash-preview
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
 
-# Optional local overrides for [vars]
+# Optional local overrides for wrangler.toml [vars]
 APP_ENV=development
-CORS_ORIGIN=http://localhost:8787
+CORS_ORIGIN=http://localhost:3000
 GIT_SHA=dev-local
-R2_ACCOUNT_ID=
-R2_PRESIGN_TTL_SECONDS=900
-
-AI_CHAT_MODEL=gemini-2.5-flash
-AI_CHAT_RATE_LIMIT_PER_HOUR=20
-AI_CHAT_MAX_TOOL_CALLS=2
-AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL=12
-AI_CHAT_LOG_SNIPPET_CHARS=600

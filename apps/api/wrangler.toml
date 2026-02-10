@@ -6,7 +6,7 @@ workers_dev = true
 
 [vars]
 APP_ENV = "development"
-CORS_ORIGIN = "http://localhost:8787"
+CORS_ORIGIN = "http://localhost:3000"
 GIT_SHA = "dev"
 AI_INTERPRET_MODEL = "gemini-3-flash-preview"
 
@@ -38,7 +38,7 @@ zone_name = "njabulomajozi.com"
 
 [env.test.vars]
 APP_ENV = "test"
-CORS_ORIGIN = "http://localhost:8787"
+CORS_ORIGIN = "http://localhost:3000"
 GIT_SHA = "test-sha"
 AUTH_SECRET = "test-auth-secret-for-vitest-1234567890"
 GEMINI_API_KEY = "test-gemini-key"
