@@ -247,10 +247,10 @@ export function HomePage() {
           {authState === "guest" ? (
             <>
               <Button variant="glass" className="rounded-full px-5" asChild>
-                <Link href={buildAuthHref("/auth/sign-in", "/")}>Sign in</Link>
+                <Link href={buildAuthHref("/auth/sign-in", "/projects")}>Sign in</Link>
               </Button>
               <Button variant="accent" className="rounded-full px-5" asChild>
-                <Link href={buildAuthHref("/auth/sign-up", "/")}>Create account</Link>
+                <Link href={buildAuthHref("/auth/sign-up", "/projects")}>Create account</Link>
               </Button>
             </>
           ) : null}
@@ -327,7 +327,7 @@ export function HomePage() {
                 className={cn(
                   "group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-4 rounded-[28px] border border-dashed border-[color:var(--ds-border)] bg-white/55 p-6 text-center shadow-[var(--ds-shadow-soft)] transition",
                   isDragging &&
-                    "border-[color:var(--ds-accent-warm)] bg-white/80",
+                  "border-[color:var(--ds-accent-warm)] bg-white/80",
                 )}
                 onClick={() => inputRef.current?.click()}
                 onDragOver={(event) => {

@@ -14,6 +14,9 @@ type MeResponse = {
 };
 
 function getApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    return "";
+  }
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
   return configured.endsWith("/") ? configured.slice(0, -1) : configured;
 }
@@ -42,6 +45,16 @@ async function authRequest(path: string, payload?: unknown) {
     },
     body: payload ? JSON.stringify(payload) : undefined,
   });
+
+  if (!response.ok) {
+    // Clone response to read text body for debugging without consuming the stream for the json call below
+    const errorBody = await response.clone().text();
+    console.error(`[auth-api] Request to ${path} failed with status ${response.status}`, {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorBody
+    });
+  }
 
   const body = (await readJson(response)) as
     | { error?: { code?: string; message?: string } }
