@@ -15,6 +15,7 @@ import {
   assetStatusSchema,
   assetTypeSchema,
   assetUploadSessionResponseSchema,
+  deriveEdlFromTimelineData,
   createTimelineRequestSchema,
   createAssetUploadSessionRequestSchema,
   createProjectRequestSchema,
@@ -26,6 +27,7 @@ import {
 import { Hono } from "hono";
 import { ApiError } from "../errors";
 import { toAssetResponse } from "../lib/asset-response";
+import { resolveEdlForTimelineVersion, toStoredEdlData } from "../lib/edl-access";
 import { requireProjectMembership } from "../lib/project-access";
 import { createR2PresignedPutUrl } from "../lib/r2-presign";
 import { requireLatestTimelineVersion } from "../lib/timeline-access";
@@ -216,8 +218,17 @@ export function createProjectRoutes() {
 
     if (existingTimeline) {
       const latestVersion = await requireLatestTimelineVersion(db, existingTimeline.id);
+      const latestEdl = resolveEdlForTimelineVersion({
+        timelineId: latestVersion.timelineId,
+        version: latestVersion.version,
+        source: latestVersion.source,
+        data: latestVersion.data,
+        edlData: latestVersion.edlData,
+      });
       return c.json(
-        toTimelineWithLatestResponse(existingTimeline, latestVersion),
+        toTimelineWithLatestResponse(existingTimeline, latestVersion, {
+          latestEdl,
+        }),
         200,
       );
     }
@@ -283,6 +294,12 @@ export function createProjectRoutes() {
         },
       ],
     });
+    const initialEdl = deriveEdlFromTimelineData({
+      timelineId,
+      baseVersion: 1,
+      data: initialData,
+      source: "system",
+    });
 
     try {
       await db.batch([
@@ -301,6 +318,7 @@ export function createProjectRoutes() {
           source: "system",
           createdByUserId: user.id,
           data: initialData,
+          edlData: toStoredEdlData(initialEdl),
         }),
       ]);
     } catch (error) {
@@ -327,8 +345,17 @@ export function createProjectRoutes() {
     }
 
     const latestVersion = await requireLatestTimelineVersion(db, createdTimeline.id);
+    const latestEdl = resolveEdlForTimelineVersion({
+      timelineId: latestVersion.timelineId,
+      version: latestVersion.version,
+      source: latestVersion.source,
+      data: latestVersion.data,
+      edlData: latestVersion.edlData,
+    });
     return c.json(
-      toTimelineWithLatestResponse(createdTimeline, latestVersion),
+      toTimelineWithLatestResponse(createdTimeline, latestVersion, {
+        latestEdl,
+      }),
       201,
     );
   });
@@ -361,8 +388,17 @@ export function createProjectRoutes() {
     }
 
     const latestVersion = await requireLatestTimelineVersion(db, foundTimeline.id);
+    const latestEdl = resolveEdlForTimelineVersion({
+      timelineId: latestVersion.timelineId,
+      version: latestVersion.version,
+      source: latestVersion.source,
+      data: latestVersion.data,
+      edlData: latestVersion.edlData,
+    });
     return c.json(
-      toTimelineWithLatestResponse(foundTimeline, latestVersion),
+      toTimelineWithLatestResponse(foundTimeline, latestVersion, {
+        latestEdl,
+      }),
       200,
     );
   });

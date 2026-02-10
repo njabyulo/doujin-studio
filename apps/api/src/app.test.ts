@@ -132,11 +132,27 @@ const AUTH_SCHEMA_STATEMENTS = [
     "source" text NOT NULL DEFAULT 'system',
     "created_by_user_id" text NOT NULL,
     "data" text NOT NULL,
+    "edl_data" text,
     "created_at" integer NOT NULL,
     FOREIGN KEY ("timeline_id") REFERENCES "timelines"("id") ON DELETE CASCADE
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "timeline_versions_timeline_version_unique" ON "timeline_versions" ("timeline_id", "version")`,
   `CREATE INDEX IF NOT EXISTS "timeline_versions_timeline_created_at_idx" ON "timeline_versions" ("timeline_id", "created_at")`,
+  `CREATE TABLE IF NOT EXISTS "ai_edl_proposals" (
+    "id" text PRIMARY KEY NOT NULL,
+    "timeline_id" text NOT NULL,
+    "base_version" integer NOT NULL,
+    "created_by_user_id" text NOT NULL,
+    "prompt_excerpt" text NOT NULL,
+    "operations_json" text NOT NULL,
+    "assistant_summary" text NOT NULL,
+    "expires_at" integer NOT NULL,
+    "consumed_at" integer,
+    "created_at" integer NOT NULL,
+    FOREIGN KEY ("timeline_id") REFERENCES "timelines"("id") ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ai_edl_proposals_timeline_created_idx" ON "ai_edl_proposals" ("timeline_id", "created_at")`,
+  `CREATE INDEX IF NOT EXISTS "ai_edl_proposals_expires_idx" ON "ai_edl_proposals" ("expires_at")`,
   `CREATE TABLE IF NOT EXISTS "ai_chat_logs" (
     "id" text PRIMARY KEY NOT NULL,
     "user_id" text NOT NULL,
@@ -158,6 +174,7 @@ const AUTH_SCHEMA_STATEMENTS = [
 
 const CLEAR_TABLE_STATEMENTS = [
   `DELETE FROM "ai_chat_logs"`,
+  `DELETE FROM "ai_edl_proposals"`,
   `DELETE FROM "timeline_versions"`,
   `DELETE FROM "timelines"`,
   `DELETE FROM "assets"`,
@@ -365,6 +382,19 @@ async function postAiChat(
       ...(cookie ? { cookie } : {}),
     },
     body: JSON.stringify(payload),
+  });
+
+  return response;
+}
+
+async function postApplyEdlProposal(cookie: string, proposalId: string) {
+  const response = await SELF.fetch("https://example.com/api/edl/apply", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+    },
+    body: JSON.stringify({ proposalId }),
   });
 
   return response;
@@ -1045,7 +1075,7 @@ describe("api worker", () => {
     expect(streamPayload).toContain("Test mode response");
   });
 
-  it("applies trim commands via AI tool calls and persists ai timeline versions", async () => {
+  it("creates EDL proposals via AI tool calls without mutating timeline versions", async () => {
     const { cookie } = await createAuthSession("ai-trim@example.com");
     const createdProject = await createProject(cookie, "AI Trim");
     const seededTimeline = await createTimelineWithUploadedSeedAsset(
@@ -1060,6 +1090,20 @@ describe("api worker", () => {
     expect(chatResponse.status).toBe(200);
     await chatResponse.text();
 
+    const latestProposal = await env.DB.prepare(
+      `SELECT id, base_version
+       FROM ai_edl_proposals
+       WHERE timeline_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    )
+      .bind(seededTimeline.timeline.id)
+      .first<{ id: string; base_version: number | string }>();
+    expect(latestProposal?.id).toBeTruthy();
+    expect(Number(latestProposal?.base_version ?? 0)).toBe(
+      seededTimeline.latestVersion.version,
+    );
+
     const refreshedResponse = await getTimeline(cookie, seededTimeline.timeline.id);
     expect(refreshedResponse.status).toBe(200);
     const refreshedTimeline = timelineWithLatestResponseSchema.parse(
@@ -1067,16 +1111,89 @@ describe("api worker", () => {
     );
 
     expect(refreshedTimeline.latestVersion.version).toBe(
-      seededTimeline.latestVersion.version + 1,
+      seededTimeline.latestVersion.version,
     );
-    expect(refreshedTimeline.latestVersion.source).toBe("ai");
+  });
 
-    const videoTrack = refreshedTimeline.latestVersion.data.tracks.find(
+  it("applies an EDL proposal and persists the next AI timeline version", async () => {
+    const { cookie } = await createAuthSession("edl-apply@example.com");
+    const createdProject = await createProject(cookie, "EDL Apply");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const chatResponse = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
+    );
+    expect(chatResponse.status).toBe(200);
+    await chatResponse.text();
+
+    const latestProposal = await env.DB.prepare(
+      `SELECT id
+       FROM ai_edl_proposals
+       WHERE timeline_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    )
+      .bind(seededTimeline.timeline.id)
+      .first<{ id: string }>();
+    expect(latestProposal?.id).toBeTruthy();
+
+    const applyResponse = await postApplyEdlProposal(cookie, latestProposal?.id ?? "");
+    expect(applyResponse.status).toBe(200);
+    const applied = timelineWithLatestResponseSchema.parse(await applyResponse.json());
+
+    expect(applied.latestVersion.version).toBe(seededTimeline.latestVersion.version + 1);
+    expect(applied.latestVersion.source).toBe("ai");
+    expect(applied.latestEdl).toBeTruthy();
+
+    const videoTrack = applied.latestVersion.data.tracks.find(
       (track) => track.kind === "video",
     );
     const firstClip = videoTrack?.clips[0];
     expect(firstClip).toBeTruthy();
     expect((firstClip?.endMs ?? 0) - (firstClip?.startMs ?? 0)).toBe(3000);
+  });
+
+  it("rejects applying stale EDL proposals after timeline version changes", async () => {
+    const { cookie } = await createAuthSession("edl-stale@example.com");
+    const createdProject = await createProject(cookie, "EDL Stale");
+    const seededTimeline = await createTimelineWithUploadedSeedAsset(
+      cookie,
+      createdProject.id,
+    );
+
+    const chatResponse = await postAiChat(
+      cookie,
+      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
+    );
+    expect(chatResponse.status).toBe(200);
+    await chatResponse.text();
+
+    const latestProposal = await env.DB.prepare(
+      `SELECT id
+       FROM ai_edl_proposals
+       WHERE timeline_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    )
+      .bind(seededTimeline.timeline.id)
+      .first<{ id: string }>();
+    expect(latestProposal?.id).toBeTruthy();
+
+    const bumpResponse = await patchTimeline(cookie, seededTimeline.timeline.id, {
+      baseVersion: seededTimeline.latestVersion.version,
+      source: "autosave",
+      data: seededTimeline.latestVersion.data,
+    });
+    expect(bumpResponse.status).toBe(200);
+
+    const applyResponse = await postApplyEdlProposal(cookie, latestProposal?.id ?? "");
+    expect(applyResponse.status).toBe(400);
+    const body = apiErrorSchema.parse(await applyResponse.json());
+    expect(body.error.code).toBe("BAD_REQUEST");
   });
 
   it("enforces AI chat rate limits with RATE_LIMITED responses", async () => {
@@ -1148,11 +1265,18 @@ describe("api worker", () => {
       await refreshedResponse.json(),
     );
     const maxToolCalls = Number.parseInt(env.AI_CHAT_MAX_TOOL_CALLS, 10);
-    const appliedVersionsDelta =
-      refreshedTimeline.latestVersion.version - seededTimeline.latestVersion.version;
+    expect(refreshedTimeline.latestVersion.version).toBe(
+      seededTimeline.latestVersion.version,
+    );
 
-    expect(appliedVersionsDelta).toBeGreaterThanOrEqual(0);
-    expect(appliedVersionsDelta).toBeLessThanOrEqual(maxToolCalls);
+    const proposalCountRow = await env.DB.prepare(
+      `SELECT COUNT(*) as count
+       FROM ai_edl_proposals
+       WHERE timeline_id = ?`,
+    )
+      .bind(seededTimeline.timeline.id)
+      .first<{ count: number | string }>();
+    expect(Number(proposalCountRow?.count ?? 0)).toBeLessThanOrEqual(maxToolCalls);
 
     const latestLog = await env.DB.prepare(
       `SELECT tool_call_count

@@ -24,6 +24,7 @@ export const timelineVersion = sqliteTable(
     data: text("data", { mode: "json" })
       .$type<Record<string, unknown>>()
       .notNull(),
+    edlData: text("edl_data", { mode: "json" }).$type<Record<string, unknown> | null>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),

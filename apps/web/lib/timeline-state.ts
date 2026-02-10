@@ -3,7 +3,10 @@ import {
   createDefaultTimelineData as createDefaultTimelineDataCore,
   type EditorCommand,
 } from "@doujin/contracts";
-import type { TimelineData, TimelineVersionSource } from "./timelines-api";
+import type {
+  TimelineData,
+  TimelineVersionSource,
+} from "./timelines-api";
 
 export type { EditorCommand };
 

@@ -8,7 +8,6 @@ import packageJson from "../../package.json";
 import { createAuth, toAuthRequest } from "../auth";
 import { ApiError } from "../errors";
 import { requireAuth } from "../middleware/require-auth";
-import { createAiRoutes } from "./ai";
 import { createAssetRoutes } from "./assets";
 import { createProjectRoutes } from "./projects";
 import { createTimelineRoutes } from "./timelines";
@@ -63,7 +62,6 @@ export function createApiRoutes() {
   app.route("/projects", createProjectRoutes());
   app.route("/assets", createAssetRoutes());
   app.route("/timelines", createTimelineRoutes());
-  app.route("/ai", createAiRoutes());
 
   return app;
 }

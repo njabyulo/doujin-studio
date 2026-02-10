@@ -5,11 +5,14 @@ import {
 } from "@doujin/database";
 import { timeline, timelineVersion } from "@doujin/database/schema";
 import {
+  deriveEdlFromTimelineData,
+  mapTimelineSourceToEdlSource,
   saveTimelineVersionRequestSchema,
   timelineVersionSourceSchema,
 } from "@doujin/contracts";
 import { Hono } from "hono";
 import { ApiError } from "../errors";
+import { resolveEdlForTimelineVersion, toStoredEdlData } from "../lib/edl-access";
 import {
   requireLatestTimelineVersion,
   requireTimelineMembership,
@@ -62,9 +65,18 @@ export function createTimelineRoutes() {
     const timelineId = c.req.param("id");
     const foundTimeline = await requireTimelineMembership(db, timelineId, user.id);
     const latestVersion = await requireLatestTimelineVersion(db, timelineId);
+    const latestEdl = resolveEdlForTimelineVersion({
+      timelineId: latestVersion.timelineId,
+      version: latestVersion.version,
+      source: latestVersion.source,
+      data: latestVersion.data,
+      edlData: latestVersion.edlData,
+    });
 
     return c.json(
-      toTimelineWithLatestResponse(foundTimeline, latestVersion),
+      toTimelineWithLatestResponse(foundTimeline, latestVersion, {
+        latestEdl,
+      }),
       200,
     );
   });
@@ -93,15 +105,23 @@ export function createTimelineRoutes() {
 
     await validateTimelineAssetReferences(db, foundTimeline.projectId, input.data);
     const nextVersion = input.baseVersion + 1;
+    const nextSource = resolveTimelineSource(input.source, "autosave");
+    const nextEdl = deriveEdlFromTimelineData({
+      timelineId: foundTimeline.id,
+      baseVersion: nextVersion,
+      data: input.data,
+      source: mapTimelineSourceToEdlSource(nextSource),
+    });
 
     try {
       await db.insert(timelineVersion).values({
         id: crypto.randomUUID(),
         timelineId: foundTimeline.id,
         version: nextVersion,
-        source: resolveTimelineSource(input.source, "autosave"),
+        source: nextSource,
         createdByUserId: user.id,
         data: input.data,
+        edlData: toStoredEdlData(nextEdl),
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -126,9 +146,18 @@ export function createTimelineRoutes() {
 
     const refreshedTimeline = await requireTimelineMembership(db, timelineId, user.id);
     const latestVersion = await requireLatestTimelineVersion(db, timelineId);
+    const latestEdl = resolveEdlForTimelineVersion({
+      timelineId: latestVersion.timelineId,
+      version: latestVersion.version,
+      source: latestVersion.source,
+      data: latestVersion.data,
+      edlData: latestVersion.edlData,
+    });
 
     return c.json(
-      toTimelineWithLatestResponse(refreshedTimeline, latestVersion),
+      toTimelineWithLatestResponse(refreshedTimeline, latestVersion, {
+        latestEdl,
+      }),
       200,
     );
   });
@@ -157,15 +186,23 @@ export function createTimelineRoutes() {
 
     await validateTimelineAssetReferences(db, foundTimeline.projectId, input.data);
     const nextVersion = input.baseVersion + 1;
+    const nextSource = resolveTimelineSource(input.source, "manual");
+    const nextEdl = deriveEdlFromTimelineData({
+      timelineId: foundTimeline.id,
+      baseVersion: nextVersion,
+      data: input.data,
+      source: mapTimelineSourceToEdlSource(nextSource),
+    });
 
     try {
       await db.insert(timelineVersion).values({
         id: crypto.randomUUID(),
         timelineId: foundTimeline.id,
         version: nextVersion,
-        source: resolveTimelineSource(input.source, "manual"),
+        source: nextSource,
         createdByUserId: user.id,
         data: input.data,
+        edlData: toStoredEdlData(nextEdl),
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -190,9 +227,18 @@ export function createTimelineRoutes() {
 
     const refreshedTimeline = await requireTimelineMembership(db, timelineId, user.id);
     const latestVersion = await requireLatestTimelineVersion(db, timelineId);
+    const latestEdl = resolveEdlForTimelineVersion({
+      timelineId: latestVersion.timelineId,
+      version: latestVersion.version,
+      source: latestVersion.source,
+      data: latestVersion.data,
+      edlData: latestVersion.edlData,
+    });
 
     return c.json(
-      toTimelineWithLatestResponse(refreshedTimeline, latestVersion),
+      toTimelineWithLatestResponse(refreshedTimeline, latestVersion, {
+        latestEdl,
+      }),
       200,
     );
   });
