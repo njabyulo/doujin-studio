@@ -6,7 +6,7 @@
 Gemini-Powered Timeline Editing in the Cinematic Editor
 
 **Summary**
-The editor now uses Gemini through the AI SDK to power chat-driven timeline edits. Requests stream back to the UI, and structured tool calls apply validated `EditorCommand` mutations to the latest timeline version.
+The editor now uses Gemini through the AI SDK to power chat-driven timeline edits. Requests stream back to the UI, and structured tool calls apply validated `TEditorCommand` mutations to the latest timeline version.
 
 **Customer Quote**
 "It didn’t just caption my clip. It understood the mood and built a cut plan I could actually use." 
@@ -14,7 +14,7 @@ The editor now uses Gemini through the AI SDK to power chat-driven timeline edit
 **How It Works**
 - The web chat panel sends messages and timeline context to `POST /api/ai/chat`.
 - The API route uses Gemini Flash via AI SDK `streamText` for streaming assistant responses.
-- Gemini tool calls are constrained to `applyEditorCommands({ timelineId, commands })`.
+- Gemini tool calls are constrained to `applyTEditorCommands({ timelineId, commands })`.
 - Commands are validated, bounded, applied atomically, and persisted as new timeline versions with `source: "ai"`.
 
 **Why It Matters**

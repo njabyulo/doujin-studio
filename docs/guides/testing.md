@@ -7,7 +7,7 @@ Scope covered:
 - asset upload + completion
 - timeline create/load/save + optimistic locking
 - AI chat streaming (`POST /api/ai/chat` / `POST /ai/chat`)
-- AI tool execution (`applyEditorCommands`) and persisted `source: "ai"` timeline versions
+- AI tool execution (`applyTEditorCommands`) and persisted `source: "ai"` timeline versions
 - safety controls (rate limit, tool-call bounds, command bounds)
 
 ## 1. Environment setup
