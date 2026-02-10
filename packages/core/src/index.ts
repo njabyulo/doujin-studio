@@ -6,6 +6,7 @@ export const SApiErrorCode = z.enum([
   "BAD_REQUEST",
   "NOT_FOUND",
   "RATE_LIMITED",
+  "AI_UNAVAILABLE",
   "INTERNAL_ERROR",
 ]);
 
