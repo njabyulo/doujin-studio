@@ -1,14 +1,12 @@
 import {
   applyEditorCommand as applyEditorCommandCore,
   createDefaultTimelineData as createDefaultTimelineDataCore,
-  type EditorCommand,
-} from "@doujin/contracts";
-import type {
-  TimelineData,
-  TimelineVersionSource,
-} from "./timelines-api";
+  type TEditorCommand,
+  type TTimelineData,
+  type TTimelineVersionSource,
+} from "@doujin/core";
 
-export type { EditorCommand };
+export type { TEditorCommand };
 
 const TIMELINE_CACHE_VERSION = "v1";
 const TIMELINE_CACHE_PREFIX = `doujin:timeline-cache:${TIMELINE_CACHE_VERSION}:`;
@@ -24,31 +22,31 @@ export type EditorSaveStatus =
 export type EditorTimelineState = {
   timelineId: string;
   baseVersion: number;
-  data: TimelineData;
+  data: TTimelineData;
   saveStatus: EditorSaveStatus;
   lastSavedAt: number | null;
-  source: TimelineVersionSource;
+  source: TTimelineVersionSource;
   error: string | null;
 };
 
 type CachedTimelineState = {
   timelineId: string;
   baseVersion: number;
-  data: TimelineData;
+  data: TTimelineData;
 };
 
 function getTimelineCacheKey(projectId: string) {
   return `${TIMELINE_CACHE_PREFIX}${projectId}`;
 }
 
-export function createDefaultTimelineData() {
+export function createDefaultTimelineData(): TTimelineData {
   return createDefaultTimelineDataCore();
 }
 
 export function applyEditorCommand(
-  data: TimelineData,
-  command: EditorCommand,
-): TimelineData {
+  data: TTimelineData,
+  command: TEditorCommand,
+): TTimelineData {
   return applyEditorCommandCore(data, command);
 }
 

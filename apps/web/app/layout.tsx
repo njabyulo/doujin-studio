@@ -18,6 +18,8 @@ export const metadata: Metadata = {
     "AI media studio for personal-to-business video and image kits.",
 };
 
+import { RootProvider } from "./providers/RootProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,7 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${sora.variable} ${fraunces.variable} antialiased`}>
-        {children}
+        <RootProvider>
+          {children}
+        </RootProvider>
       </body>
     </html>
   );

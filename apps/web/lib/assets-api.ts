@@ -1,3 +1,26 @@
+import type {
+  TMeResponse,
+  TProject,
+  TAssetType,
+  TAssetStatus,
+  TAsset,
+  TAssetResponse,
+  TProjectAssetListResponse,
+} from "@doujin/core";
+
+export type {
+  TMeResponse,
+  TProject,
+  TAssetType,
+  TAssetStatus,
+  TAsset,
+  TAssetResponse,
+  TProjectAssetListResponse,
+};
+
+// Aliases for compatibility
+export type AssetRecord = TAsset;
+
 type ApiErrorShape = {
   error?: {
     code?: string;
@@ -15,62 +38,6 @@ export class ApiClientError extends Error {
     this.code = code;
   }
 }
-
-type ProjectResponse = {
-  project: {
-    id: string;
-    title: string;
-    role: "owner";
-  };
-};
-
-type MeResponse = {
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-    image: string | null;
-  };
-  tenant: {
-    type: "user";
-    id: string;
-  };
-};
-
-export type AssetType = "video" | "poster";
-export type AssetStatus = "pending_upload" | "uploaded" | "upload_failed";
-
-export type AssetRecord = {
-  id: string;
-  projectId: string;
-  type: AssetType;
-  status: AssetStatus;
-  r2Key: string;
-  size: number;
-  mime: string;
-  checksumSha256: string | null;
-  durationMs: number | null;
-  width: number | null;
-  height: number | null;
-  posterAssetId: string | null;
-  createdAt: number;
-  fileUrl: string;
-  posterUrl: string | null;
-};
-
-type AssetResponse = {
-  asset: AssetRecord;
-};
-
-type UploadSessionResponse = {
-  assetId: string;
-  putUrl: string;
-  r2Key: string;
-};
-
-type ProjectAssetListResponse = {
-  assets: AssetRecord[];
-};
 
 function getApiBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
@@ -127,53 +94,20 @@ export function resolveApiAssetUrl(pathOrUrl: string) {
 }
 
 export async function getMe() {
-  return apiRequest<MeResponse>("/api/me", { method: "GET" });
+  return apiRequest<TMeResponse>("/api/me", { method: "GET" });
 }
 
 export async function createProject(input: { title: string }) {
-  return apiRequest<ProjectResponse>("/api/projects", {
+  return apiRequest<{ project: TProject }>("/api/projects", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
-export async function createAssetUploadSession(
-  projectId: string,
-  input: {
-    fileName: string;
-    mime: string;
-    size: number;
-    type: AssetType;
-  },
-) {
-  return apiRequest<UploadSessionResponse>(
-    `/api/projects/${projectId}/assets/upload-session`,
-    {
-      method: "POST",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
-export async function completeAssetUpload(
-  assetId: string,
-  input: {
-    size: number;
-    checksumSha256?: string;
-    durationMs?: number;
-    width?: number;
-    height?: number;
-    posterAssetId?: string;
-  },
-) {
-  return apiRequest<AssetResponse>(`/api/assets/${assetId}/complete`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
+// R2 upload session and complete calls removed
 
 export async function getAsset(assetId: string) {
-  return apiRequest<AssetResponse>(`/api/assets/${assetId}`, {
+  return apiRequest<TAssetResponse>(`/api/assets/${assetId}`, {
     method: "GET",
   });
 }
@@ -181,8 +115,8 @@ export async function getAsset(assetId: string) {
 export async function listProjectAssets(
   projectId: string,
   query?: {
-    type?: AssetType;
-    status?: AssetStatus;
+    type?: TAssetType;
+    status?: TAssetStatus;
     limit?: number;
   },
 ) {
@@ -202,7 +136,7 @@ export async function listProjectAssets(
     ? `/api/projects/${projectId}/assets?${queryString}`
     : `/api/projects/${projectId}/assets`;
 
-  return apiRequest<ProjectAssetListResponse>(path, {
+  return apiRequest<TProjectAssetListResponse>(path, {
     method: "GET",
   });
 }

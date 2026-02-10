@@ -1,59 +1,34 @@
 import { ApiClientError } from "./assets-api";
+import type {
+  TTimelineTrackKind,
+  TTimelineClipType,
+  TTimelineVersionSource,
+  TTimelineClip,
+  TTimelineTrack,
+  TTimelineData,
+  TTimeline,
+  TTimelineVersion,
+  TTimelineWithLatestResponse,
+} from "@doujin/core";
 
-
-export type TimelineTrackKind = "video" | "audio" | "subtitle";
-export type TimelineClipType = "video" | "audio" | "subtitle";
-export type TimelineVersionSource = "system" | "autosave" | "manual" | "ai";
-
-export type TimelineClip = {
-  id: string;
-  type: TimelineClipType;
-  trackId: string;
-  assetId: string | null;
-  startMs: number;
-  endMs: number;
-  sourceStartMs: number;
-  volume: number | null;
-  text: string | null;
+export type {
+  TTimelineTrackKind,
+  TTimelineClipType,
+  TTimelineVersionSource,
+  TTimelineClip,
+  TTimelineTrack,
+  TTimelineData,
+  TTimeline,
+  TTimelineVersion,
+  TTimelineWithLatestResponse,
 };
 
-export type TimelineTrack = {
-  id: string;
-  kind: TimelineTrackKind;
-  name: string;
-  clips: TimelineClip[];
-};
-
-export type TimelineData = {
-  schemaVersion: 1;
-  fps: number;
-  durationMs: number;
-  tracks: TimelineTrack[];
-};
-
-export type TimelineRecord = {
-  id: string;
-  projectId: string;
-  name: string;
-  latestVersion: number;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type TimelineVersionRecord = {
-  id: string;
-  timelineId: string;
-  version: number;
-  source: TimelineVersionSource;
-  createdByUserId: string;
-  createdAt: number;
-  data: TimelineData;
-};
-
-export type TimelineWithLatestResponse = {
-  timeline: TimelineRecord;
-  latestVersion: TimelineVersionRecord;
-};
+// Aliases for backward compatibility if needed, or just use the T-prefixed ones
+export type TimelineTrackKind = TTimelineTrackKind;
+export type TimelineTrack = TTimelineTrack;
+export type TimelineData = TTimelineData;
+export type TimelineRecord = TTimeline;
+export type TimelineVersionRecord = TTimelineVersion;
 
 type ApiErrorShape = {
   error?: {
@@ -116,7 +91,7 @@ export async function createProjectTimeline(
     seedAssetId?: string;
   },
 ) {
-  return apiRequest<TimelineWithLatestResponse>(
+  return apiRequest<TTimelineWithLatestResponse>(
     `/api/projects/${projectId}/timelines`,
     {
       method: "POST",
@@ -126,7 +101,7 @@ export async function createProjectTimeline(
 }
 
 export async function getProjectLatestTimeline(projectId: string) {
-  return apiRequest<TimelineWithLatestResponse>(
+  return apiRequest<TTimelineWithLatestResponse>(
     `/api/projects/${projectId}/timelines/latest`,
     {
       method: "GET",
@@ -135,7 +110,7 @@ export async function getProjectLatestTimeline(projectId: string) {
 }
 
 export async function getTimeline(timelineId: string) {
-  return apiRequest<TimelineWithLatestResponse>(`/api/timelines/${timelineId}`, {
+  return apiRequest<TTimelineWithLatestResponse>(`/api/timelines/${timelineId}`, {
     method: "GET",
   });
 }
@@ -144,11 +119,11 @@ export async function patchTimeline(
   timelineId: string,
   input: {
     baseVersion: number;
-    source?: TimelineVersionSource;
-    data: TimelineData;
+    source?: TTimelineVersionSource;
+    data: TTimelineData;
   },
 ) {
-  return apiRequest<TimelineWithLatestResponse>(`/api/timelines/${timelineId}`, {
+  return apiRequest<TTimelineWithLatestResponse>(`/api/timelines/${timelineId}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
@@ -158,11 +133,11 @@ export async function createTimelineVersion(
   timelineId: string,
   input: {
     baseVersion: number;
-    source?: TimelineVersionSource;
-    data: TimelineData;
+    source?: TTimelineVersionSource;
+    data: TTimelineData;
   },
 ) {
-  return apiRequest<TimelineWithLatestResponse>(
+  return apiRequest<TTimelineWithLatestResponse>(
     `/api/timelines/${timelineId}/versions`,
     {
       method: "POST",
@@ -170,5 +145,3 @@ export async function createTimelineVersion(
     },
   );
 }
-
-

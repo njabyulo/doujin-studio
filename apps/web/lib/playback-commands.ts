@@ -1,11 +1,11 @@
-import { interpretPlaybackRequestSchema, type InterpretPlaybackResponse } from "@doujin/contracts";
+import { STInterpretPlaybackRequest, type TInterpretPlaybackResponse } from "@doujin/contracts";
 
-export async function interpretPlaybackCommand(args: {
+export async function interpretTPlaybackCommand(args: {
     prompt: string;
     currentMs?: number;
     durationMs?: number;
-}): Promise<InterpretPlaybackResponse> {
-    const payload = interpretPlaybackRequestSchema.parse(args);
+}): Promise<TInterpretPlaybackResponse> {
+    const payload = STInterpretPlaybackRequest.parse(args);
 
     const response = await fetch("/api/editor/interpret", {
         method: "POST",
@@ -23,9 +23,9 @@ export async function interpretPlaybackCommand(args: {
     return response.json();
 }
 
-export function executePlaybackCommand(
+export function executeTPlaybackCommand(
     video: HTMLVideoElement,
-    command: InterpretPlaybackResponse["command"],
+    command: TInterpretPlaybackResponse["command"],
 ) {
     switch (command.type) {
         case "play":

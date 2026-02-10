@@ -29,6 +29,7 @@ import {
 } from "~/lib/pending-auth-upload";
 import { cn } from "~/lib/utils";
 import { saveUpload } from "~/lib/upload-session";
+import { useProject } from "~/providers/ProjectProvider";
 
 const FILE_HINTS = [
   "MP4, MOV, WebM",
@@ -62,6 +63,7 @@ function deriveProjectTitle(fileName: string) {
 
 export function HomePage() {
   const router = useRouter();
+  const { setLocalVideoFile } = useProject();
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingResumeTriggeredRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -83,6 +85,8 @@ export function HomePage() {
       });
 
       const projectId = project.project.id;
+      // The File object is now in global context, so we don't necessarily need to URL.createObjectURL here
+      // but we still want to save it to upload-session for editor hydration if it checks storage.
       const url = URL.createObjectURL(file);
       saveUpload(projectId, {
         url,
@@ -91,11 +95,12 @@ export function HomePage() {
         type: file.type || "video/mp4",
         status: "local",
       });
-      setPendingUpload(projectId, file);
+      // We set the context file so it's available in the Editor component
+      setLocalVideoFile(file);
       clearPendingAuthUpload();
       router.push(`/projects/${projectId}`);
     },
-    [router],
+    [router, setLocalVideoFile],
   );
 
   useEffect(() => {
