@@ -65,8 +65,17 @@ body {
 
 .ds-landing {
   position: relative;
-  background: radial-gradient(1200px 800px at 15% 10%, rgba(255, 255, 255, 0.65), transparent 55%),
-    radial-gradient(1100px 700px at 85% 20%, rgba(250, 200, 170, 0.45), transparent 55%),
+  background:
+    radial-gradient(
+      1200px 800px at 15% 10%,
+      rgba(255, 255, 255, 0.65),
+      transparent 55%
+    ),
+    radial-gradient(
+      1100px 700px at 85% 20%,
+      rgba(250, 200, 170, 0.45),
+      transparent 55%
+    ),
     linear-gradient(135deg, var(--ds-bg), var(--ds-bg-2));
   color: var(--ds-text);
   overflow: hidden;
@@ -74,8 +83,17 @@ body {
 
 .ds-editor {
   position: relative;
-  background: radial-gradient(1200px 800px at 20% 10%, rgba(255, 255, 255, 0.22), transparent 55%),
-    radial-gradient(900px 700px at 85% 18%, rgba(255, 211, 168, 0.35), transparent 55%),
+  background:
+    radial-gradient(
+      1200px 800px at 20% 10%,
+      rgba(255, 255, 255, 0.22),
+      transparent 55%
+    ),
+    radial-gradient(
+      900px 700px at 85% 18%,
+      rgba(255, 211, 168, 0.35),
+      transparent 55%
+    ),
     linear-gradient(135deg, #d4c1ad 0%, #bda58f 55%, #a98f78 100%);
   color: #f7f2e8;
   overflow: hidden;
@@ -163,6 +181,10 @@ body {
 }
 
 .editor-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
   height: 44px;
   width: 44px;
   border-radius: 999px;
@@ -198,7 +220,11 @@ body {
   border-radius: 32px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(140deg, rgba(20, 16, 14, 0.95), rgba(10, 9, 8, 0.95));
+  background: linear-gradient(
+    140deg,
+    rgba(20, 16, 14, 0.95),
+    rgba(10, 9, 8, 0.95)
+  );
   box-shadow: 0 35px 90px rgba(13, 11, 10, 0.6);
 }
 
@@ -206,7 +232,11 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px
+  );
   background-size: 140px 100%;
   opacity: 0.35;
   mix-blend-mode: soft-light;
@@ -227,7 +257,11 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.35), transparent 55%);
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.35),
+    transparent 55%
+  );
   opacity: 0.5;
 }
 
