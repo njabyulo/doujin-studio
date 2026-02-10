@@ -33,7 +33,10 @@ function fallbackInterpret(args: {
   });
 
   if (/\b(pause|stop|hold on|hold|freeze)\b/.test(prompt)) {
-    return { command: { type: "pause" as const }, reasoning: "Fallback: pause" };
+    return {
+      command: { type: "pause" as const },
+      reasoning: "Fallback: pause",
+    };
   }
 
   if (/\b(restart|start over|beginning)\b/.test(prompt)) {
@@ -44,7 +47,9 @@ function fallbackInterpret(args: {
     return { ...seekTo(durationMs / 2), reasoning: "Fallback: seek to middle" };
   }
 
-  const forwardMatch = prompt.match(/\b(forward|ahead)\s+(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/);
+  const forwardMatch = prompt.match(
+    /\b(forward|ahead)\s+(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/,
+  );
   if (forwardMatch) {
     const amount = Number.parseFloat(forwardMatch[2] ?? "0");
     const unit = forwardMatch[3] ?? "s";
@@ -53,10 +58,15 @@ function fallbackInterpret(args: {
       : unit === "ms"
         ? amount
         : amount * 1000;
-    return { ...seekTo(currentMs + deltaMs), reasoning: "Fallback: seek forward" };
+    return {
+      ...seekTo(currentMs + deltaMs),
+      reasoning: "Fallback: seek forward",
+    };
   }
 
-  const backMatch = prompt.match(/\b(back|rewind)\s+(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/);
+  const backMatch = prompt.match(
+    /\b(back|rewind)\s+(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/,
+  );
   if (backMatch) {
     const amount = Number.parseFloat(backMatch[2] ?? "0");
     const unit = backMatch[3] ?? "s";
@@ -65,10 +75,15 @@ function fallbackInterpret(args: {
       : unit === "ms"
         ? amount
         : amount * 1000;
-    return { ...seekTo(currentMs - deltaMs), reasoning: "Fallback: seek backward" };
+    return {
+      ...seekTo(currentMs - deltaMs),
+      reasoning: "Fallback: seek backward",
+    };
   }
 
-  const absoluteMatch = prompt.match(/\b(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/);
+  const absoluteMatch = prompt.match(
+    /\b(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/,
+  );
   if (absoluteMatch && /\b(go to|seek|jump)\b/.test(prompt)) {
     const amount = Number.parseFloat(absoluteMatch[1] ?? "0");
     const unit = absoluteMatch[2] ?? "s";
@@ -85,9 +100,22 @@ function fallbackInterpret(args: {
   }
 
   return {
-    command: { type: "none" as const, message: "Unrecognized playback command" },
+    command: {
+      type: "none" as const,
+      message: "Unrecognized playback command",
+    },
     reasoning: "Fallback: no match",
   };
+}
+
+function shouldUseFallback(apiKey: string, appEnv: string | undefined) {
+  const trimmed = apiKey.trim();
+  if (!trimmed) return true;
+  // Avoid outbound calls in test mode.
+  if (appEnv === "test") return true;
+  // Common placeholder used in local/test configs.
+  if (trimmed === "test-gemini-key") return true;
+  return false;
 }
 
 export function createEditorRoutes() {
@@ -106,9 +134,18 @@ export function createEditorRoutes() {
       throw new ApiError(400, "BAD_REQUEST", "Invalid request payload");
     }
 
-    const apiKey = c.env.GEMINI_API_KEY?.trim() ?? "";
-
     const { prompt, currentMs, durationMs } = parsed.data;
+    const apiKey = c.env.GEMINI_API_KEY ?? "";
+
+    const forceFallback = c.req.header("x-ai-test-mode") === "1";
+
+    if (forceFallback || shouldUseFallback(apiKey, c.env.APP_ENV)) {
+      return c.json(
+        SInterpretPlaybackResponse.parse(fallbackInterpret(parsed.data)),
+        200,
+      );
+    }
+
     const systemInstruction = `You are a video editor playback controller.
 The user provides a command in natural language and you interpret it into a structured playback action.
 
@@ -131,15 +168,10 @@ Rules:
     const requestText = `Prompt: "${prompt}"
 Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
 
-    if (!apiKey) {
-      return c.json(
-        SInterpretPlaybackResponse.parse(fallbackInterpret(parsed.data)),
-        200,
-      );
-    }
-
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(
+        apiKey,
+      )}`,
       {
         method: "POST",
         headers: {
@@ -169,14 +201,6 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
         body: text.slice(0, 500),
       });
 
-      // Local-first playback control should always work, even if AI is rate limited.
-      if (response.status === 429) {
-        return c.json(
-          SInterpretPlaybackResponse.parse(fallbackInterpret(parsed.data)),
-          200,
-        );
-      }
-
       return c.json(
         SInterpretPlaybackResponse.parse(fallbackInterpret(parsed.data)),
         200,
@@ -188,19 +212,26 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
       data?.candidates?.[0]?.content?.parts
         ?.map((part: any) => part?.text)
         .filter(Boolean)
-        .join("\n") ??
-      "";
+        .join("\n") ?? "";
 
     const jsonText = extractFirstJsonObject(text);
     if (!jsonText) {
-      throw new ApiError(500, "INTERNAL_ERROR", "AI response was not valid JSON");
+      throw new ApiError(
+        500,
+        "INTERNAL_ERROR",
+        "AI response was not valid JSON",
+      );
     }
 
     let interpreted: unknown;
     try {
       interpreted = JSON.parse(jsonText);
     } catch {
-      throw new ApiError(500, "INTERNAL_ERROR", "AI response was not valid JSON");
+      throw new ApiError(
+        500,
+        "INTERNAL_ERROR",
+        "AI response was not valid JSON",
+      );
     }
 
     const out = SInterpretPlaybackResponse.safeParse(interpreted);

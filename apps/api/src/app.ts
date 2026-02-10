@@ -36,7 +36,6 @@ export function createApp() {
   app.use("*", requestLoggerMiddleware);
   app.use("*", authContextMiddleware);
 
-  app.route("/", createApiRoutes());
   app.route("/api", createApiRoutes());
 
   app.notFound((c) => {
