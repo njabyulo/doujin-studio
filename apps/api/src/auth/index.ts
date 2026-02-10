@@ -159,6 +159,7 @@ export function createAuth(bindings: AppBindings) {
     trustedOrigins: getTrustedOrigins(bindings),
     emailAndPassword: {
       enabled: true,
+      disableSignUp: bindings.APP_ENV === "production",
       requireEmailVerification: false,
       password: {
         hash: hashPassword,
