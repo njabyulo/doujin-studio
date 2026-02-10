@@ -1,6 +1,11 @@
-# Non-sensitive values can stay in wrangler.toml [vars].
-# Sensitive values must be injected via .dev.vars locally and `wrangler secret put` in Cloudflare.
+############################################
+# Local dev vars (Cloudflare Workers)
+# - Non-sensitive values can stay in wrangler.toml [vars]
+# - Sensitive values must be injected via .dev.vars locally and
+#   via `wrangler secret put` in Cloudflare
+############################################
 
+# Secrets
 AUTH_SECRET=
 GEMINI_API_KEY=
 
