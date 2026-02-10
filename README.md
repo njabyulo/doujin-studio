@@ -73,6 +73,7 @@ Use this local topology with `pnpm dev`:
 Optional (enables real AI playback interpretation):
 
 - `GEMINI_API_KEY=...`
+- `AI_INTERPRET_MODEL=gemini-3-flash-preview`
 
 Recommended API defaults:
 

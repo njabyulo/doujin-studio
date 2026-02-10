@@ -21,6 +21,7 @@ Non-secret vars:
 - `APP_ENV`
 - `CORS_ORIGIN`
 - `GIT_SHA`
+- `AI_INTERPRET_MODEL` (e.g. `gemini-3-flash-preview`)
 
 Secrets:
 

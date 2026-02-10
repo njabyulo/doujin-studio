@@ -33,6 +33,7 @@ Optional (enables real AI playback interpretation):
 
 - `apps/api/.dev.vars`
   - `GEMINI_API_KEY=...` (used by `POST /api/editor/interpret`)
+  - `AI_INTERPRET_MODEL=gemini-3-flash-preview`
 
 ## Automated checks
 
