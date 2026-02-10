@@ -20,12 +20,21 @@
     "db:migrate:remote": "turbo run db:migrate:remote --filter=@doujin/database",
     "db:studio": "turbo run db:studio --filter=@doujin/database",
     "clean": "turbo run clean --continue=always",
-    "clean:all": "turbo run clean:all --continue=always && rm -rf .turbo"
+    "clean:all": "turbo run clean:all --continue=always && rm -rf .turbo",
+    "demo:install-browsers": "playwright install chromium",
+    "demo:record": "node scripts/demo/record-demo.mjs"
   },
   "devDependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "playwright": "^1.58.2",
     "prettier": "^3.8.1",
     "turbo": "^2.8.3",
     "typescript": "^5.9.3"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "ffmpeg-static"
+    ]
+  }
 }
