@@ -102,6 +102,13 @@ export function Editor({ projectId }: EditorProps) {
           });
           return;
         }
+
+        if (error.code === "AI_UNAVAILABLE" || error.status === 503) {
+          toast.error("AI temporarily unavailable", {
+            description: "Try again in a moment.",
+          });
+          return;
+        }
       }
 
       const message = error instanceof Error ? error.message : "Unknown error";
