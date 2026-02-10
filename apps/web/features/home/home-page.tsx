@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowRight, Film, Sparkles, UploadCloud, Wand2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "~/components/ui/badge";
@@ -14,26 +13,13 @@ import {
 } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import {
-  ApiClientError,
-  createProject,
-} from "~/lib/assets-api";
+import { ApiClientError } from "~/lib/assets-api";
 import { getSessionOrMe, signOut } from "~/lib/auth-api";
 import { buildAuthHref } from "~/lib/auth-navigation";
-import {
-  claimPendingAuthUploadFile,
-  clearPendingAuthUpload,
-  getPendingAuthUploadMetadata,
-  savePendingAuthUpload,
-} from "~/lib/pending-auth-upload";
 import { cn } from "~/lib/utils";
-import { useProject } from "~/providers/ProjectProvider";
+import { useCreateProjectFromFile } from "~/features/projects/hooks/useCreateProjectFromFile";
 
-const FILE_HINTS = [
-  "MP4, MOV, WebM",
-  "16:9 or 9:16",
-  "Audio + video",
-];
+const FILE_HINTS = ["MP4, MOV, WebM", "16:9 or 9:16", "Audio + video"];
 
 const EXPERIENCE_STEPS = [
   {
@@ -50,45 +36,19 @@ const EXPERIENCE_STEPS = [
   },
 ];
 
-function isVideoFile(file: File) {
-  return file.type.startsWith("video/") || /\.(mp4|mov|webm)$/i.test(file.name);
-}
-
-function deriveProjectTitle(fileName: string) {
-  const raw = fileName.replace(/\.[^/.]+$/, "").trim();
-  return raw || "Untitled Project";
-}
-
 export function HomePage() {
-  const router = useRouter();
-  const { setLocalVideoFile } = useProject();
   const inputRef = useRef<HTMLInputElement>(null);
-  const pendingResumeTriggeredRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isStarting, setIsStarting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [authState, setAuthState] = useState<"unknown" | "authed" | "guest">(
     "unknown",
   );
   const [authEmail, setAuthEmail] = useState<string | null>(null);
-  const [resumeMessage, setResumeMessage] = useState<string | null>(null);
+
+  const { isStarting, error, resumeMessage, startFromFile, resumeIfPending } =
+    useCreateProjectFromFile({ nextPathAfterAuth: "/" });
 
   const featureBadges = useMemo(() => FILE_HINTS, []);
-
-  const bootstrapProjectFromFile = useCallback(
-    async (file: File) => {
-      const project = await createProject({
-        title: deriveProjectTitle(file.name),
-      });
-
-      const projectId = project.project.id;
-      setLocalVideoFile(file);
-      clearPendingAuthUpload();
-      router.push(`/projects/${projectId}`);
-    },
-    [router, setLocalVideoFile],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -101,7 +61,10 @@ export function HomePage() {
         setAuthEmail(me.user.email);
       } catch (caughtError) {
         if (cancelled) return;
-        if (caughtError instanceof ApiClientError && caughtError.status === 401) {
+        if (
+          caughtError instanceof ApiClientError &&
+          caughtError.status === 401
+        ) {
           setAuthState("guest");
           return;
         }
@@ -118,71 +81,15 @@ export function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (authState !== "authed" || isStarting || pendingResumeTriggeredRef.current) {
-      return;
-    }
-
-    const metadata = getPendingAuthUploadMetadata();
-    if (!metadata) {
-      return;
-    }
-
-    const pendingFile = claimPendingAuthUploadFile();
-    if (!pendingFile) {
-      setResumeMessage(
-        `Signed in. Please reselect "${metadata.fileName}" to continue upload.`,
-      );
-      clearPendingAuthUpload();
-      return;
-    }
-
-    pendingResumeTriggeredRef.current = true;
-    setResumeMessage(`Resuming upload for "${pendingFile.name}"...`);
-    void (async () => {
-      setError(null);
-      setIsStarting(true);
-      try {
-        await bootstrapProjectFromFile(pendingFile);
-      } catch {
-        setResumeMessage("Signed in, but could not resume upload. Please reselect your file.");
-      } finally {
-        setIsStarting(false);
-        pendingResumeTriggeredRef.current = false;
-      }
-    })();
-  }, [authState, bootstrapProjectFromFile, isStarting]);
+    if (authState !== "authed") return;
+    void resumeIfPending();
+  }, [authState, resumeIfPending]);
 
   const handleUpload = useCallback(
     async (file?: File | null) => {
-      if (!file) return;
-      if (!isVideoFile(file)) {
-        setError("Please upload a valid video file.");
-        return;
-      }
-
-      setError(null);
-      setResumeMessage(null);
-      setIsStarting(true);
-
-      try {
-        await getSessionOrMe();
-        await bootstrapProjectFromFile(file);
-      } catch (caughtError) {
-        if (
-          caughtError instanceof ApiClientError &&
-          caughtError.status === 401
-        ) {
-          savePendingAuthUpload(file);
-          const nextPath = "/";
-          router.push(buildAuthHref("/auth/sign-in", nextPath));
-        } else {
-          setError("Could not initialize upload. Please try again.");
-        }
-      } finally {
-        setIsStarting(false);
-      }
+      void startFromFile(file);
     },
-    [bootstrapProjectFromFile, router],
+    [startFromFile],
   );
 
   const handleDrop = useCallback(
@@ -231,7 +138,7 @@ export function HomePage() {
             {authState === "unknown"
               ? "Checking session..."
               : authState === "authed"
-                ? authEmail ?? "Signed in"
+                ? (authEmail ?? "Signed in")
                 : "Guest"}
           </div>
         </header>
@@ -239,10 +146,14 @@ export function HomePage() {
           {authState === "guest" ? (
             <>
               <Button variant="glass" className="rounded-full px-5" asChild>
-                <Link href={buildAuthHref("/auth/sign-in", "/projects")}>Sign in</Link>
+                <Link href={buildAuthHref("/auth/sign-in", "/projects")}>
+                  Sign in
+                </Link>
               </Button>
               <Button variant="accent" className="rounded-full px-5" asChild>
-                <Link href={buildAuthHref("/auth/sign-up", "/projects")}>Create account</Link>
+                <Link href={buildAuthHref("/auth/sign-up", "/projects")}>
+                  Create account
+                </Link>
               </Button>
             </>
           ) : null}
@@ -282,8 +193,8 @@ export function HomePage() {
               </h2>
               <p className="max-w-xl text-base text-[color:var(--ds-muted)] sm:text-lg">
                 Drop any video and talk to the editor like a collaborator. We
-                detect story beats, build a full edit decision list, and
-                iterate without re-rendering the whole timeline.
+                detect story beats, build a full edit decision list, and iterate
+                without re-rendering the whole timeline.
               </p>
             </div>
 
@@ -319,7 +230,7 @@ export function HomePage() {
                 className={cn(
                   "group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-4 rounded-[28px] border border-dashed border-[color:var(--ds-border)] bg-white/55 p-6 text-center shadow-[var(--ds-shadow-soft)] transition",
                   isDragging &&
-                  "border-[color:var(--ds-accent-warm)] bg-white/80",
+                    "border-[color:var(--ds-accent-warm)] bg-white/80",
                 )}
                 onClick={() => inputRef.current?.click()}
                 onDragOver={(event) => {
@@ -357,11 +268,11 @@ export function HomePage() {
                 className="hidden"
               />
 
-              {error ? (
-                <p className="text-sm text-red-500">{error}</p>
-              ) : null}
+              {error ? <p className="text-sm text-red-500">{error}</p> : null}
               {resumeMessage ? (
-                <p className="text-sm text-[color:var(--ds-muted)]">{resumeMessage}</p>
+                <p className="text-sm text-[color:var(--ds-muted)]">
+                  {resumeMessage}
+                </p>
               ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3">
