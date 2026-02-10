@@ -9,6 +9,7 @@ import { createAuth, toAuthRequest } from "../auth";
 import { ApiError } from "../errors";
 import { requireAuth } from "../middleware/require-auth";
 import { createAssetRoutes } from "./assets";
+import { createEditorRoutes } from "./editor";
 import { createProjectRoutes } from "./projects";
 import { createTimelineRoutes } from "./timelines";
 import type { AppEnv } from "../types";
@@ -62,6 +63,7 @@ export function createApiRoutes() {
   app.route("/projects", createProjectRoutes());
   app.route("/assets", createAssetRoutes());
   app.route("/timelines", createTimelineRoutes());
+  app.route("/editor", createEditorRoutes());
 
   return app;
 }
