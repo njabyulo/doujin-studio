@@ -30,6 +30,13 @@ export function createApp() {
       credentials: true,
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
+      exposeHeaders: [
+        "Retry-After",
+        "x-ai-credits-limit",
+        "x-ai-credits-remaining",
+        "x-ai-credits-reset",
+        "x-request-id",
+      ],
     }),
   );
 

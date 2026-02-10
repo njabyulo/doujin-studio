@@ -3,8 +3,17 @@ import {
   SInterpretPlaybackResponse,
   SPlaybackCommand,
 } from "@doujin/core";
+import { createDb, eq, and } from "@doujin/database";
+import {
+  aiCreditDefaultPolicy,
+  aiCreditPolicy,
+  aiDailyUsage,
+} from "@doujin/database/schema";
+import { lt, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { ApiError } from "../errors";
+import { createApiErrorBody } from "../errors";
+import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
 
 function extractFirstJsonObject(text: string) {
@@ -121,7 +130,7 @@ function shouldUseFallback(apiKey: string, appEnv: string | undefined) {
 export function createEditorRoutes() {
   const app = new Hono<AppEnv>();
 
-  app.post("/interpret", async (c) => {
+  app.post("/interpret", requireAuth, async (c) => {
     let body: unknown;
     try {
       body = await c.req.json();
@@ -134,10 +143,161 @@ export function createEditorRoutes() {
       throw new ApiError(400, "BAD_REQUEST", "Invalid request payload");
     }
 
+    const user = c.get("user");
+    if (!user) {
+      throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
+    }
+
     const { prompt, currentMs, durationMs } = parsed.data;
     const apiKey = c.env.GEMINI_API_KEY ?? "";
 
     const forceFallback = c.req.header("x-ai-test-mode") === "1";
+
+    const feature = "editor_interpret";
+    const dayUtc = new Date().toISOString().slice(0, 10);
+
+    const nextUtcMidnightMs = (() => {
+      const now = new Date();
+      return Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+        0,
+        0,
+        0,
+        0,
+      );
+    })();
+    const resetIso = new Date(nextUtcMidnightMs).toISOString();
+    const retryAfterSeconds = Math.max(
+      0,
+      Math.ceil((nextUtcMidnightMs - Date.now()) / 1000),
+    );
+
+    // Credits: default 10/day, optional per-user override (NULL = unlimited).
+    const db = createDb(c.env.DB);
+    const [defaultPolicy] = await db
+      .select({
+        dailyLimit: aiCreditDefaultPolicy.dailyLimit,
+        enabled: aiCreditDefaultPolicy.enabled,
+      })
+      .from(aiCreditDefaultPolicy)
+      .where(eq(aiCreditDefaultPolicy.feature, feature))
+      .limit(1);
+
+    if (!defaultPolicy) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Missing AI credit policy");
+    }
+
+    const [overridePolicy] = await db
+      .select({
+        dailyLimit: aiCreditPolicy.dailyLimit,
+        enabled: aiCreditPolicy.enabled,
+      })
+      .from(aiCreditPolicy)
+      .where(
+        and(
+          eq(aiCreditPolicy.userId, user.id),
+          eq(aiCreditPolicy.feature, feature),
+        ),
+      )
+      .limit(1);
+
+    if (overridePolicy && overridePolicy.enabled === false) {
+      c.header("Retry-After", retryAfterSeconds.toString());
+      c.header("x-ai-credits-limit", "0");
+      c.header("x-ai-credits-remaining", "0");
+      c.header("x-ai-credits-reset", resetIso);
+      return c.json(
+        createApiErrorBody(
+          "RATE_LIMITED",
+          "Daily credits are used up. Try again tomorrow.",
+          c.get("requestId"),
+        ),
+        429,
+      );
+    }
+
+    const isUnlimited =
+      overridePolicy && overridePolicy.dailyLimit === null ? true : false;
+
+    const effectiveLimit =
+      overridePolicy && overridePolicy.dailyLimit != null
+        ? overridePolicy.dailyLimit
+        : defaultPolicy.dailyLimit;
+
+    if (!defaultPolicy.enabled) {
+      c.header("Retry-After", retryAfterSeconds.toString());
+      c.header("x-ai-credits-limit", "0");
+      c.header("x-ai-credits-remaining", "0");
+      c.header("x-ai-credits-reset", resetIso);
+      return c.json(
+        createApiErrorBody(
+          "RATE_LIMITED",
+          "Daily credits are used up. Try again tomorrow.",
+          c.get("requestId"),
+        ),
+        429,
+      );
+    }
+
+    if (!isUnlimited) {
+      // Ensure usage row exists.
+      await db
+        .insert(aiDailyUsage)
+        .values({
+          userId: user.id,
+          dayUtc,
+          feature,
+          used: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .onConflictDoNothing({
+          target: [
+            aiDailyUsage.userId,
+            aiDailyUsage.dayUtc,
+            aiDailyUsage.feature,
+          ],
+        });
+
+      const updated = await db
+        .update(aiDailyUsage)
+        .set({
+          used: sql`${aiDailyUsage.used} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(aiDailyUsage.userId, user.id),
+            eq(aiDailyUsage.dayUtc, dayUtc),
+            eq(aiDailyUsage.feature, feature),
+            lt(aiDailyUsage.used, effectiveLimit),
+          ),
+        )
+        .returning({ used: aiDailyUsage.used });
+
+      if (updated.length === 0) {
+        c.header("Retry-After", retryAfterSeconds.toString());
+        c.header("x-ai-credits-limit", String(effectiveLimit));
+        c.header("x-ai-credits-remaining", "0");
+        c.header("x-ai-credits-reset", resetIso);
+        return c.json(
+          createApiErrorBody(
+            "RATE_LIMITED",
+            "Daily credits are used up. Try again tomorrow.",
+            c.get("requestId"),
+          ),
+          429,
+        );
+      }
+
+      const usedNow = updated[0]?.used ?? effectiveLimit;
+      const remaining = Math.max(0, effectiveLimit - usedNow);
+      c.header("x-ai-credits-limit", String(effectiveLimit));
+      c.header("x-ai-credits-remaining", String(remaining));
+      c.header("x-ai-credits-reset", resetIso);
+    }
 
     if (forceFallback || shouldUseFallback(apiKey, c.env.APP_ENV)) {
       return c.json(

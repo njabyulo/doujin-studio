@@ -89,11 +89,76 @@ const AUTH_SCHEMA_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "project_member_project_user_unique" ON "project_member" ("project_id", "user_id")`,
   `CREATE INDEX IF NOT EXISTS "project_member_project_id_idx" ON "project_member" ("project_id")`,
   `CREATE INDEX IF NOT EXISTS "project_member_user_id_idx" ON "project_member" ("user_id")`,
+
+  `CREATE TABLE IF NOT EXISTS "ai_credit_default_policy" (
+    "feature" text PRIMARY KEY NOT NULL,
+    "daily_limit" integer NOT NULL,
+    "enabled" integer NOT NULL DEFAULT 1,
+    "created_at" integer NOT NULL,
+    "updated_at" integer NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS "ai_credit_policy_seed" (
+    "id" text PRIMARY KEY NOT NULL,
+    "email" text NOT NULL,
+    "feature" text NOT NULL,
+    "daily_limit" integer,
+    "enabled" integer NOT NULL DEFAULT 1,
+    "created_at" integer NOT NULL,
+    "updated_at" integer NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ai_credit_policy_seed_email_feature_unique" ON "ai_credit_policy_seed" ("email", "feature")`,
+  `CREATE TABLE IF NOT EXISTS "ai_credit_policy" (
+    "id" text PRIMARY KEY NOT NULL,
+    "user_id" text NOT NULL,
+    "feature" text NOT NULL,
+    "daily_limit" integer,
+    "enabled" integer NOT NULL DEFAULT 1,
+    "created_at" integer NOT NULL,
+    "updated_at" integer NOT NULL,
+    FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ai_credit_policy_user_feature_unique" ON "ai_credit_policy" ("user_id", "feature")`,
+  `CREATE INDEX IF NOT EXISTS "ai_credit_policy_user_id_idx" ON "ai_credit_policy" ("user_id")`,
+  `CREATE TABLE IF NOT EXISTS "ai_daily_usage" (
+    "id" text PRIMARY KEY NOT NULL,
+    "user_id" text NOT NULL,
+    "day_utc" text NOT NULL,
+    "feature" text NOT NULL,
+    "used" integer NOT NULL DEFAULT 0,
+    "created_at" integer NOT NULL,
+    "updated_at" integer NOT NULL,
+    FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ai_daily_usage_user_day_feature_unique" ON "ai_daily_usage" ("user_id", "day_utc", "feature")`,
+  `CREATE INDEX IF NOT EXISTS "ai_daily_usage_user_day_idx" ON "ai_daily_usage" ("user_id", "day_utc")`,
+  `CREATE TRIGGER IF NOT EXISTS "ai_credit_policy_seed_on_user_insert"
+    AFTER INSERT ON "user"
+    BEGIN
+      INSERT INTO "ai_credit_policy" ("id", "user_id", "feature", "daily_limit", "enabled", "created_at", "updated_at")
+      SELECT
+        lower(hex(randomblob(16))),
+        NEW."id",
+        s."feature",
+        s."daily_limit",
+        s."enabled",
+        CAST(strftime('%s','now') AS integer) * 1000,
+        CAST(strftime('%s','now') AS integer) * 1000
+      FROM "ai_credit_policy_seed" s
+      WHERE lower(s."email") = lower(NEW."email")
+      ON CONFLICT("user_id", "feature") DO UPDATE SET
+        "daily_limit" = excluded."daily_limit",
+        "enabled" = excluded."enabled",
+        "updated_at" = excluded."updated_at";
+    END`,
 ];
 
 const CLEAR_TABLE_STATEMENTS = [
   `DELETE FROM "project_member"`,
   `DELETE FROM "project"`,
+  `DELETE FROM "ai_daily_usage"`,
+  `DELETE FROM "ai_credit_policy"`,
+  `DELETE FROM "ai_credit_policy_seed"`,
+  `DELETE FROM "ai_credit_default_policy"`,
   `DELETE FROM "session"`,
   `DELETE FROM "account"`,
   `DELETE FROM "verification"`,
@@ -149,6 +214,27 @@ describe("api worker (surface pruned for web)", () => {
     for (const statement of CLEAR_TABLE_STATEMENTS) {
       await (env as any).DB.prepare(statement).run();
     }
+
+    // Seed default credits and unlimited overrides.
+    await (env as any).DB.prepare(
+      `INSERT INTO "ai_credit_default_policy" ("feature","daily_limit","enabled","created_at","updated_at")
+       VALUES ('editor_interpret',10,1, CAST(strftime('%s','now') AS integer) * 1000, CAST(strftime('%s','now') AS integer) * 1000)
+       ON CONFLICT("feature") DO UPDATE SET
+         "daily_limit"=excluded."daily_limit",
+         "enabled"=excluded."enabled",
+         "updated_at"=excluded."updated_at";`,
+    ).run();
+
+    await (env as any).DB.prepare(
+      `INSERT INTO "ai_credit_policy_seed" ("id","email","feature","daily_limit","enabled","created_at","updated_at")
+       VALUES
+         (lower(hex(randomblob(16))), 'ai@doujin.com', 'editor_interpret', NULL, 1, CAST(strftime('%s','now') AS integer) * 1000, CAST(strftime('%s','now') AS integer) * 1000),
+         (lower(hex(randomblob(16))), 'njabulo@doujin.com', 'editor_interpret', NULL, 1, CAST(strftime('%s','now') AS integer) * 1000, CAST(strftime('%s','now') AS integer) * 1000)
+       ON CONFLICT("email","feature") DO UPDATE SET
+         "daily_limit"=excluded."daily_limit",
+         "enabled"=excluded."enabled",
+         "updated_at"=excluded."updated_at";`,
+    ).run();
   });
 
   it("serves health under /api only", async () => {
@@ -265,11 +351,16 @@ describe("api worker (surface pruned for web)", () => {
   });
 
   it("interprets playback commands via /api/editor/interpret", async () => {
+    const { cookie } = await createAuthSession("limited-user@example.com");
     const response = await SELF.fetch(
       "https://example.com/api/editor/interpret",
       {
         method: "POST",
-        headers: { "content-type": "application/json", "x-ai-test-mode": "1" },
+        headers: {
+          "content-type": "application/json",
+          "x-ai-test-mode": "1",
+          cookie,
+        },
         body: JSON.stringify({
           prompt: "go to middle",
           currentMs: 0,
@@ -281,5 +372,73 @@ describe("api worker (surface pruned for web)", () => {
     expect(response.status).toBe(200);
     const body = SInterpretPlaybackResponse.parse(await response.json());
     expect(body.command.type).toBeTruthy();
+  });
+
+  it("rate-limits default users to 10 AI calls per UTC day", async () => {
+    const { cookie } = await createAuthSession("default-limit@example.com");
+
+    for (let i = 0; i < 10; i += 1) {
+      const ok = await SELF.fetch("https://example.com/api/editor/interpret", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-ai-test-mode": "1",
+          cookie,
+        },
+        body: JSON.stringify({
+          prompt: "pause",
+          currentMs: 0,
+          durationMs: 10_000,
+        }),
+      });
+      expect(ok.status).toBe(200);
+    }
+
+    const limited = await SELF.fetch(
+      "https://example.com/api/editor/interpret",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-ai-test-mode": "1",
+          cookie,
+        },
+        body: JSON.stringify({
+          prompt: "pause",
+          currentMs: 0,
+          durationMs: 10_000,
+        }),
+      },
+    );
+
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("retry-after")).toBeTruthy();
+    expect(limited.headers.get("x-ai-credits-limit")).toBe("10");
+    expect(limited.headers.get("x-ai-credits-remaining")).toBe("0");
+    expect(limited.headers.get("x-ai-credits-reset")).toBeTruthy();
+    expect(SApiError.parse(await limited.json()).error.code).toBe(
+      "RATE_LIMITED",
+    );
+  });
+
+  it("does not rate-limit unlimited override users", async () => {
+    const { cookie } = await createAuthSession("ai@doujin.com");
+
+    for (let i = 0; i < 25; i += 1) {
+      const ok = await SELF.fetch("https://example.com/api/editor/interpret", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-ai-test-mode": "1",
+          cookie,
+        },
+        body: JSON.stringify({
+          prompt: "pause",
+          currentMs: 0,
+          durationMs: 10_000,
+        }),
+      });
+      expect(ok.status).toBe(200);
+    }
   });
 });
