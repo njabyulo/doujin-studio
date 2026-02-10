@@ -6,7 +6,6 @@ import {
   Clapperboard,
   Layers,
   Mic,
-  Sparkles,
   Type,
   Wand2,
 } from "lucide-react";
@@ -18,8 +17,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { cn } from "~/lib/utils";
 
 import { useTimelineState } from "../hooks/useTimelineState";
@@ -29,9 +28,13 @@ import { EditorPlayer } from "./EditorPlayer";
 import { EditorTimeline } from "./EditorTimeline";
 import { EditorProps, ToolItem, ClipItem } from "../types";
 import { deriveTitle, formatTimestamp } from "../utils";
-import { interpretTPlaybackCommand, executeTPlaybackCommand } from "~/lib/playback-commands";
+import {
+  interpretTPlaybackCommand,
+  executeTPlaybackCommand,
+} from "~/lib/playback-commands";
 import { buildAuthHref } from "~/lib/auth-navigation";
 import { Scissors } from "lucide-react";
+import { PlaybackPanel } from "./PlaybackPanel";
 
 const LOCAL_ASSET_ID = "local-video";
 
@@ -54,9 +57,7 @@ export function Editor({ projectId }: EditorProps) {
     uploadNotice,
     handleUpload,
     handleVideoError,
-  } = useProjectMedia(
-    projectId,
-  );
+  } = useProjectMedia(projectId);
 
   const [commandInput, setCommandInput] = useState("");
   const [isInterpreting, setIsInterpreting] = useState(false);
@@ -102,11 +103,15 @@ export function Editor({ projectId }: EditorProps) {
   );
 
   const videoTrack = useMemo(
-    () => timelineState?.data.tracks.find((track) => track.kind === "video") ?? null,
+    () =>
+      timelineState?.data.tracks.find((track) => track.kind === "video") ??
+      null,
     [timelineState?.data.tracks],
   );
   const subtitleTrack = useMemo(
-    () => timelineState?.data.tracks.find((track) => track.kind === "subtitle") ?? null,
+    () =>
+      timelineState?.data.tracks.find((track) => track.kind === "subtitle") ??
+      null,
     [timelineState?.data.tracks],
   );
 
@@ -136,7 +141,8 @@ export function Editor({ projectId }: EditorProps) {
   const timeChips = useMemo(
     () =>
       clips.map(
-        (clip) => `${formatTimestamp(clip.startMs)} - ${formatTimestamp(clip.endMs)}`,
+        (clip) =>
+          `${formatTimestamp(clip.startMs)} - ${formatTimestamp(clip.endMs)}`,
       ),
     [clips],
   );
@@ -177,7 +183,9 @@ export function Editor({ projectId }: EditorProps) {
 
   const handleSplitClip = useCallback(() => {
     if (!firstVideoClip) return;
-    const midpoint = Math.round((firstVideoClip.startMs + firstVideoClip.endMs) / 2);
+    const midpoint = Math.round(
+      (firstVideoClip.startMs + firstVideoClip.endMs) / 2,
+    );
     dispatchCommand({
       type: "splitClip",
       clipId: firstVideoClip.id,
@@ -197,7 +205,8 @@ export function Editor({ projectId }: EditorProps) {
 
   const handleSetVolume = useCallback(() => {
     if (!firstVideoClip) return;
-    const nextVolume = firstVideoClip.volume && firstVideoClip.volume > 0.8 ? 0.6 : 1;
+    const nextVolume =
+      firstVideoClip.volume && firstVideoClip.volume > 0.8 ? 0.6 : 1;
     dispatchCommand({
       type: "setVolume",
       clipId: firstVideoClip.id,
@@ -227,22 +236,31 @@ export function Editor({ projectId }: EditorProps) {
 
   const timelineStatusLabel = useMemo(() => {
     switch (timelineState?.saveStatus) {
-      case "dirty": return "Unsaved";
-      case "saving": return "Saving...";
-      case "saved": return "Saved";
-      case "conflict": return "Conflict";
-      case "error": return "Error";
-      default: return "Idle";
+      case "dirty":
+        return "Unsaved";
+      case "saving":
+        return "Saving...";
+      case "saved":
+        return "Saved";
+      case "conflict":
+        return "Conflict";
+      case "error":
+        return "Error";
+      default:
+        return "Idle";
     }
   }, [timelineState?.saveStatus]);
 
   const title = deriveTitle(upload?.name);
-  const signInHref = buildAuthHref("/auth/sign-in", projectId ? `/projects/${projectId}` : "/");
+  const signInHref = buildAuthHref(
+    "/auth/sign-in",
+    projectId ? `/projects/${projectId}` : "/",
+  );
 
   return (
     <div className="ds-editor min-h-screen">
       <div className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-6 py-8">
-        <div className="grid w-full gap-6 lg:grid-cols-[72px_minmax(0,1fr)]">
+        <div className="grid w-full gap-6 lg:grid-cols-[72px_minmax(0,1fr)] xl:grid-cols-[72px_minmax(0,1fr)_420px]">
           <aside className="editor-rail hidden flex-col items-center gap-3 lg:flex">
             <TooltipProvider>
               {tools.map((tool) => {
@@ -252,7 +270,10 @@ export function Editor({ projectId }: EditorProps) {
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className={cn("editor-tool", activeTool === tool.id && "editor-tool-active")}
+                        className={cn(
+                          "editor-tool",
+                          activeTool === tool.id && "editor-tool-active",
+                        )}
                         onClick={() => setActiveTool(tool.id)}
                       >
                         <Icon className="h-5 w-5" />
@@ -308,42 +329,61 @@ export function Editor({ projectId }: EditorProps) {
 
             {timelineError && (
               <div className="flex items-center gap-3">
-                <p className="text-sm text-[color:var(--editor-accent)]">{timelineError}</p>
+                <p className="text-sm text-[color:var(--editor-accent)]">
+                  {timelineError}
+                </p>
                 {timelineError.toLowerCase().includes("authentication") && (
-                  <Button variant="glass" size="sm" className="rounded-full px-4" asChild>
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    className="rounded-full px-4"
+                    asChild
+                  >
                     <Link href={signInHref}>Sign in</Link>
                   </Button>
                 )}
               </div>
             )}
 
-            <div className="mt-8 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-                <Sparkles className="h-4 w-4 text-[color:var(--editor-accent)]" />
-                Playback Control
-              </div>
-              <div className="flex gap-3">
-                <Input
-                  className="bg-white/10 text-white placeholder:text-white/40"
-                  placeholder="Type a command (e.g., 'go to middle', 'restart', 'pause')"
-                  value={commandInput}
-                  disabled={isInterpreting}
-                  onChange={(e) => setCommandInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSendCommand();
-                  }}
-                />
-                <Button
-                  variant="accent"
-                  onClick={handleSendCommand}
-                  disabled={isInterpreting || !commandInput.trim()}
+            <div className="xl:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="accent"
+                    className="fixed bottom-6 right-6 z-40 rounded-full px-5 shadow-[0_25px_60px_rgba(216,221,90,0.45)]"
+                  >
+                    Ask AI
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="right"
+                  className="w-[420px] max-w-[92vw] p-0"
                 >
-                  {isInterpreting ? "..." : "Send"}
-                </Button>
-              </div>
-              {lastReasoning && <p className="text-xs italic text-white/40">AI: {lastReasoning}</p>}
+                  <div className="p-6">
+                    <PlaybackPanel
+                      commandInput={commandInput}
+                      isInterpreting={isInterpreting}
+                      lastReasoning={lastReasoning}
+                      onCommandInputChange={setCommandInput}
+                      onSendCommand={handleSendCommand}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </section>
+
+          <aside className="hidden xl:block">
+            <div className="sticky top-8">
+              <PlaybackPanel
+                commandInput={commandInput}
+                isInterpreting={isInterpreting}
+                lastReasoning={lastReasoning}
+                onCommandInputChange={setCommandInput}
+                onSendCommand={handleSendCommand}
+              />
+            </div>
+          </aside>
         </div>
       </div>
     </div>
