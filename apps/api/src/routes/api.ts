@@ -1,8 +1,8 @@
 import {
-  healthResponseSchema,
-  meResponseSchema,
-  versionResponseSchema,
-} from "@doujin/contracts";
+  SHealthResponse,
+  SMeResponse,
+  SVersionResponse,
+} from "@doujin/core";
 import { Hono } from "hono";
 import packageJson from "../../package.json";
 import { createAuth, toAuthRequest } from "../auth";
@@ -14,7 +14,7 @@ import { createTimelineRoutes } from "./timelines";
 import type { AppEnv } from "../types";
 
 function createVersionResponse(commitSha: string) {
-  return versionResponseSchema.parse({
+  return SVersionResponse.parse({
     version: packageJson.version,
     commitSha,
   });
@@ -29,7 +29,7 @@ export function createApiRoutes() {
   });
 
   app.get("/health", (c) => {
-    return c.json(healthResponseSchema.parse({ ok: true }), 200);
+    return c.json(SHealthResponse.parse({ ok: true }), 200);
   });
 
   app.get("/version", (c) => {
@@ -43,7 +43,7 @@ export function createApiRoutes() {
     }
 
     return c.json(
-      meResponseSchema.parse({
+      SMeResponse.parse({
         user: {
           id: user.id,
           email: user.email,

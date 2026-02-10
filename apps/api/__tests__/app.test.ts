@@ -1,14 +1,14 @@
 import {
-  assetResponseSchema,
-  assetUploadSessionResponseSchema,
-  apiErrorSchema,
-  healthResponseSchema,
-  meResponseSchema,
-  projectAssetListResponseSchema,
-  projectListResponseSchema,
-  projectResponseSchema,
-  timelineWithLatestResponseSchema,
-  versionResponseSchema,
+  STAssetResponse,
+  STAssetUploadSessionResponse,
+  SApiError,
+  STHealthResponse,
+  SMeResponse,
+  STProjectAssetListResponse,
+  STProjectListResponse,
+  STProjectResponse,
+  STTimelineWithLatestResponse,
+  STVersionResponse,
 } from "@doujin/contracts";
 import { convertSetCookieToCookie } from "better-auth/test";
 import { env, SELF } from "cloudflare:test";
@@ -220,7 +220,7 @@ async function createProject(cookie: string, title: string) {
   });
 
   expect(response.status).toBe(201);
-  const body = projectResponseSchema.parse(await response.json());
+  const body = STProjectResponse.parse(await response.json());
   return body.project;
 }
 
@@ -252,7 +252,7 @@ async function createUploadSession(
   );
 
   expect(response.status).toBe(201);
-  return assetUploadSessionResponseSchema.parse(await response.json());
+  return STAssetUploadSessionResponse.parse(await response.json());
 }
 
 async function completeAssetUpload(
@@ -423,7 +423,7 @@ async function createTimelineWithUploadedSeedAsset(cookie: string, projectId: st
   });
   expect(createResponse.status).toBe(201);
 
-  return timelineWithLatestResponseSchema.parse(await createResponse.json());
+  return STTimelineWithLatestResponse.parse(await createResponse.json());
 }
 
 describe("api worker", () => {
@@ -443,14 +443,14 @@ describe("api worker", () => {
     expect(rootResponse.headers.get("x-request-id")).toBeTruthy();
 
     const rootBody = await rootResponse.json();
-    expect(healthResponseSchema.parse(rootBody)).toEqual({ ok: true });
+    expect(STHealthResponse.parse(rootBody)).toEqual({ ok: true });
 
     const prefixedResponse = await SELF.fetch("https://example.com/api/health");
     expect(prefixedResponse.status).toBe(200);
     expect(prefixedResponse.headers.get("x-request-id")).toBeTruthy();
 
     const prefixedBody = await prefixedResponse.json();
-    expect(healthResponseSchema.parse(prefixedBody)).toEqual({ ok: true });
+    expect(STHealthResponse.parse(prefixedBody)).toEqual({ ok: true });
   });
 
   it("returns version and commit metadata", async () => {
@@ -458,7 +458,7 @@ describe("api worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = versionResponseSchema.parse(await response.json());
+    const body = STVersionResponse.parse(await response.json());
     expect(body.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(body.commitSha).toMatch(/\S+/);
   });
@@ -468,7 +468,7 @@ describe("api worker", () => {
     expect(response.status).toBe(404);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("NOT_FOUND");
     expect(body.error.requestId).toBeTruthy();
   });
@@ -478,7 +478,7 @@ describe("api worker", () => {
     expect(response.status).toBe(401);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("UNAUTHORIZED");
   });
 
@@ -494,7 +494,7 @@ describe("api worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = meResponseSchema.parse(await response.json());
+    const body = SMeResponse.parse(await response.json());
     expect(body.user.email).toBe("session-user@example.com");
     expect(body.tenant.type).toBe("user");
     expect(body.tenant.id).toBe(body.user.id);
@@ -522,7 +522,7 @@ describe("api worker", () => {
     expect(meResponse.status).toBe(200);
     expect(meResponse.headers.get("x-request-id")).toBeTruthy();
 
-    const body = meResponseSchema.parse(await meResponse.json());
+    const body = SMeResponse.parse(await meResponse.json());
     expect(body.user.email).toBe("jwt-user@example.com");
     expect(body.tenant.type).toBe("user");
   });
@@ -539,7 +539,7 @@ describe("api worker", () => {
     expect(response.status).toBe(401);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("UNAUTHORIZED");
   });
 
@@ -557,7 +557,7 @@ describe("api worker", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = projectResponseSchema.parse(await response.json());
+    const body = STProjectResponse.parse(await response.json());
     expect(body.project.id).toBeTruthy();
     expect(body.project.title).toBe("Brand Campaign");
     expect(body.project.role).toBe("owner");
@@ -577,7 +577,7 @@ describe("api worker", () => {
     expect(response.status).toBe(400);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("BAD_REQUEST");
   });
 
@@ -598,7 +598,7 @@ describe("api worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = projectListResponseSchema.parse(await response.json());
+    const body = STProjectListResponse.parse(await response.json());
     expect(body.projects).toHaveLength(2);
     expect(body.projects.map((project) => project.id)).toEqual([
       userAProjectTwo.id,
@@ -612,7 +612,7 @@ describe("api worker", () => {
     expect(response.status).toBe(401);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("UNAUTHORIZED");
   });
 
@@ -630,7 +630,7 @@ describe("api worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBeTruthy();
 
-    const body = projectResponseSchema.parse(await response.json());
+    const body = STProjectResponse.parse(await response.json());
     expect(body.project.id).toBe(created.id);
     expect(body.project.title).toBe("Feature Film");
     expect(body.project.role).toBe("owner");
@@ -650,7 +650,7 @@ describe("api worker", () => {
 
     expect(nonMemberResponse.status).toBe(404);
     expect(nonMemberResponse.headers.get("x-request-id")).toBeTruthy();
-    const nonMemberBody = apiErrorSchema.parse(await nonMemberResponse.json());
+    const nonMemberBody = SApiError.parse(await nonMemberResponse.json());
     expect(nonMemberBody.error.code).toBe("NOT_FOUND");
 
     const missingResponse = await SELF.fetch(
@@ -662,7 +662,7 @@ describe("api worker", () => {
 
     expect(missingResponse.status).toBe(404);
     expect(missingResponse.headers.get("x-request-id")).toBeTruthy();
-    const missingBody = apiErrorSchema.parse(await missingResponse.json());
+    const missingBody = SApiError.parse(await missingResponse.json());
     expect(missingBody.error.code).toBe("NOT_FOUND");
   });
 
@@ -688,7 +688,7 @@ describe("api worker", () => {
     );
 
     expect(assetResponse.status).toBe(200);
-    const body = assetResponseSchema.parse(await assetResponse.json());
+    const body = STAssetResponse.parse(await assetResponse.json());
     expect(body.asset.id).toBe(uploadSession.assetId);
     expect(body.asset.status).toBe("pending_upload");
     expect(body.asset.mime).toBe("video/quicktime");
@@ -714,7 +714,7 @@ describe("api worker", () => {
     );
 
     expect(response.status).toBe(401);
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("UNAUTHORIZED");
   });
 
@@ -741,7 +741,7 @@ describe("api worker", () => {
     );
 
     expect(response.status).toBe(404);
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("NOT_FOUND");
   });
 
@@ -765,7 +765,7 @@ describe("api worker", () => {
     });
 
     expect(response.status).toBe(200);
-    const body = assetResponseSchema.parse(await response.json());
+    const body = STAssetResponse.parse(await response.json());
     expect(body.asset.status).toBe("uploaded");
     expect(body.asset.durationMs).toBe(42000);
     expect(body.asset.width).toBe(1920);
@@ -787,7 +787,7 @@ describe("api worker", () => {
     });
 
     expect(response.status).toBe(400);
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("BAD_REQUEST");
   });
 
@@ -866,7 +866,7 @@ describe("api worker", () => {
     );
 
     expect(response.status).toBe(404);
-    const body = apiErrorSchema.parse(await response.json());
+    const body = SApiError.parse(await response.json());
     expect(body.error.code).toBe("NOT_FOUND");
   });
 
@@ -904,7 +904,7 @@ describe("api worker", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = projectAssetListResponseSchema.parse(await response.json());
+    const body = STProjectAssetListResponse.parse(await response.json());
     expect(body.assets).toHaveLength(1);
     expect(body.assets[0]?.id).toBe(secondUpload.assetId);
     expect(body.assets[0]?.status).toBe("uploaded");
@@ -919,7 +919,7 @@ describe("api worker", () => {
       name: "Main Timeline",
     });
     expect(createResponse.status).toBe(201);
-    const created = timelineWithLatestResponseSchema.parse(
+    const created = STTimelineWithLatestResponse.parse(
       await createResponse.json(),
     );
 
@@ -931,7 +931,7 @@ describe("api worker", () => {
 
     const latestResponse = await getLatestProjectTimeline(cookie, createdProject.id);
     expect(latestResponse.status).toBe(200);
-    const latest = timelineWithLatestResponseSchema.parse(await latestResponse.json());
+    const latest = STTimelineWithLatestResponse.parse(await latestResponse.json());
     expect(latest.timeline.id).toBe(created.timeline.id);
     expect(latest.latestVersion.version).toBe(1);
   });
@@ -940,7 +940,7 @@ describe("api worker", () => {
     const { cookie } = await createAuthSession("timeline-patch@example.com");
     const createdProject = await createProject(cookie, "Timeline Patch");
     const createResponse = await createTimeline(cookie, createdProject.id, {});
-    const created = timelineWithLatestResponseSchema.parse(
+    const created = STTimelineWithLatestResponse.parse(
       await createResponse.json(),
     );
 
@@ -982,7 +982,7 @@ describe("api worker", () => {
       data: nextData,
     });
     expect(patchResponse.status).toBe(200);
-    const patched = timelineWithLatestResponseSchema.parse(
+    const patched = STTimelineWithLatestResponse.parse(
       await patchResponse.json(),
     );
     expect(patched.timeline.latestVersion).toBe(2);
@@ -991,7 +991,7 @@ describe("api worker", () => {
 
     const getResponse = await getTimeline(cookie, created.timeline.id);
     expect(getResponse.status).toBe(200);
-    const fetched = timelineWithLatestResponseSchema.parse(await getResponse.json());
+    const fetched = STTimelineWithLatestResponse.parse(await getResponse.json());
     expect(fetched.latestVersion.version).toBe(2);
     expect(
       fetched.latestVersion.data.tracks
@@ -1004,7 +1004,7 @@ describe("api worker", () => {
     const { cookie } = await createAuthSession("timeline-conflict@example.com");
     const createdProject = await createProject(cookie, "Timeline Conflict");
     const createResponse = await createTimeline(cookie, createdProject.id, {});
-    const created = timelineWithLatestResponseSchema.parse(
+    const created = STTimelineWithLatestResponse.parse(
       await createResponse.json(),
     );
 
@@ -1021,331 +1021,21 @@ describe("api worker", () => {
       data: created.latestVersion.data,
     });
     expect(conflictResponse.status).toBe(400);
-    const conflictBody = apiErrorSchema.parse(await conflictResponse.json());
+    const conflictBody = SApiError.parse(await conflictResponse.json());
     expect(conflictBody.error.code).toBe("BAD_REQUEST");
   });
-
-  it("rejects unauthenticated AI chat requests", async () => {
-    const response = await postAiChat(
-      null,
-      createAiChatPayload("timeline-id", "trim clip 1 to 3s"),
-    );
-
-    expect(response.status).toBe(401);
-    const body = apiErrorSchema.parse(await response.json());
-    expect(body.error.code).toBe("UNAUTHORIZED");
-  });
-
-  it("returns NOT_FOUND for AI chat timeline access by non-members", async () => {
-    const { cookie: ownerCookie } = await createAuthSession("ai-owner@example.com");
-    const { cookie: outsiderCookie } = await createAuthSession("ai-outsider@example.com");
-    const createdProject = await createProject(ownerCookie, "AI Membership");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      ownerCookie,
-      createdProject.id,
-    );
-
-    const response = await postAiChat(
-      outsiderCookie,
-      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
-    );
-
-    expect(response.status).toBe(404);
-    const body = apiErrorSchema.parse(await response.json());
-    expect(body.error.code).toBe("NOT_FOUND");
-  });
-
-  it("streams AI chat responses for authenticated users", async () => {
-    const { cookie } = await createAuthSession("ai-stream@example.com");
-    const createdProject = await createProject(cookie, "AI Stream");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const response = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, "suggest pacing changes"),
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain("text/event-stream");
-    const streamPayload = await response.text();
-    expect(streamPayload.length).toBeGreaterThan(0);
-    expect(streamPayload).toContain("Test mode response");
-  });
-
-  it("creates EDL proposals via AI tool calls without mutating timeline versions", async () => {
-    const { cookie } = await createAuthSession("ai-trim@example.com");
-    const createdProject = await createProject(cookie, "AI Trim");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const chatResponse = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
-    );
-    expect(chatResponse.status).toBe(200);
-    await chatResponse.text();
-
-    const latestProposal = await env.DB.prepare(
-      `SELECT id, base_version
-       FROM ai_edl_proposals
-       WHERE timeline_id = ?
-       ORDER BY created_at DESC
-       LIMIT 1`,
-    )
-      .bind(seededTimeline.timeline.id)
-      .first<{ id: string; base_version: number | string }>();
-    expect(latestProposal?.id).toBeTruthy();
-    expect(Number(latestProposal?.base_version ?? 0)).toBe(
-      seededTimeline.latestVersion.version,
-    );
-
-    const refreshedResponse = await getTimeline(cookie, seededTimeline.timeline.id);
-    expect(refreshedResponse.status).toBe(200);
-    const refreshedTimeline = timelineWithLatestResponseSchema.parse(
-      await refreshedResponse.json(),
-    );
-
-    expect(refreshedTimeline.latestVersion.version).toBe(
-      seededTimeline.latestVersion.version,
-    );
-  });
-
-  it("applies an EDL proposal and persists the next AI timeline version", async () => {
-    const { cookie } = await createAuthSession("edl-apply@example.com");
-    const createdProject = await createProject(cookie, "EDL Apply");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const chatResponse = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
-    );
-    expect(chatResponse.status).toBe(200);
-    await chatResponse.text();
-
-    const latestProposal = await env.DB.prepare(
-      `SELECT id
-       FROM ai_edl_proposals
-       WHERE timeline_id = ?
-       ORDER BY created_at DESC
-       LIMIT 1`,
-    )
-      .bind(seededTimeline.timeline.id)
-      .first<{ id: string }>();
-    expect(latestProposal?.id).toBeTruthy();
-
-    const applyResponse = await postApplyEdlProposal(cookie, latestProposal?.id ?? "");
-    expect(applyResponse.status).toBe(200);
-    const applied = timelineWithLatestResponseSchema.parse(await applyResponse.json());
-
-    expect(applied.latestVersion.version).toBe(seededTimeline.latestVersion.version + 1);
-    expect(applied.latestVersion.source).toBe("ai");
-    expect(applied.latestEdl).toBeTruthy();
-
-    const videoTrack = applied.latestVersion.data.tracks.find(
-      (track) => track.kind === "video",
-    );
-    const firstClip = videoTrack?.clips[0];
-    expect(firstClip).toBeTruthy();
-    expect((firstClip?.endMs ?? 0) - (firstClip?.startMs ?? 0)).toBe(3000);
-  });
-
-  it("rejects applying stale EDL proposals after timeline version changes", async () => {
-    const { cookie } = await createAuthSession("edl-stale@example.com");
-    const createdProject = await createProject(cookie, "EDL Stale");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const chatResponse = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
-    );
-    expect(chatResponse.status).toBe(200);
-    await chatResponse.text();
-
-    const latestProposal = await env.DB.prepare(
-      `SELECT id
-       FROM ai_edl_proposals
-       WHERE timeline_id = ?
-       ORDER BY created_at DESC
-       LIMIT 1`,
-    )
-      .bind(seededTimeline.timeline.id)
-      .first<{ id: string }>();
-    expect(latestProposal?.id).toBeTruthy();
-
-    const bumpResponse = await patchTimeline(cookie, seededTimeline.timeline.id, {
-      baseVersion: seededTimeline.latestVersion.version,
-      source: "autosave",
-      data: seededTimeline.latestVersion.data,
-    });
-    expect(bumpResponse.status).toBe(200);
-
-    const applyResponse = await postApplyEdlProposal(cookie, latestProposal?.id ?? "");
-    expect(applyResponse.status).toBe(400);
-    const body = apiErrorSchema.parse(await applyResponse.json());
-    expect(body.error.code).toBe("BAD_REQUEST");
-  });
-
-  it("enforces AI chat rate limits with RATE_LIMITED responses", async () => {
-    const { cookie } = await createAuthSession("ai-rate-limit@example.com");
-    const createdProject = await createProject(cookie, "AI Rate Limit");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const meResponse = await SELF.fetch("https://example.com/me", {
-      headers: { cookie },
-    });
-    expect(meResponse.status).toBe(200);
-    const me = meResponseSchema.parse(await meResponse.json());
-    const now = Date.now();
-    const limit = Number.parseInt(env.AI_CHAT_RATE_LIMIT_PER_HOUR, 10);
-
-    for (let index = 0; index < limit; index += 1) {
-      await env.DB.prepare(
-        `INSERT INTO ai_chat_logs (
-          id, user_id, project_id, timeline_id, model, status,
-          prompt_excerpt, response_excerpt, tool_call_count, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-        .bind(
-          `seed-log-${index}`,
-          me.user.id,
-          createdProject.id,
-          seededTimeline.timeline.id,
-          env.AI_CHAT_MODEL,
-          "ok",
-          "seed prompt",
-          "seed response",
-          0,
-          now,
-        )
-        .run();
-    }
-
-    const response = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, "trim clip 1 to 3s"),
-    );
-
-    expect(response.status).toBe(429);
-    const body = apiErrorSchema.parse(await response.json());
-    expect(body.error.code).toBe("RATE_LIMITED");
-  });
-
-  it("bounds tool spam and avoids unbounded timeline version writes", async () => {
-    const { cookie } = await createAuthSession("ai-tool-spam@example.com");
-    const createdProject = await createProject(cookie, "AI Tool Spam");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const response = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, "tool spam"),
-    );
-    expect(response.status).toBe(200);
-    await response.text();
-
-    const refreshedResponse = await getTimeline(cookie, seededTimeline.timeline.id);
-    expect(refreshedResponse.status).toBe(200);
-    const refreshedTimeline = timelineWithLatestResponseSchema.parse(
-      await refreshedResponse.json(),
-    );
-    const maxToolCalls = Number.parseInt(env.AI_CHAT_MAX_TOOL_CALLS, 10);
-    expect(refreshedTimeline.latestVersion.version).toBe(
-      seededTimeline.latestVersion.version,
-    );
-
-    const proposalCountRow = await env.DB.prepare(
-      `SELECT COUNT(*) as count
-       FROM ai_edl_proposals
-       WHERE timeline_id = ?`,
-    )
-      .bind(seededTimeline.timeline.id)
-      .first<{ count: number | string }>();
-    expect(Number(proposalCountRow?.count ?? 0)).toBeLessThanOrEqual(maxToolCalls);
-
-    const latestLog = await env.DB.prepare(
-      `SELECT tool_call_count
-       FROM ai_chat_logs
-       WHERE timeline_id = ?
-       ORDER BY created_at DESC
-       LIMIT 1`,
-    )
-      .bind(seededTimeline.timeline.id)
-      .first<{ tool_call_count: number | string }>();
-    expect(Number(latestLog?.tool_call_count ?? 0)).toBeLessThanOrEqual(
-      maxToolCalls,
-    );
-  });
-
-  it("records truncated prompt and response excerpts in AI chat logs", async () => {
-    const { cookie } = await createAuthSession("ai-debug-log@example.com");
-    const createdProject = await createProject(cookie, "AI Debug Logs");
-    const seededTimeline = await createTimelineWithUploadedSeedAsset(
-      cookie,
-      createdProject.id,
-    );
-
-    const longPrompt = "trim clip 1 to 3s ".repeat(80);
-    const response = await postAiChat(
-      cookie,
-      createAiChatPayload(seededTimeline.timeline.id, longPrompt),
-    );
-    expect(response.status).toBe(200);
-    await response.text();
-
-    const maxChars = Number.parseInt(env.AI_CHAT_LOG_SNIPPET_CHARS, 10);
-    const logRow = await env.DB.prepare(
-      `SELECT model, status, prompt_excerpt, response_excerpt, tool_call_count
-       FROM ai_chat_logs
-       WHERE timeline_id = ?
-       ORDER BY created_at DESC
-       LIMIT 1`,
-    )
-      .bind(seededTimeline.timeline.id)
-      .first<{
-        model: string;
-        status: string;
-        prompt_excerpt: string;
-        response_excerpt: string;
-        tool_call_count: number | string;
-      }>();
-
-    expect(logRow).toBeTruthy();
-    expect(logRow?.model).toBe(env.AI_CHAT_MODEL);
-    expect(logRow?.status).toBe("ok");
-    expect(logRow?.prompt_excerpt.length ?? 0).toBeLessThanOrEqual(maxChars);
-    expect(logRow?.response_excerpt.length ?? 0).toBeGreaterThan(0);
-    expect(logRow?.response_excerpt.length ?? 0).toBeLessThanOrEqual(maxChars);
-    expect(Number(logRow?.tool_call_count ?? 0)).toBeGreaterThanOrEqual(0);
-  });
-
   it("returns NOT_FOUND for timeline access by non-members", async () => {
     const { cookie: ownerCookie } = await createAuthSession("timeline-owner@example.com");
     const { cookie: outsiderCookie } = await createAuthSession("timeline-outsider@example.com");
     const createdProject = await createProject(ownerCookie, "Timeline Private");
     const createResponse = await createTimeline(ownerCookie, createdProject.id, {});
-    const created = timelineWithLatestResponseSchema.parse(
+    const created = STTimelineWithLatestResponse.parse(
       await createResponse.json(),
     );
 
     const outsiderRead = await getTimeline(outsiderCookie, created.timeline.id);
     expect(outsiderRead.status).toBe(404);
-    const outsiderBody = apiErrorSchema.parse(await outsiderRead.json());
+    const outsiderBody = SApiError.parse(await outsiderRead.json());
     expect(outsiderBody.error.code).toBe("NOT_FOUND");
 
     const outsiderPatch = await patchTimeline(outsiderCookie, created.timeline.id, {
@@ -1354,7 +1044,7 @@ describe("api worker", () => {
       data: created.latestVersion.data,
     });
     expect(outsiderPatch.status).toBe(404);
-    const outsiderPatchBody = apiErrorSchema.parse(await outsiderPatch.json());
+    const outsiderPatchBody = SApiError.parse(await outsiderPatch.json());
     expect(outsiderPatchBody.error.code).toBe("NOT_FOUND");
   });
 });

@@ -1,10 +1,10 @@
 import {
-  timelineSchema,
-  timelineVersionSchema,
-  timelineWithLatestResponseSchema,
-  type TimelineData,
-  type TimelineVersionSource,
-} from "@doujin/contracts";
+  STimeline,
+  STimelineVersion,
+  STimelineWithLatestResponse,
+  type TTimelineData,
+  type TTimelineVersionSource,
+} from "@doujin/core";
 
 type Timestamp = Date | number;
 
@@ -21,10 +21,10 @@ export type TimelineVersionRecord = {
   id: string;
   timelineId: string;
   version: number;
-  source: TimelineVersionSource;
+  source: TTimelineVersionSource;
   createdByUserId: string;
   createdAt: Timestamp;
-  data: TimelineData;
+  data: TTimelineData;
 };
 
 function toTimestamp(value: Timestamp) {
@@ -32,7 +32,7 @@ function toTimestamp(value: Timestamp) {
 }
 
 export function toTimelineResponse(record: TimelineRecord) {
-  return timelineSchema.parse({
+  return STimeline.parse({
     id: record.id,
     projectId: record.projectId,
     name: record.name,
@@ -42,8 +42,8 @@ export function toTimelineResponse(record: TimelineRecord) {
   });
 }
 
-export function toTimelineVersionResponse(record: TimelineVersionRecord) {
-  return timelineVersionSchema.parse({
+export function toTimelineTVersionResponse(record: TimelineVersionRecord) {
+  return STimelineVersion.parse({
     id: record.id,
     timelineId: record.timelineId,
     version: record.version,
@@ -54,12 +54,12 @@ export function toTimelineVersionResponse(record: TimelineVersionRecord) {
   });
 }
 
-export function toTimelineWithLatestResponse(
+export function toTTimelineWithLatestResponse(
   timeline: TimelineRecord,
   latestVersion: TimelineVersionRecord,
 ) {
-  return timelineWithLatestResponseSchema.parse({
+  return STimelineWithLatestResponse.parse({
     timeline: toTimelineResponse(timeline),
-    latestVersion: toTimelineVersionResponse(latestVersion),
+    latestVersion: toTimelineTVersionResponse(latestVersion),
   });
 }

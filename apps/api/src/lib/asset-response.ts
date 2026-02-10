@@ -1,4 +1,4 @@
-import { assetSchema } from "@doujin/contracts";
+import { SAsset } from "@doujin/core";
 
 export type AssetRecord = {
   id: string;
@@ -16,8 +16,8 @@ export type AssetRecord = {
   createdAt: Date;
 };
 
-export function toAssetResponse(record: AssetRecord) {
-  return assetSchema.parse({
+export function toTAssetResponse(record: AssetRecord) {
+  return SAsset.parse({
     id: record.id,
     projectId: record.projectId,
     type: record.type,

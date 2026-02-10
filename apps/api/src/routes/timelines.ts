@@ -5,31 +5,19 @@ import {
 } from "@doujin/database";
 import { timeline, timelineVersion } from "@doujin/database/schema";
 import {
-  deriveEdlFromTimelineData,
-  mapTimelineSourceToEdlSource,
-  saveTimelineVersionRequestSchema,
-  timelineVersionSourceSchema,
-} from "@doujin/contracts";
+  SSaveTimelineVersionRequest,
+  STimelineVersionSource,
+} from "@doujin/core";
 import { Hono } from "hono";
 import { ApiError } from "../errors";
-import { resolveEdlForTimelineVersion, toStoredEdlData } from "../lib/edl-access";
 import {
   requireLatestTimelineVersion,
   requireTimelineMembership,
   validateTimelineAssetReferences,
 } from "../lib/timeline-access";
-import { toTimelineWithLatestResponse } from "../lib/timeline-response";
+import { toTTimelineWithLatestResponse } from "../lib/timeline-response";
 import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
-
-async function parseSaveTimelineInput(rawBody: unknown) {
-  const parsed = saveTimelineVersionRequestSchema.safeParse(rawBody);
-  if (!parsed.success) {
-    throw new ApiError(400, "BAD_REQUEST", "Invalid timeline payload");
-  }
-
-  return parsed.data;
-}
 
 function isUniqueConstraintError(error: unknown) {
   return error instanceof Error && error.message.includes("UNIQUE constraint failed");
@@ -44,7 +32,7 @@ function resolveTimelineSource(
   fallback: "autosave" | "manual",
 ) {
   const source = requested ?? fallback;
-  const parsed = timelineVersionSourceSchema.safeParse(source);
+  const parsed = STimelineVersionSource.safeParse(source);
   if (!parsed.success) {
     throw new ApiError(400, "BAD_REQUEST", "Invalid timeline payload");
   }
@@ -65,18 +53,8 @@ export function createTimelineRoutes() {
     const timelineId = c.req.param("id");
     const foundTimeline = await requireTimelineMembership(db, timelineId, user.id);
     const latestVersion = await requireLatestTimelineVersion(db, timelineId);
-    const latestEdl = resolveEdlForTimelineVersion({
-      timelineId: latestVersion.timelineId,
-      version: latestVersion.version,
-      source: latestVersion.source,
-      data: latestVersion.data,
-      edlData: latestVersion.edlData,
-    });
-
     return c.json(
-      toTimelineWithLatestResponse(foundTimeline, latestVersion, {
-        latestEdl,
-      }),
+      toTTimelineWithLatestResponse(foundTimeline, latestVersion),
       200,
     );
   });
@@ -94,7 +72,7 @@ export function createTimelineRoutes() {
       throw new ApiError(400, "BAD_REQUEST", "Invalid timeline payload");
     }
 
-    const input = await parseSaveTimelineInput(body);
+    const input = SSaveTimelineVersionRequest.parse(body);
     const db = createDb(c.env.DB);
     const timelineId = c.req.param("id");
     const foundTimeline = await requireTimelineMembership(db, timelineId, user.id);
@@ -106,12 +84,6 @@ export function createTimelineRoutes() {
     await validateTimelineAssetReferences(db, foundTimeline.projectId, input.data);
     const nextVersion = input.baseVersion + 1;
     const nextSource = resolveTimelineSource(input.source, "autosave");
-    const nextEdl = deriveEdlFromTimelineData({
-      timelineId: foundTimeline.id,
-      baseVersion: nextVersion,
-      data: input.data,
-      source: mapTimelineSourceToEdlSource(nextSource),
-    });
 
     try {
       await db.insert(timelineVersion).values({
@@ -121,7 +93,6 @@ export function createTimelineRoutes() {
         source: nextSource,
         createdByUserId: user.id,
         data: input.data,
-        edlData: toStoredEdlData(nextEdl),
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -146,18 +117,9 @@ export function createTimelineRoutes() {
 
     const refreshedTimeline = await requireTimelineMembership(db, timelineId, user.id);
     const latestVersion = await requireLatestTimelineVersion(db, timelineId);
-    const latestEdl = resolveEdlForTimelineVersion({
-      timelineId: latestVersion.timelineId,
-      version: latestVersion.version,
-      source: latestVersion.source,
-      data: latestVersion.data,
-      edlData: latestVersion.edlData,
-    });
 
     return c.json(
-      toTimelineWithLatestResponse(refreshedTimeline, latestVersion, {
-        latestEdl,
-      }),
+      toTTimelineWithLatestResponse(refreshedTimeline, latestVersion),
       200,
     );
   });
@@ -175,7 +137,7 @@ export function createTimelineRoutes() {
       throw new ApiError(400, "BAD_REQUEST", "Invalid timeline payload");
     }
 
-    const input = await parseSaveTimelineInput(body);
+    const input = SSaveTimelineVersionRequest.parse(body);
     const db = createDb(c.env.DB);
     const timelineId = c.req.param("id");
     const foundTimeline = await requireTimelineMembership(db, timelineId, user.id);
@@ -187,12 +149,6 @@ export function createTimelineRoutes() {
     await validateTimelineAssetReferences(db, foundTimeline.projectId, input.data);
     const nextVersion = input.baseVersion + 1;
     const nextSource = resolveTimelineSource(input.source, "manual");
-    const nextEdl = deriveEdlFromTimelineData({
-      timelineId: foundTimeline.id,
-      baseVersion: nextVersion,
-      data: input.data,
-      source: mapTimelineSourceToEdlSource(nextSource),
-    });
 
     try {
       await db.insert(timelineVersion).values({
@@ -202,7 +158,6 @@ export function createTimelineRoutes() {
         source: nextSource,
         createdByUserId: user.id,
         data: input.data,
-        edlData: toStoredEdlData(nextEdl),
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -227,18 +182,9 @@ export function createTimelineRoutes() {
 
     const refreshedTimeline = await requireTimelineMembership(db, timelineId, user.id);
     const latestVersion = await requireLatestTimelineVersion(db, timelineId);
-    const latestEdl = resolveEdlForTimelineVersion({
-      timelineId: latestVersion.timelineId,
-      version: latestVersion.version,
-      source: latestVersion.source,
-      data: latestVersion.data,
-      edlData: latestVersion.edlData,
-    });
 
     return c.json(
-      toTimelineWithLatestResponse(refreshedTimeline, latestVersion, {
-        latestEdl,
-      }),
+      toTTimelineWithLatestResponse(refreshedTimeline, latestVersion),
       200,
     );
   });

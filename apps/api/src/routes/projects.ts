@@ -12,65 +12,26 @@ import {
   timelineVersion,
 } from "@doujin/database/schema";
 import {
-  assetStatusSchema,
-  assetTypeSchema,
-  assetUploadSessionResponseSchema,
-  deriveEdlFromTimelineData,
-  createTimelineRequestSchema,
-  createAssetUploadSessionRequestSchema,
-  createProjectRequestSchema,
-  projectAssetListResponseSchema,
-  projectListResponseSchema,
-  projectResponseSchema,
-  timelineDataSchema,
-} from "@doujin/contracts";
+  SAssetStatus,
+  SAssetType,
+  SCreateTimelineRequest,
+  SCreateProjectRequest,
+  SProjectAssetListResponse,
+  SProjectListResponse,
+  SProjectResponse,
+  STimelineData
+} from "@doujin/core";
 import { Hono } from "hono";
 import { ApiError } from "../errors";
-import { toAssetResponse } from "../lib/asset-response";
-import { resolveEdlForTimelineVersion, toStoredEdlData } from "../lib/edl-access";
+import { toTAssetResponse } from "../lib/asset-response";
 import { requireProjectMembership } from "../lib/project-access";
-import { createR2PresignedPutUrl } from "../lib/r2-presign";
 import { requireLatestTimelineVersion } from "../lib/timeline-access";
-import { toTimelineWithLatestResponse } from "../lib/timeline-response";
+import { toTTimelineWithLatestResponse } from "../lib/timeline-response";
 import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
 
 const DEFAULT_TIMELINE_NAME = "Main Timeline";
 const DEFAULT_TIMELINE_DURATION_MS = 10_000;
-
-async function parseCreateProjectInput(rawBody: unknown) {
-  const parsed = createProjectRequestSchema.safeParse(rawBody);
-  if (!parsed.success) {
-    throw new ApiError(400, "BAD_REQUEST", "Invalid project payload");
-  }
-
-  return parsed.data;
-}
-
-async function parseUploadSessionInput(rawBody: unknown) {
-  const parsed = createAssetUploadSessionRequestSchema.safeParse(rawBody);
-  if (!parsed.success) {
-    throw new ApiError(400, "BAD_REQUEST", "Invalid asset upload payload");
-  }
-
-  return parsed.data;
-}
-
-async function parseCreateTimelineInput(rawBody: unknown) {
-  const parsed = createTimelineRequestSchema.safeParse(rawBody);
-  if (!parsed.success) {
-    throw new ApiError(400, "BAD_REQUEST", "Invalid timeline payload");
-  }
-
-  return parsed.data;
-}
-
-function sanitizeFileName(value: string) {
-  const trimmed = value.trim();
-  const stripped = trimmed.replace(/[^\w.\-]+/g, "_");
-  const normalized = stripped.replace(/_+/g, "_");
-  return normalized || `upload-${Date.now()}`;
-}
 
 function parsePositiveInt(raw: string | undefined, fallback: number) {
   if (!raw) return fallback;
@@ -80,10 +41,6 @@ function parsePositiveInt(raw: string | undefined, fallback: number) {
   }
 
   return value;
-}
-
-function isUniqueConstraintError(error: unknown) {
-  return error instanceof Error && error.message.includes("UNIQUE constraint failed");
 }
 
 export function createProjectRoutes() {
@@ -102,7 +59,7 @@ export function createProjectRoutes() {
       throw new ApiError(400, "BAD_REQUEST", "Invalid project payload");
     }
 
-    const input = await parseCreateProjectInput(body);
+    const input = SCreateProjectRequest.parse(body);
     const db = createDb(c.env.DB);
     const projectId = crypto.randomUUID();
 
@@ -120,7 +77,7 @@ export function createProjectRoutes() {
     ]);
 
     return c.json(
-      projectResponseSchema.parse({
+      SProjectResponse.parse({
         project: {
           id: projectId,
           title: input.title,
@@ -149,7 +106,7 @@ export function createProjectRoutes() {
       .where(eq(projectMember.userId, user.id))
       .orderBy(desc(project.updatedAt));
 
-    return c.json(projectListResponseSchema.parse({ projects }), 200);
+    return c.json(SProjectListResponse.parse({ projects }), 200);
   });
 
   app.get("/:id", requireAuth, async (c) => {
@@ -175,7 +132,7 @@ export function createProjectRoutes() {
     }
 
     return c.json(
-      projectResponseSchema.parse({
+      SProjectResponse.parse({
         project: {
           ...projectRow,
           role: membership.role,
@@ -198,7 +155,7 @@ export function createProjectRoutes() {
       body = {};
     }
 
-    const input = await parseCreateTimelineInput(body);
+    const input = SCreateTimelineRequest.parse(body);
     const projectId = c.req.param("id");
     const db = createDb(c.env.DB);
     await requireProjectMembership(db, projectId, user.id);
@@ -218,17 +175,8 @@ export function createProjectRoutes() {
 
     if (existingTimeline) {
       const latestVersion = await requireLatestTimelineVersion(db, existingTimeline.id);
-      const latestEdl = resolveEdlForTimelineVersion({
-        timelineId: latestVersion.timelineId,
-        version: latestVersion.version,
-        source: latestVersion.source,
-        data: latestVersion.data,
-        edlData: latestVersion.edlData,
-      });
       return c.json(
-        toTimelineWithLatestResponse(existingTimeline, latestVersion, {
-          latestEdl,
-        }),
+        toTTimelineWithLatestResponse(existingTimeline, latestVersion),
         200,
       );
     }
@@ -261,7 +209,7 @@ export function createProjectRoutes() {
     const videoTrackId = crypto.randomUUID();
     const subtitleTrackId = crypto.randomUUID();
     const initialDurationMs = seedDurationMs ?? DEFAULT_TIMELINE_DURATION_MS;
-    const initialData = timelineDataSchema.parse({
+    const initialData = STimelineData.parse({
       schemaVersion: 1,
       fps: 30,
       durationMs: initialDurationMs,
@@ -272,18 +220,18 @@ export function createProjectRoutes() {
           name: "Video",
           clips: seedAssetId
             ? [
-                {
-                  id: crypto.randomUUID(),
-                  type: "video",
-                  trackId: videoTrackId,
-                  assetId: seedAssetId,
-                  startMs: 0,
-                  endMs: initialDurationMs,
-                  sourceStartMs: 0,
-                  volume: 1,
-                  text: null,
-                },
-              ]
+              {
+                id: crypto.randomUUID(),
+                type: "video",
+                trackId: videoTrackId,
+                assetId: seedAssetId,
+                startMs: 0,
+                endMs: initialDurationMs,
+                sourceStartMs: 0,
+                volume: 1,
+                text: null,
+              },
+            ]
             : [],
         },
         {
@@ -294,13 +242,6 @@ export function createProjectRoutes() {
         },
       ],
     });
-    const initialEdl = deriveEdlFromTimelineData({
-      timelineId,
-      baseVersion: 1,
-      data: initialData,
-      source: "system",
-    });
-
     try {
       await db.batch([
         db.insert(timeline).values({
@@ -318,13 +259,10 @@ export function createProjectRoutes() {
           source: "system",
           createdByUserId: user.id,
           data: initialData,
-          edlData: toStoredEdlData(initialEdl),
         }),
       ]);
     } catch (error) {
-      if (!isUniqueConstraintError(error)) {
-        throw error;
-      }
+      // ignore unique constraint
     }
 
     const [createdTimeline] = await db
@@ -345,17 +283,8 @@ export function createProjectRoutes() {
     }
 
     const latestVersion = await requireLatestTimelineVersion(db, createdTimeline.id);
-    const latestEdl = resolveEdlForTimelineVersion({
-      timelineId: latestVersion.timelineId,
-      version: latestVersion.version,
-      source: latestVersion.source,
-      data: latestVersion.data,
-      edlData: latestVersion.edlData,
-    });
     return c.json(
-      toTimelineWithLatestResponse(createdTimeline, latestVersion, {
-        latestEdl,
-      }),
+      toTTimelineWithLatestResponse(createdTimeline, latestVersion),
       201,
     );
   });
@@ -388,65 +317,13 @@ export function createProjectRoutes() {
     }
 
     const latestVersion = await requireLatestTimelineVersion(db, foundTimeline.id);
-    const latestEdl = resolveEdlForTimelineVersion({
-      timelineId: latestVersion.timelineId,
-      version: latestVersion.version,
-      source: latestVersion.source,
-      data: latestVersion.data,
-      edlData: latestVersion.edlData,
-    });
     return c.json(
-      toTimelineWithLatestResponse(foundTimeline, latestVersion, {
-        latestEdl,
-      }),
+      toTTimelineWithLatestResponse(foundTimeline, latestVersion),
       200,
     );
   });
 
-  app.post("/:id/assets/upload-session", requireAuth, async (c) => {
-    const user = c.get("user");
-    if (!user) {
-      throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
-    }
-
-    const projectId = c.req.param("id");
-    const db = createDb(c.env.DB);
-
-    let body: unknown;
-    try {
-      body = await c.req.json();
-    } catch {
-      throw new ApiError(400, "BAD_REQUEST", "Invalid asset upload payload");
-    }
-
-    const input = await parseUploadSessionInput(body);
-    await requireProjectMembership(db, projectId, user.id);
-
-    const assetId = crypto.randomUUID();
-    const safeFileName = sanitizeFileName(input.fileName);
-    const r2Key = `projects/${projectId}/assets/${assetId}/${safeFileName}`;
-
-    await db.insert(asset).values({
-      id: assetId,
-      projectId,
-      type: input.type,
-      status: "pending_upload",
-      r2Key,
-      size: input.size,
-      mime: input.mime,
-    });
-
-    const putUrl = await createR2PresignedPutUrl(c.env, r2Key, input.mime);
-
-    return c.json(
-      assetUploadSessionResponseSchema.parse({
-        assetId,
-        putUrl,
-        r2Key,
-      }),
-      201,
-    );
-  });
+  // upload-session route removed as R2 is deprecated
 
   app.get("/:id/assets", requireAuth, async (c) => {
     const user = c.get("user");
@@ -460,28 +337,21 @@ export function createProjectRoutes() {
     const limit = parsePositiveInt(c.req.query("limit"), 50);
 
     const type = requestedType
-      ? assetTypeSchema.safeParse(requestedType)
+      ? SAssetType.safeParse(requestedType).data
       : null;
-    if (requestedType && !type?.success) {
-      throw new ApiError(400, "BAD_REQUEST", "Invalid assets query");
-    }
-
     const status = requestedStatus
-      ? assetStatusSchema.safeParse(requestedStatus)
+      ? SAssetStatus.safeParse(requestedStatus).data
       : null;
-    if (requestedStatus && !status?.success) {
-      throw new ApiError(400, "BAD_REQUEST", "Invalid assets query");
-    }
 
     const db = createDb(c.env.DB);
     await requireProjectMembership(db, projectId, user.id);
 
     const filters = [eq(asset.projectId, projectId)];
-    if (type?.success) {
-      filters.push(eq(asset.type, type.data));
+    if (type) {
+      filters.push(eq(asset.type, type));
     }
-    if (status?.success) {
-      filters.push(eq(asset.status, status.data));
+    if (status) {
+      filters.push(eq(asset.status, status));
     }
 
     const assets = await db
@@ -506,8 +376,8 @@ export function createProjectRoutes() {
       .limit(limit);
 
     return c.json(
-      projectAssetListResponseSchema.parse({
-        assets: assets.map(toAssetResponse),
+      SProjectAssetListResponse.parse({
+        assets: assets.map(toTAssetResponse),
       }),
       200,
     );

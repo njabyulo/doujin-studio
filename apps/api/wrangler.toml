@@ -8,24 +8,12 @@ workers_dev = true
 APP_ENV = "development"
 CORS_ORIGIN = "http://localhost:8787"
 GIT_SHA = "dev"
-MEDIA_BUCKET_NAME = "doujin-media"
-R2_ACCOUNT_ID = "90afce18d37ae3ffd3954ddc87008deb"
-R2_PRESIGN_TTL_SECONDS = "900"
-AI_CHAT_MODEL = "gemini-2.5-flash"
-AI_CHAT_RATE_LIMIT_PER_HOUR = "20"
-AI_CHAT_MAX_TOOL_CALLS = "2"
-AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL = "12"
-AI_CHAT_LOG_SNIPPET_CHARS = "600"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "doujin"
 database_id = "fa8c44a9-f976-4fa8-9fec-da22aad02d2b"
 migrations_dir = "../../packages/database/src/migrations"
-
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "doujin-media"
 
 [[routes]]
 pattern = "doujin.njabulomajozi.com/api/*"
@@ -35,24 +23,12 @@ zone_name = "njabulomajozi.com"
 APP_ENV = "production"
 CORS_ORIGIN = "https://doujin.njabulomajozi.com"
 GIT_SHA = "prod"
-MEDIA_BUCKET_NAME = "doujin-media"
-R2_ACCOUNT_ID = "90afce18d37ae3ffd3954ddc87008deb"
-R2_PRESIGN_TTL_SECONDS = "900"
-AI_CHAT_MODEL = "gemini-2.5-flash"
-AI_CHAT_RATE_LIMIT_PER_HOUR = "20"
-AI_CHAT_MAX_TOOL_CALLS = "2"
-AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL = "12"
-AI_CHAT_LOG_SNIPPET_CHARS = "600"
 
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "doujin"
 database_id = "fa8c44a9-f976-4fa8-9fec-da22aad02d2b"
 migrations_dir = "../../packages/database/src/migrations"
-
-[[env.production.r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "doujin-media"
 
 [[env.production.routes]]
 pattern = "doujin.njabulomajozi.com/api/*"
@@ -64,23 +40,9 @@ CORS_ORIGIN = "http://localhost:8787"
 GIT_SHA = "test-sha"
 AUTH_SECRET = "test-auth-secret-for-vitest-1234567890"
 GEMINI_API_KEY = "test-gemini-key"
-MEDIA_BUCKET_NAME = "doujin-media"
-R2_ACCOUNT_ID = "test-account-id"
-R2_PRESIGN_TTL_SECONDS = "900"
-R2_ACCESS_KEY_ID = "test-r2-access-key-id"
-R2_SECRET_ACCESS_KEY = "test-r2-secret-access-key"
-AI_CHAT_MODEL = "gemini-2.5-flash"
-AI_CHAT_RATE_LIMIT_PER_HOUR = "20"
-AI_CHAT_MAX_TOOL_CALLS = "2"
-AI_CHAT_MAX_COMMANDS_PER_TOOL_CALL = "12"
-AI_CHAT_LOG_SNIPPET_CHARS = "600"
 
 [[env.test.d1_databases]]
 binding = "DB"
 database_name = "doujin"
 database_id = "fa8c44a9-f976-4fa8-9fec-da22aad02d2b"
 migrations_dir = "../../packages/database/src/migrations"
-
-[[env.test.r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "doujin-media"

@@ -11,7 +11,7 @@ import {
   timeline,
   timelineVersion,
 } from "@doujin/database/schema";
-import { timelineDataSchema, type TimelineData } from "@doujin/contracts";
+import { STimelineData, type TTimelineData } from "@doujin/core";
 import { ApiError } from "../errors";
 
 type Database = ReturnType<typeof createDb>;
@@ -105,11 +105,11 @@ export async function requireLatestTimelineVersion(
 
   return {
     ...row,
-    data: timelineDataSchema.parse(row.data),
+    data: STimelineData.parse(row.data),
   };
 }
 
-export function collectTimelineAssetIds(data: TimelineData) {
+export function collectTimelineAssetIds(data: TTimelineData) {
   const ids = new Set<string>();
   for (const track of data.tracks) {
     for (const clip of track.clips) {
@@ -125,7 +125,7 @@ export function collectTimelineAssetIds(data: TimelineData) {
 export async function validateTimelineAssetReferences(
   db: Database,
   projectId: string,
-  data: TimelineData,
+  data: TTimelineData,
 ) {
   const referencedAssetIds = collectTimelineAssetIds(data);
   if (referencedAssetIds.length === 0) {

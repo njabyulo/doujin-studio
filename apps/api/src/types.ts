@@ -1,4 +1,4 @@
-import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
+import type { D1Database } from "@cloudflare/workers-types";
 
 export type SessionUser = {
   id: string;
@@ -16,12 +16,6 @@ export type SessionRecord = {
 
 export interface AppBindings {
   DB: D1Database;
-  MEDIA_BUCKET: R2Bucket;
-  MEDIA_BUCKET_NAME: string;
-  R2_ACCOUNT_ID: string;
-  R2_PRESIGN_TTL_SECONDS: string;
-  R2_ACCESS_KEY_ID: string;
-  R2_SECRET_ACCESS_KEY: string;
   APP_ENV: string;
   CORS_ORIGIN: string;
   GIT_SHA: string;

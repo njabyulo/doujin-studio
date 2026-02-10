@@ -15,7 +15,7 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
-    "@doujin/contracts": "workspace:*",
+    "@doujin/core": "workspace:*",
     "@doujin/database": "workspace:*",
     "aws4fetch": "^1.0.20",
     "better-auth": "^1.4.18",
