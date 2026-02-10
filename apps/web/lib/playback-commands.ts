@@ -1,11 +1,11 @@
-import { STInterpretPlaybackRequest, type TInterpretPlaybackResponse } from "@doujin/contracts";
+import { SInterpretPlaybackRequest, type TInterpretPlaybackResponse } from "@doujin/core";
 
 export async function interpretTPlaybackCommand(args: {
     prompt: string;
     currentMs?: number;
     durationMs?: number;
 }): Promise<TInterpretPlaybackResponse> {
-    const payload = STInterpretPlaybackRequest.parse(args);
+    const payload = SInterpretPlaybackRequest.parse(args);
 
     const response = await fetch("/api/editor/interpret", {
         method: "POST",

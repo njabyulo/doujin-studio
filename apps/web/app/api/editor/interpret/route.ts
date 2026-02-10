@@ -1,14 +1,14 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
-import { STInterpretPlaybackRequest, STInterpretPlaybackResponse } from "@doujin/core";
+import { SInterpretPlaybackRequest, SInterpretPlaybackResponse } from "@doujin/core";
 
 export const runtime = "edge";
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const result = STInterpretPlaybackRequest.safeParse(body);
+        const result = SInterpretPlaybackRequest.safeParse(body);
 
         if (!result.success) {
             return NextResponse.json({ error: "Invalid request payload" }, { status: 400 });
@@ -43,7 +43,7 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`,
         }
 
         const interpreted = JSON.parse(jsonMatch[0]);
-        const response = STInterpretPlaybackResponse.safeParse(interpreted);
+        const response = SInterpretPlaybackResponse.safeParse(interpreted);
 
         if (!response.success) {
             console.error("AI response schema mismatch:", response.error);

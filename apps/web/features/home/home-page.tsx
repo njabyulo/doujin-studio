@@ -20,7 +20,6 @@ import {
 } from "~/lib/assets-api";
 import { getSessionOrMe, signOut } from "~/lib/auth-api";
 import { buildAuthHref } from "~/lib/auth-navigation";
-import { setPendingUpload } from "~/lib/pending-upload";
 import {
   claimPendingAuthUploadFile,
   clearPendingAuthUpload,
@@ -28,7 +27,6 @@ import {
   savePendingAuthUpload,
 } from "~/lib/pending-auth-upload";
 import { cn } from "~/lib/utils";
-import { saveUpload } from "~/lib/upload-session";
 import { useProject } from "~/providers/ProjectProvider";
 
 const FILE_HINTS = [
@@ -85,17 +83,6 @@ export function HomePage() {
       });
 
       const projectId = project.project.id;
-      // The File object is now in global context, so we don't necessarily need to URL.createObjectURL here
-      // but we still want to save it to upload-session for editor hydration if it checks storage.
-      const url = URL.createObjectURL(file);
-      saveUpload(projectId, {
-        url,
-        name: file.name,
-        size: file.size,
-        type: file.type || "video/mp4",
-        status: "local",
-      });
-      // We set the context file so it's available in the Editor component
       setLocalVideoFile(file);
       clearPendingAuthUpload();
       router.push(`/projects/${projectId}`);
@@ -379,7 +366,7 @@ export function HomePage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-[color:var(--ds-muted)]">
-                  Starts local for instant preview, then uploads securely.
+                  Uses a local preview for instant playback.
                 </p>
                 <Button
                   variant="accent"

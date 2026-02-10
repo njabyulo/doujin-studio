@@ -31,9 +31,9 @@ import { EditorProps, ToolItem, ClipItem } from "../types";
 import { deriveTitle, formatTimestamp } from "../utils";
 import { interpretTPlaybackCommand, executeTPlaybackCommand } from "~/lib/playback-commands";
 import { buildAuthHref } from "~/lib/auth-navigation";
-import { AssetRecord } from "~/lib/assets-api";
-import { applyEditorCommand } from "~/lib/timeline-state";
 import { Scissors } from "lucide-react";
+
+const LOCAL_ASSET_ID = "local-video";
 
 export function Editor({ projectId }: EditorProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -41,70 +41,11 @@ export function Editor({ projectId }: EditorProps) {
 
   const {
     timelineState,
-    setTimelineState,
     timelineError,
     setTimelineError,
     dispatchCommand,
     handleManualSave,
-    toEditorTimelineState,
-    persistTimelineCache,
-    queueAutosave
   } = useTimelineState(projectId);
-
-  const attachUploadedAssetToTimeline = useCallback(
-    (asset: AssetRecord) => {
-      setTimelineState((current) => {
-        if (!current) {
-          return current;
-        }
-
-        const videoTrack = current.data.tracks.find((track) => track.kind === "video");
-        if (!videoTrack) {
-          return current;
-        }
-
-        const alreadyReferenced = current.data.tracks.some((track) =>
-          track.clips.some((clip) => clip.assetId === asset.id),
-        );
-        if (alreadyReferenced) {
-          return current;
-        }
-
-        const startMs = videoTrack.clips.reduce(
-          (maxEnd, clip) => Math.max(maxEnd, clip.endMs),
-          0,
-        );
-
-        // Internal command dispatch
-        const nextData = applyEditorCommand(current.data, {
-          type: "addClip",
-          trackId: videoTrack.id,
-          clip: {
-            assetId: asset.id,
-            startMs,
-            durationMs: asset.durationMs ?? 10_000,
-          },
-        });
-
-        if (nextData === current.data) {
-          return current;
-        }
-
-        const nextState = {
-          ...current,
-          data: nextData,
-          saveStatus: "dirty",
-          error: null,
-          source: "autosave",
-        } as const;
-
-        persistTimelineCache(nextState);
-        return nextState;
-      });
-      queueAutosave();
-    },
-    [persistTimelineCache, queueAutosave, setTimelineState],
-  );
 
   const {
     upload,
@@ -115,11 +56,6 @@ export function Editor({ projectId }: EditorProps) {
     handleVideoError,
   } = useProjectMedia(
     projectId,
-    toEditorTimelineState,
-    setTimelineState,
-    persistTimelineCache,
-    setTimelineError,
-    attachUploadedAssetToTimeline
   );
 
   const [commandInput, setCommandInput] = useState("");
@@ -209,8 +145,8 @@ export function Editor({ projectId }: EditorProps) {
 
   const handleAddClip = useCallback(() => {
     if (!videoTrack) return;
-    if (!upload?.assetId) {
-      setTimelineError("Upload must complete before adding clips.");
+    if (!upload?.url) {
+      setTimelineError("Select a local video to add clips.");
       return;
     }
 
@@ -222,13 +158,13 @@ export function Editor({ projectId }: EditorProps) {
       type: "addClip",
       trackId: videoTrack.id,
       clip: {
-        assetId: upload.assetId,
+        assetId: LOCAL_ASSET_ID,
         startMs,
-        durationMs: upload.durationMs ?? 5_000,
+        durationMs: 5_000,
       },
     });
     setTimelineError(null);
-  }, [dispatchCommand, upload?.assetId, upload?.durationMs, videoTrack, setTimelineError]);
+  }, [dispatchCommand, upload?.url, videoTrack, setTimelineError]);
 
   const handleTrimClip = useCallback(() => {
     if (!firstVideoClip) return;
@@ -365,7 +301,7 @@ export function Editor({ projectId }: EditorProps) {
               handleSetVolume={handleSetVolume}
               handleAddSubtitle={handleAddSubtitle}
               handleRemoveClip={handleRemoveClip}
-              isAddClipDisabled={!upload?.assetId}
+              isAddClipDisabled={!upload?.url}
               isActionDisabled={!firstVideoClip}
               isSubtitleDisabled={!subtitleTrack}
             />
@@ -413,5 +349,3 @@ export function Editor({ projectId }: EditorProps) {
     </div>
   );
 }
-
-// Redundant cleanup

@@ -78,7 +78,7 @@ export function EditorHeader({
                     size="icon"
                     className="rounded-full"
                     onClick={handleAddClip}
-                    disabled={!upload?.assetId}
+                    disabled={!upload?.url}
                 >
                     <Plus className="h-4 w-4" />
                 </Button>

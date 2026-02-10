@@ -1,7 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ApiClientError } from "~/lib/assets-api";
+import { buildAuthHref } from "~/lib/auth-navigation";
+import { getSessionOrMe } from "~/lib/auth-api";
 
 const Editor = dynamic(
   () => import("./components/editor").then((mod) => mod.Editor),
@@ -28,7 +32,41 @@ const Editor = dynamic(
 
 export function ProjectPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const projectId = params?.id;
+  const [authState, setAuthState] = useState<"checking" | "authed" | "guest">(
+    "checking",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const verify = async () => {
+      if (!projectId) return;
+      try {
+        await getSessionOrMe();
+        if (!cancelled) {
+          setAuthState("authed");
+        }
+      } catch (caughtError) {
+        if (cancelled) return;
+        setAuthState("guest");
+        if (caughtError instanceof ApiClientError && caughtError.status === 401) {
+          router.push(buildAuthHref("/auth/sign-in", `/projects/${projectId}`));
+          return;
+        }
+        router.push(buildAuthHref("/auth/sign-in", "/"));
+      }
+    };
+
+    void verify();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, router]);
+
+  if (authState !== "authed") {
+    return null;
+  }
 
   return <Editor key={projectId ?? "new"} projectId={projectId} />;
 }
