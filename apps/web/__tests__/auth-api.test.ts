@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiClientError } from "./assets-api";
-import { getSessionOrMe, signInEmail, signOut, signUpEmail } from "./auth-api";
+import { ApiClientError } from "../lib/assets-api";
+import {
+  getSessionOrMe,
+  signInEmail,
+  signOut,
+  signUpEmail,
+} from "../lib/auth-api";
 
 describe("auth api client", () => {
   afterEach(() => {

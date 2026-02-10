@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applyEditorCommand, createDefaultTimelineData } from "./timeline-state";
-import type { TimelineData } from "./timelines-api";
+import {
+  applyEditorCommand,
+  createDefaultTimelineData,
+} from "../lib/timeline-state";
+import type { TimelineData } from "../lib/timelines-api";
 
 function createTimelineFixture(): TimelineData {
   const base = createDefaultTimelineData();
@@ -141,7 +144,9 @@ describe("timeline-state reducer", () => {
 
   it("adds subtitle clips with bounded timing", () => {
     const initial = createTimelineFixture();
-    const subtitleTrack = initial.tracks.find((track) => track.kind === "subtitle");
+    const subtitleTrack = initial.tracks.find(
+      (track) => track.kind === "subtitle",
+    );
     if (!subtitleTrack) {
       throw new Error("Missing subtitle track");
     }

@@ -4,7 +4,7 @@ import {
   clearPendingAuthUpload,
   getPendingAuthUploadMetadata,
   savePendingAuthUpload,
-} from "./pending-auth-upload";
+} from "../lib/pending-auth-upload";
 
 function createFile(name: string, type = "video/mp4", content = "video") {
   return new File([content], name, { type });

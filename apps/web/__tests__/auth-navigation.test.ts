@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAuthHref, getSafeNextPath } from "./auth-navigation";
+import { buildAuthHref, getSafeNextPath } from "../lib/auth-navigation";
 
 describe("auth navigation helpers", () => {
   it("accepts internal next paths", () => {
