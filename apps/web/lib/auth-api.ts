@@ -37,13 +37,16 @@ async function readJson(response: Response) {
 }
 
 async function authRequest(path: string, payload?: unknown) {
+  const hasPayload = payload !== undefined;
   const response = await fetch(createApiUrl(path), {
     method: "POST",
     credentials: "include",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: payload ? JSON.stringify(payload) : undefined,
+    headers: hasPayload
+      ? {
+          "content-type": "application/json",
+        }
+      : undefined,
+    body: hasPayload ? JSON.stringify(payload) : undefined,
   });
 
   if (!response.ok) {
@@ -111,7 +114,7 @@ export async function signUpEmail(input: {
 }
 
 export async function signOut() {
-  return authRequest("/api/auth/sign-out");
+  return authRequest("/api/auth/sign-out", {});
 }
 
 export async function getSessionOrMe() {
