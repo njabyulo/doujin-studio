@@ -13,30 +13,30 @@ type MeResponse = {
   };
 };
 
-function getApiBaseUrl() {
+const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     return "";
   }
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
   return configured.endsWith("/") ? configured.slice(0, -1) : configured;
-}
+};
 
-function createApiUrl(path: string) {
+const createApiUrl = (path: string) => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const base = getApiBaseUrl();
   return base ? `${base}${normalizedPath}` : normalizedPath;
-}
+};
 
-async function readJson(response: Response) {
+const readJson = async (response: Response) => {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return null;
   }
 
   return response.json();
-}
+};
 
-async function authRequest(path: string, payload?: unknown) {
+const authRequest = async (path: string, payload?: unknown) => {
   const hasPayload = payload !== undefined;
   const response = await fetch(createApiUrl(path), {
     method: "POST",
@@ -52,16 +52,19 @@ async function authRequest(path: string, payload?: unknown) {
   if (!response.ok) {
     // Clone response to read text body for debugging without consuming the stream for the json call below
     const errorBody = await response.clone().text();
-    console.error(`[auth-api] Request to ${path} failed with status ${response.status}`, {
-      status: response.status,
-      statusText: response.statusText,
-      body: errorBody
-    });
+    console.error(
+      `[auth-api] Request to ${path} failed with status ${response.status}`,
+      {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorBody,
+      },
+    );
   }
 
-  const body = (await readJson(response)) as
-    | { error?: { code?: string; message?: string } }
-    | null;
+  const body = (await readJson(response)) as {
+    error?: { code?: string; message?: string };
+  } | null;
 
   if (!response.ok) {
     throw new ApiClientError(
@@ -70,9 +73,9 @@ async function authRequest(path: string, payload?: unknown) {
       body?.error?.message ?? "Request failed",
     );
   }
-}
+};
 
-async function getRequest<T>(path: string) {
+const getRequest = async <T>(path: string) => {
   const response = await fetch(createApiUrl(path), {
     method: "GET",
     credentials: "include",
@@ -99,24 +102,27 @@ async function getRequest<T>(path: string) {
   }
 
   return body as T;
-}
+};
 
-export async function signInEmail(input: { email: string; password: string }) {
+export const signInEmail = async (input: {
+  email: string;
+  password: string;
+}) => {
   return authRequest("/api/auth/sign-in/email", input);
-}
+};
 
-export async function signUpEmail(input: {
+export const signUpEmail = async (input: {
   name: string;
   email: string;
   password: string;
-}) {
+}) => {
   return authRequest("/api/auth/sign-up/email", input);
-}
+};
 
-export async function signOut() {
+export const signOut = async () => {
   return authRequest("/api/auth/sign-out", {});
-}
+};
 
-export async function getSessionOrMe() {
+export const getSessionOrMe = async () => {
   return getRequest<MeResponse>("/api/me");
-}
+};

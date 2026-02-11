@@ -37,30 +37,30 @@ type ApiErrorShape = {
   };
 };
 
-function getApiBaseUrl() {
+const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     return "";
   }
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
   return configured.endsWith("/") ? configured.slice(0, -1) : configured;
-}
+};
 
-function createApiUrl(path: string) {
+const createApiUrl = (path: string) => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const base = getApiBaseUrl();
   return base ? `${base}${normalizedPath}` : normalizedPath;
-}
+};
 
-async function readJson(response: Response) {
+const readJson = async (response: Response) => {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return null;
   }
 
   return response.json();
-}
+};
 
-async function apiRequest<T>(path: string, init?: RequestInit) {
+const apiRequest = async <T>(path: string, init?: RequestInit) => {
   const response = await fetch(createApiUrl(path), {
     ...init,
     credentials: "include",
@@ -85,15 +85,15 @@ async function apiRequest<T>(path: string, init?: RequestInit) {
   }
 
   return body as T;
-}
+};
 
-export async function createProjectTimeline(
+export const createProjectTimeline = async (
   projectId: string,
   input: {
     name?: string;
     seedAssetId?: string;
   },
-) {
+) => {
   return apiRequest<TTimelineWithLatestResponse>(
     `/api/projects/${projectId}/timelines`,
     {
@@ -101,34 +101,34 @@ export async function createProjectTimeline(
       body: JSON.stringify(input),
     },
   );
-}
+};
 
-export async function getProjectLatestTimeline(projectId: string) {
+export const getProjectLatestTimeline = async (projectId: string) => {
   return apiRequest<TTimelineWithLatestResponse>(
     `/api/projects/${projectId}/timelines/latest`,
     {
       method: "GET",
     },
   );
-}
+};
 
-export async function getTimeline(timelineId: string) {
+export const getTimeline = async (timelineId: string) => {
   return apiRequest<TTimelineWithLatestResponse>(
     `/api/timelines/${timelineId}`,
     {
       method: "GET",
     },
   );
-}
+};
 
-export async function patchTimeline(
+export const patchTimeline = async (
   timelineId: string,
   input: {
     baseVersion: number;
     source?: TTimelineVersionSource;
     data: TTimelineData;
   },
-) {
+) => {
   return apiRequest<TTimelineWithLatestResponse>(
     `/api/timelines/${timelineId}`,
     {
@@ -136,16 +136,16 @@ export async function patchTimeline(
       body: JSON.stringify(input),
     },
   );
-}
+};
 
-export async function createTimelineVersion(
+export const createTimelineVersion = async (
   timelineId: string,
   input: {
     baseVersion: number;
     source?: TTimelineVersionSource;
     data: TTimelineData;
   },
-) {
+) => {
   return apiRequest<TTimelineWithLatestResponse>(
     `/api/timelines/${timelineId}/versions`,
     {
@@ -153,4 +153,4 @@ export async function createTimelineVersion(
       body: JSON.stringify(input),
     },
   );
-}
+};

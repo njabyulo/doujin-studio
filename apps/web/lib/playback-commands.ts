@@ -30,11 +30,11 @@ export class PlaybackCommandError extends Error {
   }
 }
 
-export async function interpretTPlaybackCommand(args: {
+export const interpretTPlaybackCommand = async (args: {
   prompt: string;
   currentMs?: number;
   durationMs?: number;
-}): Promise<TInterpretPlaybackResponse> {
+}): Promise<TInterpretPlaybackResponse> => {
   const payload = SInterpretPlaybackRequest.parse(args);
 
   const response = await fetch("/api/editor/interpret", {
@@ -89,12 +89,12 @@ export async function interpretTPlaybackCommand(args: {
   }
 
   return response.json();
-}
+};
 
-export function executeTPlaybackCommand(
+export const executeTPlaybackCommand = (
   video: HTMLVideoElement,
   command: TInterpretPlaybackResponse["command"],
-) {
+): void => {
   switch (command.type) {
     case "play":
       void video.play();
@@ -109,4 +109,4 @@ export function executeTPlaybackCommand(
       // No-op or show message
       break;
   }
-}
+};

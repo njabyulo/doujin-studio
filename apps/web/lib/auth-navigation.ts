@@ -1,4 +1,4 @@
-export function getSafeNextPath(nextValue: string | null | undefined) {
+export const getSafeNextPath = (nextValue: string | null | undefined) => {
   if (!nextValue) {
     return "/";
   }
@@ -12,10 +12,13 @@ export function getSafeNextPath(nextValue: string | null | undefined) {
   }
 
   return nextValue;
-}
+};
 
-export function buildAuthHref(path: "/auth/sign-in" | "/auth/sign-up", nextPath: string) {
+export const buildAuthHref = (
+  path: "/auth/sign-in" | "/auth/sign-up",
+  nextPath: string,
+) => {
   const params = new URLSearchParams();
   params.set("next", getSafeNextPath(nextPath));
   return `${path}?${params.toString()}`;
-}
+};

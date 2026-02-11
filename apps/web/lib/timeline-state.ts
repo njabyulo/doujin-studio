@@ -38,25 +38,25 @@ type CachedTimelineState = {
   data: TTimelineData;
 };
 
-function getTimelineCacheKey(projectId: string) {
+const getTimelineCacheKey = (projectId: string) => {
   return `${TIMELINE_CACHE_PREFIX}${projectId}`;
-}
+};
 
-export function createDefaultTimelineData(): TTimelineData {
+export const createDefaultTimelineData = (): TTimelineData => {
   return createDefaultTimelineDataCore();
-}
+};
 
-export function applyEditorCommand(
+export const applyEditorCommand = (
   data: TTimelineData,
   command: TEditorCommand,
-): TTimelineData {
+): TTimelineData => {
   return applyEditorCommandCore(data, command);
-}
+};
 
-export function saveEditorTimelineCache(
+export const saveEditorTimelineCache = (
   projectId: string,
   state: CachedTimelineState,
-) {
+) => {
   if (typeof window === "undefined") {
     return;
   }
@@ -69,11 +69,11 @@ export function saveEditorTimelineCache(
   } catch {
     // ignore storage errors for private mode / quota limits
   }
-}
+};
 
-export function loadEditorTimelineCache(
+export const loadEditorTimelineCache = (
   projectId: string,
-): CachedTimelineState | null {
+): CachedTimelineState | null => {
   if (typeof window === "undefined") {
     return null;
   }
@@ -98,9 +98,9 @@ export function loadEditorTimelineCache(
   } catch {
     return null;
   }
-}
+};
 
-export function clearEditorTimelineCache(projectId: string) {
+export const clearEditorTimelineCache = (projectId: string) => {
   if (typeof window === "undefined") {
     return;
   }
@@ -110,4 +110,4 @@ export function clearEditorTimelineCache(projectId: string) {
   } catch {
     // ignore storage errors
   }
-}
+};

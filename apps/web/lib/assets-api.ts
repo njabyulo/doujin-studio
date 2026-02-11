@@ -39,30 +39,30 @@ export class ApiClientError extends Error {
   }
 }
 
-function getApiBaseUrl() {
+const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     return "";
   }
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
   return configured.endsWith("/") ? configured.slice(0, -1) : configured;
-}
+};
 
-function createApiUrl(path: string) {
+const createApiUrl = (path: string) => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const base = getApiBaseUrl();
   return base ? `${base}${normalizedPath}` : normalizedPath;
-}
+};
 
-async function readJson(response: Response) {
+const readJson = async (response: Response) => {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return null;
   }
 
   return response.json();
-}
+};
 
-async function apiRequest<T>(path: string, init?: RequestInit) {
+const apiRequest = async <T>(path: string, init?: RequestInit) => {
   const response = await fetch(createApiUrl(path), {
     ...init,
     credentials: "include",
@@ -86,43 +86,43 @@ async function apiRequest<T>(path: string, init?: RequestInit) {
   }
 
   return body as T;
-}
+};
 
-export function resolveApiAssetUrl(pathOrUrl: string) {
+export const resolveApiAssetUrl = (pathOrUrl: string) => {
   if (!pathOrUrl.startsWith("/")) {
     return pathOrUrl;
   }
 
   return createApiUrl(pathOrUrl);
-}
+};
 
-export async function getMe() {
+export const getMe = async () => {
   return apiRequest<TMeResponse>("/api/me", { method: "GET" });
-}
+};
 
-export async function createProject(input: { title: string }) {
+export const createProject = async (input: { title: string }) => {
   return apiRequest<{ project: TProject }>("/api/projects", {
     method: "POST",
     body: JSON.stringify(input),
   });
-}
+};
 
 // R2 upload session and complete calls removed
 
-export async function getAsset(assetId: string) {
+export const getAsset = async (assetId: string) => {
   return apiRequest<TAssetResponse>(`/api/assets/${assetId}`, {
     method: "GET",
   });
-}
+};
 
-export async function listProjectAssets(
+export const listProjectAssets = async (
   projectId: string,
   query?: {
     type?: TAssetType;
     status?: TAssetStatus;
     limit?: number;
   },
-) {
+) => {
   const search = new URLSearchParams();
   if (query?.type) {
     search.set("type", query.type);
@@ -142,4 +142,4 @@ export async function listProjectAssets(
   return apiRequest<TProjectAssetListResponse>(path, {
     method: "GET",
   });
-}
+};

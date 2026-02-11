@@ -13,18 +13,18 @@ import {
 } from "~/lib/pending-auth-upload";
 import { useProject } from "~/providers/ProjectProvider";
 
-function isVideoFile(file: File) {
+const isVideoFile = (file: File) => {
   return file.type.startsWith("video/") || /\.(mp4|mov|webm)$/i.test(file.name);
-}
+};
 
-function deriveProjectTitle(fileName: string) {
+const deriveProjectTitle = (fileName: string) => {
   const raw = fileName.replace(/\.[^/.]+$/, "").trim();
   return raw || "Untitled Project";
-}
+};
 
-export function useCreateProjectFromFile(options: {
+export const useCreateProjectFromFile = (options: {
   nextPathAfterAuth: string;
-}) {
+}) => {
   const router = useRouter();
   const { setLocalVideoFile } = useProject();
   const [isStarting, setIsStarting] = useState(false);
@@ -144,4 +144,4 @@ export function useCreateProjectFromFile(options: {
     startFromFile,
     resumeIfPending,
   };
-}
+};

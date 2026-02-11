@@ -5,7 +5,7 @@ import {
 } from "../lib/timeline-state";
 import type { TimelineData } from "../lib/timelines-api";
 
-function createTimelineFixture(): TimelineData {
+const createTimelineFixture = (): TimelineData => {
   const base = createDefaultTimelineData();
   const videoTrack = base.tracks.find((track) => track.kind === "video");
   const subtitleTrack = base.tracks.find((track) => track.kind === "subtitle");
@@ -39,7 +39,7 @@ function createTimelineFixture(): TimelineData {
       },
     ],
   };
-}
+};
 
 describe("timeline-state reducer", () => {
   it("adds clips and keeps deterministic order", () => {

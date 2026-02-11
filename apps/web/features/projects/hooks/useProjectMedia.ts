@@ -2,14 +2,17 @@ import { useCallback, useMemo, useState } from "react";
 import { loadUpload, type UploadSession } from "~/lib/upload-session";
 import { useProject } from "~/providers/ProjectProvider";
 
-function isVideoFile(file: File) {
+const isVideoFile = (file: File) => {
   return file.type.startsWith("video/") || /\.(mp4|mov|webm)$/i.test(file.name);
-}
+};
 
-export function useProjectMedia(projectId: string | undefined) {
+export const useProjectMedia = (projectId: string | undefined) => {
   const { localVideoFile, localVideoUrl, setLocalVideoFile } = useProject();
 
-  const cachedUpload = useMemo(() => (projectId ? loadUpload(projectId) : null), [projectId]);
+  const cachedUpload = useMemo(
+    () => (projectId ? loadUpload(projectId) : null),
+    [projectId],
+  );
 
   const upload = useMemo<UploadSession | null>(() => {
     if (localVideoFile && localVideoUrl) {
@@ -63,4 +66,4 @@ export function useProjectMedia(projectId: string | undefined) {
     handleUpload,
     handleVideoError,
   };
-}
+};

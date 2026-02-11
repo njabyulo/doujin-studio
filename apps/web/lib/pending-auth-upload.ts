@@ -9,7 +9,7 @@ const STORAGE_KEY = "doujin:pending-auth-upload";
 
 let pendingFile: File | null = null;
 
-function parseMetadata(raw: string) {
+const parseMetadata = (raw: string) => {
   try {
     const value = JSON.parse(raw) as PendingAuthUploadMetadata;
     if (!value?.fileName || typeof value.size !== "number") {
@@ -20,9 +20,9 @@ function parseMetadata(raw: string) {
   } catch {
     return null;
   }
-}
+};
 
-function readMetadata() {
+const readMetadata = () => {
   if (typeof window === "undefined") {
     return null;
   }
@@ -33,9 +33,9 @@ function readMetadata() {
   }
 
   return parseMetadata(raw);
-}
+};
 
-function writeMetadata(file: File) {
+const writeMetadata = (file: File) => {
   if (typeof window === "undefined") {
     return;
   }
@@ -47,28 +47,28 @@ function writeMetadata(file: File) {
     createdAt: Date.now(),
   };
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(metadata));
-}
+};
 
-export function savePendingAuthUpload(file: File) {
+export const savePendingAuthUpload = (file: File) => {
   pendingFile = file;
   writeMetadata(file);
-}
+};
 
-export function claimPendingAuthUploadFile() {
+export const claimPendingAuthUploadFile = () => {
   const file = pendingFile;
   pendingFile = null;
   return file;
-}
+};
 
-export function getPendingAuthUploadMetadata() {
+export const getPendingAuthUploadMetadata = () => {
   return readMetadata();
-}
+};
 
-export function clearPendingAuthUpload() {
+export const clearPendingAuthUpload = () => {
   pendingFile = null;
   if (typeof window === "undefined") {
     return;
   }
 
   sessionStorage.removeItem(STORAGE_KEY);
-}
+};
