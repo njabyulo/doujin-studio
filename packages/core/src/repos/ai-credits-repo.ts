@@ -41,9 +41,9 @@ export interface IAiCreditsRepo {
   ): Promise<TAiCreditsConsumeResult>;
 }
 
-export function createAiCreditsRepo(
+export const createAiCreditsRepo = (
   config: TAiCreditsRepoConfig,
-): IAiCreditsRepo {
+): IAiCreditsRepo => {
   return {
     async consumeDailyCredit(input) {
       const dayUtc = new Date().toISOString().slice(0, 10);
@@ -210,4 +210,4 @@ export function createAiCreditsRepo(
       };
     },
   };
-}
+};

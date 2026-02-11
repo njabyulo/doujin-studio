@@ -7,15 +7,15 @@ import type {
 
 const MIN_CLIP_DURATION_MS = 100;
 
-function createId() {
+const createId = () => {
   return crypto.randomUUID();
-}
+};
 
-function clamp(value: number, min: number, max: number) {
+const clamp = (value: number, min: number, max: number) => {
   return Math.min(max, Math.max(min, value));
-}
+};
 
-function getMaxEndMs(data: TTimelineData) {
+const getMaxEndMs = (data: TTimelineData) => {
   let maxEnd = 0;
   for (const track of data.tracks) {
     for (const clip of track.clips) {
@@ -24,9 +24,9 @@ function getMaxEndMs(data: TTimelineData) {
   }
 
   return maxEnd;
-}
+};
 
-function sortClips(clips: TTimelineClip[]) {
+const sortClips = (clips: TTimelineClip[]) => {
   return [...clips].sort((left, right) => {
     if (left.startMs !== right.startMs) {
       return left.startMs - right.startMs;
@@ -34,9 +34,9 @@ function sortClips(clips: TTimelineClip[]) {
 
     return left.id.localeCompare(right.id);
   });
-}
+};
 
-function normalizeTimelineData(data: TTimelineData): TTimelineData {
+const normalizeTimelineData = (data: TTimelineData): TTimelineData => {
   const tracks = data.tracks.map((track) => ({
     ...track,
     clips: sortClips(track.clips),
@@ -48,12 +48,12 @@ function normalizeTimelineData(data: TTimelineData): TTimelineData {
     tracks,
     durationMs: Math.max(data.durationMs, maxEndMs),
   };
-}
+};
 
-function findClip(
+const findClip = (
   data: TTimelineData,
   clipId: string,
-): { track: TTimelineTrack; clip: TTimelineClip } | null {
+): { track: TTimelineTrack; clip: TTimelineClip } | null => {
   for (const track of data.tracks) {
     const clip = track.clips.find((candidate) => candidate.id === clipId);
     if (clip) {
@@ -62,9 +62,9 @@ function findClip(
   }
 
   return null;
-}
+};
 
-export function createDefaultTimelineData(): TTimelineData {
+export const createDefaultTimelineData = (): TTimelineData => {
   const videoTrackId = createId();
   const subtitleTrackId = createId();
 
@@ -87,12 +87,12 @@ export function createDefaultTimelineData(): TTimelineData {
       },
     ],
   };
-}
+};
 
-export function applyEditorCommand(
+export const applyEditorCommand = (
   data: TTimelineData,
   command: TEditorCommand,
-): TTimelineData {
+): TTimelineData => {
   if (command.type === "addClip") {
     const targetTrack = data.tracks.find(
       (track) => track.id === command.trackId,
@@ -371,4 +371,4 @@ export function applyEditorCommand(
   }
 
   return data;
-}
+};

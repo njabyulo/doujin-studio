@@ -32,9 +32,9 @@ export interface IProjectService {
   ): Promise<TServiceResult<TProjectListResponse>>;
 }
 
-export function createProjectService(
+export const createProjectService = (
   config: TProjectServiceConfig,
-): IProjectService {
+): IProjectService => {
   return {
     async createProject(input) {
       const db = createDb(config.env.DB);
@@ -67,4 +67,4 @@ export function createProjectService(
       };
     },
   };
-}
+};

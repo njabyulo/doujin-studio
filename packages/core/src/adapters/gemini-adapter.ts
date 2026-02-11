@@ -19,9 +19,9 @@ export interface IGeminiAdapter {
   ): Promise<TGeminiGenerateContentResult>;
 }
 
-export function createGeminiAdapter(
+export const createGeminiAdapter = (
   config: TGeminiAdapterConfig,
-): IGeminiAdapter {
+): IGeminiAdapter => {
   // In Cloudflare Workers, calling an unbound platform function can throw
   // "Illegal invocation". Ensure we always call fetch with the correct `this`.
   const fetchImpl = config.fetch.bind(globalThis);
@@ -91,4 +91,4 @@ export function createGeminiAdapter(
       return { ok: true, text, version };
     },
   };
-}
+};

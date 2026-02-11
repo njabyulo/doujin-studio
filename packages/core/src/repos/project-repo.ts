@@ -19,7 +19,7 @@ export interface IProjectRepo {
   listProjects(input: { userId: string }): Promise<TProjectListItem[]>;
 }
 
-export function createProjectRepo(config: TProjectRepoConfig): IProjectRepo {
+export const createProjectRepo = (config: TProjectRepoConfig): IProjectRepo => {
   return {
     async createProject(input) {
       const projectId = crypto.randomUUID();
@@ -57,4 +57,4 @@ export function createProjectRepo(config: TProjectRepoConfig): IProjectRepo {
         .orderBy(desc(project.updatedAt));
     },
   };
-}
+};

@@ -34,20 +34,20 @@ export interface IEditorService {
   ): Promise<TServiceResult<TInterpretPlaybackResponse>>;
 }
 
-function extractFirstJsonObject(text: string) {
+const extractFirstJsonObject = (text: string) => {
   const match = text.match(/\{[\s\S]*\}/);
   return match?.[0] ?? null;
-}
+};
 
-function clamp(value: number, min: number, max: number) {
+const clamp = (value: number, min: number, max: number) => {
   return Math.min(max, Math.max(min, value));
-}
+};
 
-function fallbackInterpret(args: {
+const fallbackInterpret = (args: {
   prompt: string;
   currentMs?: number;
   durationMs?: number;
-}) {
+}) => {
   const prompt = args.prompt.trim().toLowerCase();
   const currentMs = args.currentMs ?? 0;
   const durationMs = args.durationMs ?? 0;
@@ -133,15 +133,15 @@ function fallbackInterpret(args: {
     },
     reasoning: "Fallback: no match",
   };
-}
+};
 
-function isValidModelId(model: string) {
+const isValidModelId = (model: string) => {
   return /^[a-z0-9][a-z0-9._-]{0,80}$/i.test(model);
-}
+};
 
-export function createEditorService(
+export const createEditorService = (
   config: TEditorServiceConfig,
-): IEditorService {
+): IEditorService => {
   const fetchImpl = config.fetch ?? fetch;
 
   return {
@@ -359,4 +359,4 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
       };
     },
   };
-}
+};
