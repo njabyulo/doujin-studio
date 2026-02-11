@@ -51,5 +51,11 @@
     "typescript": "^5.9.3",
     "vitest": "^3.2.4",
     "wrangler": "^4.63.0"
-  }
+  },
+  "browserslist": [
+    "chrome 111",
+    "edge 111",
+    "firefox 111",
+    "safari 16.4"
+  ]
 }

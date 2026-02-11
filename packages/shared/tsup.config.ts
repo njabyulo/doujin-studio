@@ -6,6 +6,7 @@ export default defineConfig({
     "consts/index": "src/consts/index.ts",
     "utils/index": "src/utils/index.ts",
   },
+  target: "es2015",
   format: ["esm"],
   dts: true,
   sourcemap: true,
