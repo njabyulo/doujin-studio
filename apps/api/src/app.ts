@@ -7,7 +7,7 @@ import { cors } from "hono/cors";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 
-export function createApp() {
+export const createApp = () => {
   const app = new Hono<AppEnv>();
 
   app.use("*", requestId({ headerName: "x-request-id" }));
@@ -83,4 +83,4 @@ export function createApp() {
   });
 
   return app;
-}
+};

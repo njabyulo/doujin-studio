@@ -12,14 +12,14 @@ import { createEditorRoutes } from "./editor";
 import { createProjectRoutes } from "./projects";
 import type { AppEnv } from "../types";
 
-function createVersionResponse(commitSha: string) {
+const createVersionResponse = (commitSha: string) => {
   return SVersionResponse.parse({
     version: packageJson.version,
     commitSha,
   });
-}
+};
 
-export function createApiRoutes() {
+export const createApiRoutes = () => {
   const app = new Hono<AppEnv>();
 
   app.on(["GET", "POST", "OPTIONS"], "/auth/*", async (c) => {
@@ -62,4 +62,4 @@ export function createApiRoutes() {
   app.route("/editor", createEditorRoutes());
 
   return app;
-}
+};

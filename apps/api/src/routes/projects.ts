@@ -9,7 +9,7 @@ import { ApiError, createApiErrorBody } from "../errors";
 import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
 
-export function createProjectRoutes() {
+export const createProjectRoutes = () => {
   const app = new Hono<AppEnv>();
 
   app.post("/", requireAuth, async (c) => {
@@ -61,4 +61,4 @@ export function createProjectRoutes() {
   });
 
   return app;
-}
+};

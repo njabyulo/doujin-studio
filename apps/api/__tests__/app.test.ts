@@ -166,7 +166,7 @@ const CLEAR_TABLE_STATEMENTS = [
   `DELETE FROM "user"`,
 ];
 
-async function createAuthSession(email: string) {
+const createAuthSession = async (email: string) => {
   const response = await SELF.fetch(
     "https://example.com/api/auth/sign-up/email",
     {
@@ -188,9 +188,9 @@ async function createAuthSession(email: string) {
   expect(cookie).toBeTruthy();
 
   return { cookie: cookie as string };
-}
+};
 
-async function createProject(cookie: string, title: string) {
+const createProject = async (cookie: string, title: string) => {
   const response = await SELF.fetch("https://example.com/api/projects", {
     method: "POST",
     headers: {
@@ -203,7 +203,7 @@ async function createProject(cookie: string, title: string) {
   expect(response.status).toBe(201);
   const body = SProjectResponse.parse(await response.json());
   return body.project;
-}
+};
 
 describe("api worker (surface pruned for web)", () => {
   beforeEach(async () => {

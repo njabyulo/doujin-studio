@@ -9,7 +9,7 @@ const PASSWORD_HASH_PREFIX = "pbkdf2-sha256";
 const PASSWORD_ITERATIONS = 50_000;
 const PASSWORD_SALT_BYTES = 16;
 
-function toBase64Url(bytes: Uint8Array) {
+const toBase64Url = (bytes: Uint8Array) => {
   let binary = "";
   for (let i = 0; i < bytes.length; i += 1) {
     binary += String.fromCharCode(bytes[i] as number);
@@ -18,9 +18,9 @@ function toBase64Url(bytes: Uint8Array) {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
-}
+};
 
-function fromBase64Url(value: string) {
+const fromBase64Url = (value: string) => {
   const padded = value
     .replace(/-/g, "+")
     .replace(/_/g, "/")
@@ -31,9 +31,9 @@ function fromBase64Url(value: string) {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
-}
+};
 
-function constantTimeEqual(left: Uint8Array, right: Uint8Array) {
+const constantTimeEqual = (left: Uint8Array, right: Uint8Array) => {
   if (left.length !== right.length) {
     return false;
   }
@@ -42,9 +42,9 @@ function constantTimeEqual(left: Uint8Array, right: Uint8Array) {
     out |= left[i] ^ right[i];
   }
   return out === 0;
-}
+};
 
-async function hashPassword(password: string) {
+const hashPassword = async (password: string) => {
   const normalized = password.normalize("NFKC");
   const salt = crypto.getRandomValues(new Uint8Array(PASSWORD_SALT_BYTES));
   const key = await crypto.subtle.importKey(
@@ -66,9 +66,9 @@ async function hashPassword(password: string) {
   );
   const derived = new Uint8Array(bits);
   return `${PASSWORD_HASH_PREFIX}:${PASSWORD_ITERATIONS}:${toBase64Url(salt)}:${toBase64Url(derived)}`;
-}
+};
 
-async function verifyPassword(args: { hash: string; password: string }) {
+const verifyPassword = async (args: { hash: string; password: string }) => {
   const parts = args.hash.split(":");
   if (parts.length !== 4) {
     return false;
@@ -113,17 +113,17 @@ async function verifyPassword(args: { hash: string; password: string }) {
   );
   const derived = new Uint8Array(bits);
   return constantTimeEqual(derived, expected);
-}
+};
 
-function toOrigin(value: string) {
+const toOrigin = (value: string) => {
   try {
     return new URL(value).origin;
   } catch {
     return value;
   }
-}
+};
 
-function getTrustedOrigins(bindings: AppBindings) {
+const getTrustedOrigins = (bindings: AppBindings) => {
   const origins = new Set<string>();
   const add = (value: string) => {
     const normalized = toOrigin(value).trim();
@@ -139,9 +139,9 @@ function getTrustedOrigins(bindings: AppBindings) {
   add("https://doujin.njabulomajozi.com");
 
   return [...origins];
-}
+};
 
-export function createAuth(bindings: AppBindings) {
+export const createAuth = (bindings: AppBindings) => {
   const baseURL = toOrigin(bindings.CORS_ORIGIN);
   const db = createDb(bindings.DB);
 
@@ -168,9 +168,9 @@ export function createAuth(bindings: AppBindings) {
     },
     plugins: [jwt()],
   });
-}
+};
 
-export function toAuthRequest(request: Request): Request {
+export const toAuthRequest = (request: Request): Request => {
   const url = new URL(request.url);
 
   if (!url.pathname.startsWith("/auth")) {
@@ -180,4 +180,4 @@ export function toAuthRequest(request: Request): Request {
   url.pathname = `/api${url.pathname}`;
 
   return new Request(url.toString(), request);
-}
+};

@@ -17,19 +17,19 @@ export class ApiError extends Error {
   }
 }
 
-export function normalizeApiError(error: unknown): ApiError {
+export const normalizeApiError = (error: unknown): ApiError => {
   if (error instanceof ApiError) {
     return error;
   }
 
   return new ApiError(500, "INTERNAL_ERROR", "Internal server error");
-}
+};
 
-export function createApiErrorBody(
+export const createApiErrorBody = (
   code: TApiErrorCode,
   message: string,
   requestId: string,
-): TApiErrorResponse {
+): TApiErrorResponse => {
   return SApiError.parse({
     error: {
       code,
@@ -37,4 +37,4 @@ export function createApiErrorBody(
       requestId,
     },
   });
-}
+};
