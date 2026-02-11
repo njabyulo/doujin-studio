@@ -19,7 +19,7 @@ interface EditorPlayerProps {
   onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export function EditorPlayer({
+export const EditorPlayer = ({
   upload,
   videoRef,
   videoError,
@@ -30,7 +30,7 @@ export function EditorPlayer({
   onFileSelect,
   inputRef,
   onInputChange,
-}: EditorPlayerProps) {
+}: EditorPlayerProps) => {
   const { localVideoUrl } = useProject();
 
   // Prioritize localVideoUrl from context if available
@@ -149,4 +149,4 @@ export function EditorPlayer({
       />
     </div>
   );
-}
+};

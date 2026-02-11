@@ -18,10 +18,10 @@ import { useCreateProjectFromFile } from "../hooks/useCreateProjectFromFile";
 
 const FILE_HINTS = ["MP4, MOV, WebM", "16:9 or 9:16", "Audio + video"] as const;
 
-export function UploadToCreateProjectModal(props: {
+export const UploadToCreateProjectModal = (props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const hints = useMemo(() => FILE_HINTS, []);
@@ -142,4 +142,4 @@ export function UploadToCreateProjectModal(props: {
       </DialogContent>
     </Dialog>
   );
-}
+};

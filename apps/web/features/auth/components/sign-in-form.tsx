@@ -10,7 +10,7 @@ import { buildAuthHref, getSafeNextPath } from "~/lib/auth-navigation";
 import { signInEmail } from "~/lib/auth-api";
 import { ApiClientError } from "~/lib/assets-api";
 
-function mapAuthError(error: unknown) {
+const mapAuthError = (error: unknown) => {
   if (error instanceof ApiClientError) {
     if (error.status === 401) {
       return "Invalid email or password.";
@@ -22,9 +22,9 @@ function mapAuthError(error: unknown) {
   }
 
   return "Could not sign in. Please try again.";
-}
+};
 
-export function SignInForm({ next }: { next?: string }) {
+export const SignInForm = ({ next }: { next?: string }) => {
   const router = useRouter();
   const nextPath = getSafeNextPath(next);
   const [email, setEmail] = useState("");
@@ -116,7 +116,10 @@ export function SignInForm({ next }: { next?: string }) {
 
           <p className="mt-5 text-sm text-[color:var(--ds-muted)]">
             Need an account?{" "}
-            <Link href={signUpHref} className="font-semibold text-[color:var(--ds-text)]">
+            <Link
+              href={signUpHref}
+              className="font-semibold text-[color:var(--ds-text)]"
+            >
               Create one
             </Link>
           </p>
@@ -124,4 +127,4 @@ export function SignInForm({ next }: { next?: string }) {
       </main>
     </div>
   );
-}
+};

@@ -36,7 +36,7 @@ const EXPERIENCE_STEPS = [
   },
 ];
 
-export function HomePage() {
+export const HomePage = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -295,4 +295,4 @@ export function HomePage() {
       </div>
     </div>
   );
-}
+};

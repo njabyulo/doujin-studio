@@ -22,14 +22,14 @@ interface EditorHeaderProps {
   handleManualSave: () => Promise<boolean | undefined>;
 }
 
-export function EditorHeader({
+export const EditorHeader = ({
   title,
   timelineStatusLabel,
   timelineState,
   upload,
   handleAddClip,
   handleManualSave,
-}: EditorHeaderProps) {
+}: EditorHeaderProps) => {
   const router = useRouter();
 
   return (
@@ -94,4 +94,4 @@ export function EditorHeader({
       </div>
     </div>
   );
-}
+};

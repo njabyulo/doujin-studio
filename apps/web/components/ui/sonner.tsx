@@ -2,7 +2,7 @@
 
 import { Toaster } from "sonner";
 
-export function SonnerToaster() {
+export const SonnerToaster = () => {
   return (
     <Toaster
       position="bottom-right"
@@ -13,4 +13,4 @@ export function SonnerToaster() {
       }}
     />
   );
-}
+};

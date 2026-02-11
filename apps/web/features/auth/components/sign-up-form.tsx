@@ -10,7 +10,7 @@ import { signUpEmail } from "~/lib/auth-api";
 import { buildAuthHref, getSafeNextPath } from "~/lib/auth-navigation";
 import { ApiClientError } from "~/lib/assets-api";
 
-function mapAuthError(error: unknown) {
+const mapAuthError = (error: unknown) => {
   if (error instanceof ApiClientError) {
     if (error.status === 409) {
       return "An account with this email already exists.";
@@ -22,9 +22,9 @@ function mapAuthError(error: unknown) {
   }
 
   return "Could not create your account. Please try again.";
-}
+};
 
-export function SignUpForm({ next }: { next?: string }) {
+export const SignUpForm = ({ next }: { next?: string }) => {
   const router = useRouter();
   const nextPath = getSafeNextPath(next);
   const [name, setName] = useState("");
@@ -130,7 +130,10 @@ export function SignUpForm({ next }: { next?: string }) {
 
           <p className="mt-5 text-sm text-[color:var(--ds-muted)]">
             Already have an account?{" "}
-            <Link href={signInHref} className="font-semibold text-[color:var(--ds-text)]">
+            <Link
+              href={signInHref}
+              className="font-semibold text-[color:var(--ds-text)]"
+            >
               Sign in
             </Link>
           </p>
@@ -138,4 +141,4 @@ export function SignUpForm({ next }: { next?: string }) {
       </main>
     </div>
   );
-}
+};

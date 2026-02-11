@@ -14,7 +14,7 @@ interface Project {
   role: string;
 }
 
-export default function ProjectsPage() {
+const ProjectsPage = () => {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +22,7 @@ export default function ProjectsPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   useEffect(() => {
-    async function loadProjects() {
+    const loadProjects = async () => {
       try {
         const res = await fetch("/api/projects");
         if (!res.ok) {
@@ -39,7 +39,7 @@ export default function ProjectsPage() {
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
     loadProjects();
   }, [router]);
@@ -145,4 +145,6 @@ export default function ProjectsPage() {
       </main>
     </div>
   );
-}
+};
+
+export default ProjectsPage;

@@ -30,7 +30,7 @@ const Editor = dynamic(
   },
 );
 
-export function ProjectPage() {
+export const ProjectPage = () => {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const projectId = params?.id;
@@ -50,7 +50,10 @@ export function ProjectPage() {
       } catch (caughtError) {
         if (cancelled) return;
         setAuthState("guest");
-        if (caughtError instanceof ApiClientError && caughtError.status === 401) {
+        if (
+          caughtError instanceof ApiClientError &&
+          caughtError.status === 401
+        ) {
           router.push(buildAuthHref("/auth/sign-in", `/projects/${projectId}`));
           return;
         }
@@ -69,4 +72,4 @@ export function ProjectPage() {
   }
 
   return <Editor key={projectId ?? "new"} projectId={projectId} />;
-}
+};

@@ -18,13 +18,13 @@ type PlaybackPanelProps = {
   onSendCommand: () => void;
 };
 
-export function PlaybackPanel({
+export const PlaybackPanel = ({
   commandInput,
   isInterpreting,
   lastReasoning,
   onCommandInputChange,
   onSendCommand,
-}: PlaybackPanelProps) {
+}: PlaybackPanelProps) => {
   return (
     <Card className="editor-panel-strong text-white">
       <CardHeader className="space-y-2">
@@ -67,4 +67,4 @@ export function PlaybackPanel({
       </CardContent>
     </Card>
   );
-}
+};

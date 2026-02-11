@@ -14,24 +14,23 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Doujin Studio",
-  description:
-    "AI media studio for personal-to-business video and image kits.",
+  description: "AI media studio for personal-to-business video and image kits.",
 };
 
 import { RootProvider } from "./providers/RootProvider";
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>) => {
   return (
     <html lang="en">
       <body className={`${sora.variable} ${fraunces.variable} antialiased`}>
-        <RootProvider>
-          {children}
-        </RootProvider>
+        <RootProvider>{children}</RootProvider>
       </body>
     </html>
   );
-}
+};
+
+export default RootLayout;

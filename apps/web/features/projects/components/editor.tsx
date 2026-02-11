@@ -6,6 +6,7 @@ import {
   Clapperboard,
   Layers,
   Mic,
+  Scissors,
   Type,
   Wand2,
 } from "lucide-react";
@@ -34,13 +35,12 @@ import {
   PlaybackCommandError,
 } from "~/lib/playback-commands";
 import { buildAuthHref } from "~/lib/auth-navigation";
-import { Scissors } from "lucide-react";
 import { PlaybackPanel } from "./PlaybackPanel";
 import { toast } from "sonner";
 
 const LOCAL_ASSET_ID = "local-video";
 
-export function Editor({ projectId }: EditorProps) {
+export const Editor = ({ projectId }: EditorProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -418,4 +418,4 @@ export function Editor({ projectId }: EditorProps) {
       </div>
     </div>
   );
-}
+};
