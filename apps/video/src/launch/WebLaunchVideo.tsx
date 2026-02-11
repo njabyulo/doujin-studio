@@ -100,11 +100,11 @@ const versionCards = [
   },
 ] as const;
 
-function allocateSceneTimings(
+const allocateSceneTimings = (
   fps: number,
   totalFrames: number,
   scenes: SceneConfig[],
-): SceneTiming[] {
+): SceneTiming[] => {
   const baseDurations = scenes.map((scene) =>
     Math.max(1, Math.round(scene.seconds * fps)),
   );
@@ -133,9 +133,9 @@ function allocateSceneTimings(
       durationInFrames,
     } satisfies SceneTiming;
   });
-}
+};
 
-function springIn(frame: number, fps: number, delay = 0) {
+const springIn = (frame: number, fps: number, delay = 0) => {
   return spring({
     frame: Math.max(0, frame - delay),
     fps,
@@ -145,11 +145,11 @@ function springIn(frame: number, fps: number, delay = 0) {
       mass: 0.9,
     },
   });
-}
+};
 
-function clamp01(value: number) {
+const clamp01 = (value: number) => {
   return Math.min(1, Math.max(0, value));
-}
+};
 
 export const WebLaunchVideo: React.FC<WebLaunchVideoProps> = ({
   voiceoverSrc,
@@ -162,10 +162,13 @@ export const WebLaunchVideo: React.FC<WebLaunchVideoProps> = ({
   );
 
   const lookup = useMemo(() => {
-    return sceneTimings.reduce<Record<SceneId, SceneTiming>>((acc, scene) => {
-      acc[scene.id] = scene;
-      return acc;
-    }, {} as Record<SceneId, SceneTiming>);
+    return sceneTimings.reduce<Record<SceneId, SceneTiming>>(
+      (acc, scene) => {
+        acc[scene.id] = scene;
+        return acc;
+      },
+      {} as Record<SceneId, SceneTiming>,
+    );
   }, [sceneTimings]);
 
   return (
@@ -186,7 +189,9 @@ export const WebLaunchVideo: React.FC<WebLaunchVideoProps> = ({
         durationInFrames={lookup.upload.durationInFrames}
         premountFor={15}
       >
-        <UploadPipelineScene durationInFrames={lookup.upload.durationInFrames} />
+        <UploadPipelineScene
+          durationInFrames={lookup.upload.durationInFrames}
+        />
       </Sequence>
 
       <CutFlash atFrame={lookup.editor.start} />
@@ -195,7 +200,9 @@ export const WebLaunchVideo: React.FC<WebLaunchVideoProps> = ({
         durationInFrames={lookup.editor.durationInFrames}
         premountFor={15}
       >
-        <TEditorCommandScene durationInFrames={lookup.editor.durationInFrames} />
+        <TEditorCommandScene
+          durationInFrames={lookup.editor.durationInFrames}
+        />
       </Sequence>
 
       <CutFlash atFrame={lookup.versions.start} />
@@ -350,9 +357,7 @@ const HomeScene: React.FC<{ durationInFrames: number }> = ({
               panY={6}
             />
           </div>
-          <InlineNotice
-            text="Auth gate is strict: unauthenticated uploads are blocked before project creation."
-          />
+          <InlineNotice text="Auth gate is strict: unauthenticated uploads are blocked before project creation." />
         </div>
       </div>
     </SceneShell>
@@ -498,7 +503,11 @@ const TEditorCommandScene: React.FC<{ durationInFrames: number }> = ({
   );
 
   const timelineStatus =
-    normalized < 0.36 ? "Unsaved edits" : normalized < 0.66 ? "Saving..." : "Saved";
+    normalized < 0.36
+      ? "Unsaved edits"
+      : normalized < 0.66
+        ? "Saving..."
+        : "Saved";
 
   return (
     <SceneShell variant="editor" durationInFrames={durationInFrames}>
@@ -555,7 +564,10 @@ const TEditorCommandScene: React.FC<{ durationInFrames: number }> = ({
           }}
         >
           <Pill text="EDITOR COMMAND BUS" dark />
-          <Headline text="One reducer path for buttons today and AI actions next." dark />
+          <Headline
+            text="One reducer path for buttons today and AI actions next."
+            dark
+          />
           <p
             style={{
               margin: 0,
@@ -585,8 +597,14 @@ const TEditorCommandScene: React.FC<{ durationInFrames: number }> = ({
               label="Active command"
               value={commandOrder[commandIndex] ?? "addClip"}
             />
-            <StatusRow label="Save transport" value="PATCH /api/timelines/:id" />
-            <StatusRow label="Version checkpoint" value="POST /api/timelines/:id/versions" />
+            <StatusRow
+              label="Save transport"
+              value="PATCH /api/timelines/:id"
+            />
+            <StatusRow
+              label="Version checkpoint"
+              value="POST /api/timelines/:id/versions"
+            />
           </div>
         </div>
       </div>
@@ -601,7 +619,10 @@ const VersioningScene: React.FC<{ durationInFrames: number }> = ({
   const { fps } = useVideoConfig();
 
   const revealProgress = clamp01(frame / Math.max(1, durationInFrames - 1));
-  const revealCount = Math.max(1, Math.floor(revealProgress * (versionCards.length + 1)));
+  const revealCount = Math.max(
+    1,
+    Math.floor(revealProgress * (versionCards.length + 1)),
+  );
 
   const conflictPulse = spring({
     frame: Math.max(0, frame - Math.floor(fps * 0.5)),
@@ -626,7 +647,10 @@ const VersioningScene: React.FC<{ durationInFrames: number }> = ({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Pill text="TIMELINE VERSIONING" dark />
-          <Headline text="Reload restores exact state from latest committed version." dark />
+          <Headline
+            text="Reload restores exact state from latest committed version."
+            dark
+          />
           <p
             style={{
               margin: 0,
@@ -654,7 +678,10 @@ const VersioningScene: React.FC<{ durationInFrames: number }> = ({
           >
             <StatusRow label="Conflict contract" value="400 BAD_REQUEST" />
             <StatusRow label="Privacy behavior" value="404 for non-members" />
-            <StatusRow label="Time unit" value="Milliseconds in timeline data" />
+            <StatusRow
+              label="Time unit"
+              value="Milliseconds in timeline data"
+            />
           </div>
         </div>
 
@@ -862,7 +889,9 @@ const EndpointCard: React.FC<{
       style={{
         borderRadius: 14,
         border: `1px solid ${active ? "rgba(245,141,57,0.45)" : "rgba(31,26,21,0.12)"}`,
-        background: active ? "rgba(255,255,255,0.84)" : "rgba(255,255,255,0.58)",
+        background: active
+          ? "rgba(255,255,255,0.84)"
+          : "rgba(255,255,255,0.58)",
         padding: "11px 12px",
       }}
     >
@@ -914,7 +943,10 @@ const CommandChip: React.FC<{ label: string; active: boolean }> = ({
   );
 };
 
-const StatusRow: React.FC<{ label: string; value: string }> = ({ label, value }) => {
+const StatusRow: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
       <span
@@ -1021,7 +1053,10 @@ const InlineNotice: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const Pill: React.FC<{ text: string; dark?: boolean }> = ({ text, dark = false }) => {
+const Pill: React.FC<{ text: string; dark?: boolean }> = ({
+  text,
+  dark = false,
+}) => {
   return (
     <div
       style={{
