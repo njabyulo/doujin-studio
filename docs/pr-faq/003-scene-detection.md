@@ -1,31 +1,34 @@
-# PR/FAQ: Scene Detection and Story Beats
+# PR/FAQ: Scene Detection (Candidates + Evidence)
 
 ## Press Release
 
 **Title**
-Auto-Detect Cuts and Story Beats to Speed Up Cinematic Edits
+Automatic Scene Boundaries You Can Trust
 
 **Summary**
-The editor now detects scene boundaries and major story beats using frame differences and embedding similarity. This gives the AI a reliable structure for pacing and transitions.
-
-**Customer Quote**
-"It found my best beats in seconds. I started with a cut plan instead of a blank timeline." 
+We add scene boundary detection as a derived output of `asset_analyze`. The system proposes cut/scene candidates with confidence and evidence, so planning can reference real story structure instead of guessing.
 
 **How It Works**
-- Use frame-diff thresholds to find hard cuts.
-- Use embeddings to group visually similar segments into scenes.
-- Combine with audio energy changes to tag story beats.
+
+- Depends on: `asset_analyze` artifacts (frames + transcript).
+- Candidate generation (v1):
+  - Fast heuristic: frame-diff spikes on sampled frames.
+  - Optional confirmation: Gemini checks ambiguous boundaries and produces a confidence score.
+- Output contract stored with analysis:
+  - `sceneCandidates: [ { atMs, confidence, evidence: { frameAtMs, notes } } ]`
 
 **Why It Matters**
-Scene detection provides the scaffolding for intent-based edits like "make this cinematic" or "speed up the middle."
+Scene boundaries become the backbone for pacing and cut planning.
 
 ## FAQ
 
-**Will it mis-detect fast motion?**
-We blend frame diffs with embeddings and audio cues to reduce false positives.
+**Is this "final" scene detection?**
+No. v1 is a candidate generator with evidence; it gets refined by feedback and better sampling.
 
-**Is this real-time?**
-First pass runs on upload; later we can incrementally update per segment.
+**Does this require full video decoding server-side?**
+No. v1 uses sampled frames from `apps/web`.
 
-**Can users override boundaries?**
-Yes. Users can merge/split scenes and the EDL updates.
+**Acceptance Criteria**
+
+- For an analyzed asset, scene candidates exist with confidence and evidence pointers.
+- Downstream planners can reference candidates by timecode.
