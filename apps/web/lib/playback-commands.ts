@@ -1,7 +1,7 @@
 import {
   SInterpretPlaybackRequest,
   type TInterpretPlaybackResponse,
-} from "@doujin/core";
+} from "@doujin/shared/types";
 
 export class PlaybackCommandError extends Error {
   public readonly status: number;

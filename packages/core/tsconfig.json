@@ -1,7 +1,10 @@
 {
   "extends": "../../packages/config/typescript/node.json",
   "compilerOptions": {
-    "lib": ["ES2022", "WebWorker"]
+    "lib": ["ES2022", "WebWorker"],
+    "incremental": false,
+    "noEmit": false,
+    "types": ["@cloudflare/workers-types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

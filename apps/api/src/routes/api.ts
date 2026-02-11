@@ -1,4 +1,8 @@
-import { SHealthResponse, SMeResponse, SVersionResponse } from "@doujin/core";
+import {
+  SHealthResponse,
+  SMeResponse,
+  SVersionResponse,
+} from "@doujin/shared/types";
 import { Hono } from "hono";
 import packageJson from "../../package.json";
 import { createAuth, toAuthRequest } from "../auth";

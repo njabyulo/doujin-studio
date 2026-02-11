@@ -6,7 +6,7 @@ import type {
   TAsset,
   TAssetResponse,
   TProjectAssetListResponse,
-} from "@doujin/core";
+} from "@doujin/shared/types";
 
 export type {
   TMeResponse,

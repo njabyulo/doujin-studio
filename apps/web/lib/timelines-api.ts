@@ -9,7 +9,7 @@ import type {
   TTimeline,
   TTimelineVersion,
   TTimelineWithLatestResponse,
-} from "@doujin/core";
+} from "@doujin/shared/types";
 
 export type {
   TTimelineTrackKind,
@@ -113,9 +113,12 @@ export async function getProjectLatestTimeline(projectId: string) {
 }
 
 export async function getTimeline(timelineId: string) {
-  return apiRequest<TTimelineWithLatestResponse>(`/api/timelines/${timelineId}`, {
-    method: "GET",
-  });
+  return apiRequest<TTimelineWithLatestResponse>(
+    `/api/timelines/${timelineId}`,
+    {
+      method: "GET",
+    },
+  );
 }
 
 export async function patchTimeline(
@@ -126,10 +129,13 @@ export async function patchTimeline(
     data: TTimelineData;
   },
 ) {
-  return apiRequest<TTimelineWithLatestResponse>(`/api/timelines/${timelineId}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
-  });
+  return apiRequest<TTimelineWithLatestResponse>(
+    `/api/timelines/${timelineId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export async function createTimelineVersion(

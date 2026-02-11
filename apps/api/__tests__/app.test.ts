@@ -6,7 +6,7 @@ import {
   SProjectListResponse,
   SProjectResponse,
   SVersionResponse,
-} from "@doujin/core";
+} from "@doujin/shared/types";
 import { convertSetCookieToCookie } from "better-auth/test";
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";

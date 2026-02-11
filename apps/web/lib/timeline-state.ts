@@ -1,10 +1,13 @@
 import {
   applyEditorCommand as applyEditorCommandCore,
   createDefaultTimelineData as createDefaultTimelineDataCore,
-  type TEditorCommand,
-  type TTimelineData,
-  type TTimelineVersionSource,
-} from "@doujin/core";
+} from "@doujin/shared/utils";
+
+import type {
+  TEditorCommand,
+  TTimelineData,
+  TTimelineVersionSource,
+} from "@doujin/shared/types";
 
 export type { TEditorCommand };
 
@@ -50,19 +53,27 @@ export function applyEditorCommand(
   return applyEditorCommandCore(data, command);
 }
 
-export function saveEditorTimelineCache(projectId: string, state: CachedTimelineState) {
+export function saveEditorTimelineCache(
+  projectId: string,
+  state: CachedTimelineState,
+) {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    sessionStorage.setItem(getTimelineCacheKey(projectId), JSON.stringify(state));
+    sessionStorage.setItem(
+      getTimelineCacheKey(projectId),
+      JSON.stringify(state),
+    );
   } catch {
     // ignore storage errors for private mode / quota limits
   }
 }
 
-export function loadEditorTimelineCache(projectId: string): CachedTimelineState | null {
+export function loadEditorTimelineCache(
+  projectId: string,
+): CachedTimelineState | null {
   if (typeof window === "undefined") {
     return null;
   }

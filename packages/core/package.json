@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "default": "./dist/services/index.js"
+    }
   },
   "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
     "lint": "pnpm lint:type && pnpm lint:code",
     "lint:type": "tsc --noEmit",
     "lint:code": "eslint . --max-warnings 0",
@@ -15,11 +20,15 @@
     "clean:all": "pnpm clean && rm -rf node_modules"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "@doujin/database": "workspace:*",
+    "@doujin/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@doujin/config": "workspace:*",
+    "@cloudflare/workers-types": "^4.20260207.0",
     "eslint": "^10.0.0",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

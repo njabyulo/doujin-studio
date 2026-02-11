@@ -1,12 +1,11 @@
-import { createDb, desc, eq } from "@doujin/database";
-import { project, projectMember } from "@doujin/database/schema";
 import {
   SCreateProjectRequest,
   SProjectListResponse,
   SProjectResponse,
-} from "@doujin/core";
+} from "@doujin/shared/types";
+import { createProjectService } from "@doujin/core/services";
 import { Hono } from "hono";
-import { ApiError } from "../errors";
+import { ApiError, createApiErrorBody } from "../errors";
 import { requireAuth } from "../middleware/require-auth";
 import type { AppEnv } from "../types";
 
@@ -27,32 +26,20 @@ export function createProjectRoutes() {
     }
 
     const input = SCreateProjectRequest.parse(body);
-    const db = createDb(c.env.DB);
-    const projectId = crypto.randomUUID();
 
-    await db.batch([
-      db.insert(project).values({
-        id: projectId,
-        userId: user.id,
-        title: input.title,
-      }),
-      db.insert(projectMember).values({
-        projectId,
-        userId: user.id,
-        role: "owner",
-      }),
-    ]);
+    const service = createProjectService({ env: { DB: c.env.DB } });
+    const result = await service.createProject({
+      userId: user.id,
+      payload: input,
+    });
+    if (!result.ok) {
+      return c.json(
+        createApiErrorBody(result.code, result.message, c.get("requestId")),
+        result.status as any,
+      );
+    }
 
-    return c.json(
-      SProjectResponse.parse({
-        project: {
-          id: projectId,
-          title: input.title,
-          role: "owner",
-        },
-      }),
-      201,
-    );
+    return c.json(SProjectResponse.parse(result.data), 201);
   });
 
   app.get("/", requireAuth, async (c) => {
@@ -61,19 +48,16 @@ export function createProjectRoutes() {
       throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
     }
 
-    const db = createDb(c.env.DB);
-    const projects = await db
-      .select({
-        id: project.id,
-        title: project.title,
-        role: projectMember.role,
-      })
-      .from(projectMember)
-      .innerJoin(project, eq(projectMember.projectId, project.id))
-      .where(eq(projectMember.userId, user.id))
-      .orderBy(desc(project.updatedAt));
+    const service = createProjectService({ env: { DB: c.env.DB } });
+    const result = await service.listProjects({ userId: user.id });
+    if (!result.ok) {
+      return c.json(
+        createApiErrorBody(result.code, result.message, c.get("requestId")),
+        result.status as any,
+      );
+    }
 
-    return c.json(SProjectListResponse.parse({ projects }), 200);
+    return c.json(SProjectListResponse.parse(result.data), 200);
   });
 
   return app;

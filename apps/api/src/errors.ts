@@ -2,7 +2,7 @@ import {
   SApiError,
   type TApiErrorCode,
   type TApiErrorResponse,
-} from "@doujin/core";
+} from "@doujin/shared/types";
 
 export type ApiErrorStatus = 400 | 401 | 404 | 429 | 500 | 503;
 
