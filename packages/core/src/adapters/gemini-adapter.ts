@@ -10,8 +10,8 @@ export type TGeminiGenerateContentInput = {
 };
 
 export type TGeminiGenerateContentResult =
-  | { ok: true; text: string }
-  | { ok: false; status: number; text: string };
+  | { ok: true; text: string; version: "v1" | "v1beta" }
+  | { ok: false; status: number; text: string; version: "v1" | "v1beta" };
 
 export interface IGeminiAdapter {
   generateContent(
@@ -22,12 +22,28 @@ export interface IGeminiAdapter {
 export function createGeminiAdapter(
   config: TGeminiAdapterConfig,
 ): IGeminiAdapter {
+  // In Cloudflare Workers, calling an unbound platform function can throw
+  // "Illegal invocation". Ensure we always call fetch with the correct `this`.
+  const fetchImpl = config.fetch.bind(globalThis);
+
   return {
     async generateContent(input) {
+      const stringifyError = (error: unknown) => {
+        if (error instanceof Error) {
+          return error.message;
+        }
+        try {
+          return JSON.stringify(error);
+        } catch {
+          return String(error);
+        }
+      };
+
+      const version: "v1beta" = "v1beta";
       let response: Response;
       try {
-        response = await config.fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${encodeURIComponent(
+        response = await fetchImpl(
+          `https://generativelanguage.googleapis.com/${version}/models/${config.model}:generateContent?key=${encodeURIComponent(
             config.apiKey,
           )}`,
           {
@@ -51,13 +67,18 @@ export function createGeminiAdapter(
             }),
           },
         );
-      } catch {
-        return { ok: false, status: 0, text: "" };
+      } catch (error) {
+        return {
+          ok: false,
+          status: 0,
+          text: stringifyError(error),
+          version,
+        };
       }
 
       if (!response.ok) {
         const bodyText = await response.text().catch(() => "");
-        return { ok: false, status: response.status, text: bodyText };
+        return { ok: false, status: response.status, text: bodyText, version };
       }
 
       const data = (await response.json().catch(() => null)) as any;
@@ -67,7 +88,7 @@ export function createGeminiAdapter(
           .filter(Boolean)
           .join("\n") ?? "";
 
-      return { ok: true, text };
+      return { ok: true, text, version };
     },
   };
 }

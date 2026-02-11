@@ -146,13 +146,63 @@ export function createEditorService(
 
   return {
     async interpretPlayback(input) {
-      const { userId, payload, testMode } = input;
+      const { userId, requestId, payload, testMode } = input;
       const { prompt, currentMs, durationMs } = payload;
 
       const apiKey = config.env.GEMINI_API_KEY ?? "";
       const model = config.env.AI_INTERPRET_MODEL ?? "gemini-3-flash-preview";
 
       const db = createDb(config.env.DB);
+
+      if (testMode) {
+        const creditsRepo = createAiCreditsRepo({ db });
+        const credits = await creditsRepo.consumeDailyCredit({
+          userId,
+          feature: FEATURE_EDITOR_INTERPRET,
+        });
+        if (!credits.ok) {
+          return {
+            ok: false,
+            status: credits.status,
+            code: credits.code,
+            message: credits.message,
+            headers: credits.headers,
+          };
+        }
+
+        return {
+          ok: true,
+          data: SInterpretPlaybackResponse.parse(fallbackInterpret(payload)),
+          headers: credits.headers,
+        };
+      }
+
+      if (!apiKey.trim()) {
+        console.warn("editor_interpret: missing GEMINI_API_KEY", {
+          requestId,
+          userId,
+        });
+        return {
+          ok: false,
+          status: 503,
+          code: "AI_UNAVAILABLE",
+          message: "AI temporarily unavailable",
+        };
+      }
+
+      if (!isValidModelId(model)) {
+        console.warn("editor_interpret: invalid AI_INTERPRET_MODEL", {
+          requestId,
+          userId,
+          model,
+        });
+        return {
+          ok: false,
+          status: 503,
+          code: "AI_UNAVAILABLE",
+          message: "AI temporarily unavailable",
+        };
+      }
 
       const creditsRepo = createAiCreditsRepo({ db });
       const credits = await creditsRepo.consumeDailyCredit({
@@ -170,34 +220,11 @@ export function createEditorService(
       }
 
       const headerBase = credits.headers;
-
-      if (testMode) {
-        return {
-          ok: true,
-          data: SInterpretPlaybackResponse.parse(fallbackInterpret(payload)),
-          headers: headerBase,
-        };
-      }
-
-      if (!apiKey.trim()) {
-        return {
-          ok: false,
-          status: 503,
-          code: "AI_UNAVAILABLE",
-          message: "AI temporarily unavailable",
-          headers: headerBase,
-        };
-      }
-
-      if (!isValidModelId(model)) {
-        return {
-          ok: false,
-          status: 503,
-          code: "AI_UNAVAILABLE",
-          message: "AI temporarily unavailable",
-          headers: headerBase,
-        };
-      }
+      const aiHeaderBase: Record<string, string> = {
+        ...headerBase,
+        "x-ai-provider": "gemini",
+        "x-ai-model": model,
+      };
 
       const systemInstruction = `You are a video editor playback controller.
 The user provides a command in natural language and you interpret it into a structured playback action.
@@ -233,23 +260,45 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
       });
 
       if (!response.ok) {
+        console.warn("editor_interpret: gemini generateContent failed", {
+          requestId,
+          userId,
+          model,
+          version: response.version,
+          status: response.status,
+          body: response.text?.slice(0, 500) ?? "",
+        });
         return {
           ok: false,
           status: 503,
           code: "AI_UNAVAILABLE",
           message: "AI temporarily unavailable",
-          headers: headerBase,
+          headers: {
+            ...aiHeaderBase,
+            "x-ai-provider-version": response.version,
+            "x-ai-provider-status": String(response.status),
+          },
         };
       }
 
       const jsonText = extractFirstJsonObject(response.text);
       if (!jsonText) {
+        console.warn("editor_interpret: gemini response missing JSON", {
+          requestId,
+          userId,
+          model,
+          version: response.version,
+          text: response.text?.slice(0, 500) ?? "",
+        });
         return {
           ok: false,
           status: 503,
           code: "AI_UNAVAILABLE",
           message: "AI temporarily unavailable",
-          headers: headerBase,
+          headers: {
+            ...aiHeaderBase,
+            "x-ai-provider-version": response.version,
+          },
         };
       }
 
@@ -257,18 +306,28 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
       try {
         interpreted = JSON.parse(jsonText);
       } catch {
+        console.warn("editor_interpret: gemini JSON parse failed", {
+          requestId,
+          userId,
+          model,
+          version: response.version,
+          jsonText: jsonText.slice(0, 500),
+        });
         return {
           ok: false,
           status: 503,
           code: "AI_UNAVAILABLE",
           message: "AI temporarily unavailable",
-          headers: headerBase,
+          headers: {
+            ...aiHeaderBase,
+            "x-ai-provider-version": response.version,
+          },
         };
       }
 
       const out = SInterpretPlaybackResponse.safeParse(interpreted);
       if (out.success) {
-        return { ok: true, data: out.data, headers: headerBase };
+        return { ok: true, data: out.data, headers: aiHeaderBase };
       }
 
       const maybeCommand = SPlaybackCommand.safeParse(interpreted);
@@ -278,16 +337,25 @@ Context: Current position ${currentMs ?? 0}ms, Duration ${durationMs ?? 0}ms`;
           data: SInterpretPlaybackResponse.parse({
             command: maybeCommand.data,
           }),
-          headers: headerBase,
+          headers: aiHeaderBase,
         };
       }
 
+      console.warn("editor_interpret: gemini response schema mismatch", {
+        requestId,
+        userId,
+        model,
+        version: response.version,
+      });
       return {
         ok: false,
         status: 503,
         code: "AI_UNAVAILABLE",
         message: "AI temporarily unavailable",
-        headers: headerBase,
+        headers: {
+          ...aiHeaderBase,
+          "x-ai-provider-version": response.version,
+        },
       };
     },
   };
