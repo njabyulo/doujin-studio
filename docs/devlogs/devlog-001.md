@@ -1,15 +1,15 @@
 ---
-title: 'Devlog 001 — Cinematic Editor: Shipping the Loop, Not Just the Shell'
-date: '2026-02-09'
-stage: 'v0-loop'
-owner: 'N. Jabulo'
+title: "Devlog 001 — Cinematic Editor: Shipping the Loop, Not Just the Shell"
+date: "2026-02-11"
+stage: "v0-playback-loop"
+owner: "N. Jabulo"
 ---
 
 # TL;DR
 
-- Shipped a working upload-to-edit loop: auth, upload, timeline persistence, and AI chat edits.
-- Implemented fast local preview + Cloudflare R2-backed uploads with poster generation.
-- Wired Gemini chat to real tool-calling so prompts can persist timeline edits.
+- Shipped a working **start-from-a-file** loop: auth, project creation, local video preview, and a local-first editor.
+- Implemented an API worker (Hono + D1 + Better Auth) with shared Zod contracts in `@doujin/core`.
+- Added Gemini-powered **playback interpretation** (`/api/editor/interpret`) with daily credit enforcement.
 
 # Introduction
 
@@ -25,8 +25,8 @@ I used [Jonny Burger’s Remotion talk](https://www.youtube.com/watch?v=gYf_FWZG
 - Remotion adds **time** as a first‑class dimension in React.
 - Professional editors should hide default player controls and use custom UI.
 - Use **local blob URLs** for instant preview while uploads continue.
-- Uploads should go **direct to object storage via presigned URLs**.
-- Render/export uses Remotion Lambda, with progress tracked via polling.
+- Uploads should go **direct to object storage** once the ingest pipeline exists.
+- Rendering/export needs a separate pipeline; don’t block early editor iteration on it.
 
 Those notes became my first concrete decision: **ship the end-to-end interaction loop first**, then evolve the orchestration and rendering pipeline.
 
@@ -37,27 +37,29 @@ Those notes became my first concrete decision: **ship the end-to-end interaction
 **Current**
 
 ```
-Auth → Upload (client) → Blob URL preview + R2 upload session
-→ Timeline versioning → AI chat (Gemini tool-calls) → persisted timeline edits
+Auth → Create Project (API) → Local video file (client) → Blob URL preview
+→ Local-first timeline state (session storage)
+→ AI playback interpretation (Gemini) → structured playback commands
 ```
 
 **Target**
 
 ```
-Upload complete → background artifact jobs (poster/waveform)
-→ richer multimodal analysis → EDL export workflow → incremental preview/render
+Asset ingest (R2) → analysis jobs (frames + transcript)
+→ scene candidates → plan-first EDL proposals → apply as versioned timeline writes
+→ incremental preview + explainable undo/feedback
 ```
 
 ## Flow (What the user can do today)
 
 1. Create an account or sign in.
-2. Upload from `/` and get immediate local preview while cloud upload completes.
-3. Land in `/projects/[id]` with a created/loaded timeline and autosave/manual versioning.
-4. Use AI chat; prompt-driven edits are streamed and applied as structured timeline commands.
+2. Start from a local video file on `/`.
+3. If authenticated, the app creates a project server-side and routes to `/projects/[id]`. If not authenticated, the selected file is held locally and resumed after sign-in.
+4. Edit against a local-first timeline state and use AI to interpret playback commands (play/pause/seek).
 
 ## UI
 
-I didn’t want the UI to look like a generic dashboard. I spent time on Pinterest, Behance, and Dribbble, then used the [Anthropic Frontend Design](https://github.com/anthropics/skills/tree/main/skills/frontend-design) skill to push the interface toward a “cinematic studio” feel rather than a typical SaaS layout.
+I didn’t want the UI to look like a generic dashboard. The editor is opinionated: it treats timeline state and commands as first-class, and it intentionally de-emphasizes “player controls” in favor of an editing surface.
 
 That’s a **Thinking Big** move disguised as a small UI task. If the UI doesn’t feel like a real editor, everything else falls apart.
 
@@ -65,43 +67,54 @@ That’s a **Thinking Big** move disguised as a small UI task. If the UI doesn�
 
 #### Editor
 
-The Remotion talk shifted me from “player with buttons” to an **editor with timeline semantics**. Instead of default controls, I built around timeline state, versioned saves, and command-based edits. I also leaned on Remotion best-practices guidelines for timing discipline and future rendering constraints.
+The Remotion talk shifted me from “player with buttons” to an **editor with timeline semantics**. In the current codebase, that shows up as:
+
+- Shared, validated timeline contracts in `@doujin/core`.
+- Local-first timeline state in `apps/web` (session storage), so editing is responsive before persistence exists.
+- A command-oriented approach in `packages/core/src/editor-command-engine.ts` (foundation for applying structured edits later).
 
 ### Decisions
 
-- Visual direction: warm clay backgrounds, deep charcoal panels, neon‑lime accents.
-- Design system: custom tokens + shadcn primitives.
+- Visual direction: editor-first layout with a dedicated playback surface + timeline semantics.
+- System direction: ship one interaction paradigm repeatedly (API + contracts + editor commands), then add “analysis legos.”
 
 # Maintainable & Clean Code
 
 I **Insist on Highest Standards** by:
 
 - Keeping UI modules isolated and reusable with consistent primitives.
-- Implementing React performance patterns such as **memoization + stable props**, aligned with [Vercel’s React best practices](https://vercel.com/blog/introducing-react-best-practices).
-- Keeping the API contract-first, with shared Zod schemas in `packages/contracts`.
-- Using bounded AI tool-calling and versioned timeline writes to prevent unbounded mutations.
+- Keeping the API contract-first, with shared Zod schemas in `packages/core/src/index.ts`.
+- Enforcing “API lives in `apps/api`” via `scripts/check-web-api-ownership.mjs`.
+- Metering AI usage by stable feature id (today: `editor_interpret`) and returning explicit quota headers.
 
 # Problem‑Solving & Data Structures
 
-The core data model now exists: assets, timelines, timeline versions, and command application. The road ahead is orchestration and intelligence depth.
+The core editing data model is already shaped in code, even if not all of it is wired end-to-end yet:
+
+- `@doujin/core` defines assets, timelines, versions, and command application.
+- The database migrations include tables for assets, timelines, and EDL proposals.
+- The web app currently runs a local-first timeline while the server-backed timeline API is built out.
+
+The road ahead is to connect these layers without losing iteration speed.
 
 Key system choices now:
 
-- Timeline is the source of truth, versioned with optimistic locking.
-- AI edits are command-based and validated, not free-form text mutations.
-- Timebase remains milliseconds in editing contracts.
+- Contracts are the spine: Zod schemas are shared and used to validate inputs/outputs.
+- Editing is command-based and validated; AI should emit bounded structures, not mutate free-form state.
+- Timebase remains milliseconds in all edit contracts.
 
 Next algorithmic steps:
 
-- **Scene segmentation** using frame‑diff thresholds + embedding similarity.
-- **EDL scheduling/export** as stable machine-readable artifacts.
+- **Frames + transcript analysis** as the first multimodal lego.
+- **Scene candidates** derived from analysis and cheap heuristics.
+- **Plan-first EDL proposals** that are validated before apply.
 
 # Roadmap
 
-- **EDL schema**: strengthen edit contract for planning, preview, and export.
-- **Scene detection**: detect cut points and story beats.
-- **Multimodal analysis**: fuse visual/audio understanding for better suggestions.
-- **Incremental preview**: render only changed segments for faster iteration.
-- **Explainable undo**: rationale + reversible edit history for trust.
-- **Preference learning**: adapt suggestions to user style over time.
-- **Background processing Lego**: queue/workflow foundation for poster + waveform jobs and the future `POST /timelines/:id/export` flow.
+- **Model routing strategy**: global-first provider selection for Gemini now, Nova later.
+- **Multimodal understanding**: frames + transcript (`feature=asset_analyze`).
+- **Scene detection**: store candidates with evidence.
+- **Intent translation**: prompt -> `StyleProfile` (`feature=editor_plan`).
+- **EDL generation**: plan-first proposals using `ai_edl_proposals`, then apply as versioned timeline writes.
+- **Incremental preview**: render only affected ranges.
+- **Feedback + explainable undo**: reversible history + “why” grounded in evidence.
